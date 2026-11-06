@@ -1,4 +1,4 @@
-# Rally: live classroom quizzes
+# QuizBee: live classroom quizzes
 
 A real-time multiplayer classroom quiz platform. Teachers build quizzes and host live games; students join from
 their phones with a PIN or QR code (no accounts); a projector view shows questions, countdowns and an animated
