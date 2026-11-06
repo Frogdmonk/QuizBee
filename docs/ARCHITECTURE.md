@@ -4,7 +4,7 @@ This document is the technical review of the Version 1 requirements: contradicti
 the final database design, the folder structure, the delivery phases, free-tier limits, security-sensitive
 operations, the plan for 100 concurrent students, and the animation performance strategy.
 
-> **Status:** Phase 1 (foundation) is implemented. Phases 2–6 are designed here and will be built in order.
+> **Status:** Phase 1 (foundation) and Phase 2a (quiz builder and library) are implemented. Sharing (Phase 2b) and Phases 3–6 are designed here and will be built in order.
 > Anything described for a later phase is a design, not a claim that it exists.
 
 ---
@@ -228,7 +228,8 @@ connection pool. The load test will confirm it (we make **no claim of 100-studen
 | Phase | Scope | Exit criteria |
 |---|---|---|
 | **1 ✅** | Vite/React/TS foundation, Tailwind design system, Motion setup, Supabase clients, teacher auth (register, login, logout, reset, profile), protected routes, teacher shell, Phase 1 migration, Cloudflare config, docs | build passes; unit and DB tests pass |
-| **2** | Quiz schema + RLS + Storage bucket; library (create, edit, duplicate, publish, archive, delete); builder with live preview, reordering, image upload; preview mode; sharing (links, preview, add to library, revoke); dashboard stats | DB tests for ownership and sharing; UI flows |
+| **2a ✅** | Quiz schema + RLS + Storage bucket; library (create, edit, duplicate, publish, archive, delete); builder with live preview, reordering, image upload; full-screen preview; dashboard stats | DB tests for ownership, validation and publishing; UI flows |
+| **2b** | Sharing (links, preview, add to library, revoke); Shared with Me | DB tests for share tokens and copies |
 | **3** | Session schema; PIN and QR; anonymous join, nickname rules, 12+ original SVG avatars; waiting room (teacher, student, projector); lock/unlock; remove; Realtime authorisation; reconnection to lobby | join, lock and remove tests; 2-device manual test |
 | **4** | Game engine RPCs (start, open, submit, close, score, pause, resume, next, end, advance_if_due), clock sync, student, teacher and projector game screens, manual and auto progression, reconnection mid-question | scoring, deadline, duplicate and race tests in PGlite |
 | **5** | Animated leaderboard (rank changes, top-10 entry, new #1), reactions, confetti, podium, final results, session history and review | reduced-motion check; low-end device check |

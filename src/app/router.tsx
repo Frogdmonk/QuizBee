@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { RouteErrorPage } from './RouteErrorPage';
 import { GuestOnly, RequireTeacher } from './guards';
 import { RootLayout, TeacherAuthBranch } from '@/layouts/RootLayout';
@@ -59,14 +59,32 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },
               { path: 'dashboard', lazy: page(() => import('@/pages/teacher/DashboardPage')) },
-              { path: 'quizzes', ...upcoming('quizzes') },
-              { path: 'quizzes/create', ...upcoming('quizzes') },
-              { path: 'quizzes/:quizId/edit', ...upcoming('quizzes') },
+              { path: 'quizzes', lazy: page(() => import('@/pages/teacher/QuizzesPage')) },
+              {
+                path: 'quizzes/create',
+                handle: { wide: true },
+                lazy: page(() => import('@/pages/teacher/QuizEditorPage')),
+              },
+              {
+                path: 'quizzes/:quizId/edit',
+                handle: { wide: true },
+                lazy: page(() => import('@/pages/teacher/QuizEditorPage')),
+              },
               { path: 'shared', ...upcoming('shared') },
               { path: 'sessions', ...upcoming('sessions') },
               { path: 'analytics', ...upcoming('history') },
               { path: 'profile', lazy: page(() => import('@/pages/teacher/ProfilePage')) },
             ],
+          },
+          {
+            // Full-screen, outside the dashboard chrome.
+            path: 'teacher/quizzes/:quizId/preview',
+            element: (
+              <RequireTeacher>
+                <Outlet />
+              </RequireTeacher>
+            ),
+            children: [{ index: true, lazy: page(() => import('@/pages/teacher/QuizPreviewPage')) }],
           },
         ],
       },

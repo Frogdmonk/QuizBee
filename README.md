@@ -7,8 +7,8 @@ leaderboard.
 **Stack:** React 19 · Vite 8 · TypeScript · Tailwind CSS 4 · Motion · React Router · React Hook Form + Zod ·
 Supabase (Postgres, Auth, Realtime, Storage) · Cloudflare Pages. Free-tier only; no paid APIs.
 
-> **Build status: Phase 1 of 6 complete.** Foundation, design system, Supabase integration and teacher
-> authentication work today. Quiz building (Phase 2), live sessions (Phase 3), the game engine (Phase 4),
+> **Build status: Phases 1 and 2a complete.** Foundation, teacher authentication, and the quiz builder and
+> library work today. Quiz sharing (Phase 2b), live sessions (Phase 3), the game engine (Phase 4),
 > leaderboards and reactions (Phase 5) and load testing (Phase 6) follow.
 > See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

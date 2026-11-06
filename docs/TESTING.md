@@ -37,6 +37,34 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | Secure defaults | new tables and functions are **not** accessible to API roles unless granted |
 | Frontend | env parsing and **service-role key refusal**; open-redirect guard; Zod schemas; error mapping; route guards |
 
+### Phase 2a coverage (quizzes)
+
+| Area | Tests |
+|---|---|
+| `save_quiz` | create with ordered questions and options; full replace on update; incomplete drafts allowed; 10 invalid-input cases (title, type, time, points, lengths, >4 answers, two correct answers, bad image paths); atomic rollback |
+| Publishing | blocks empty and incomplete quizzes with precise messages; type-specific rules (true/false, picture answers); published quizzes must stay complete; archive and restore |
+| `duplicate_quiz` | independent draft copy with all questions and options |
+| Access control | other teachers see and change nothing; owner cannot write tables directly (RPC only); students and the anon role have no access; delete cascades |
+| Storage | public bucket with a 2 MB image-only limit; teachers write only to their own folder; students cannot upload; no cross-teacher deletes |
+| Frontend | publish rules mirror the SQL; editor reducer (reorder, one correct answer, 2–4 answers, true/false locked, duplicate, insert position, **edits made during a save stay unsaved**); image sizing; relative time |
+
+## Manual checklist: Phase 2a (quizzes)
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | My Quizzes with no quizzes | "Create your first quiz" empty state |
+| 2 | New quiz, try to save without a title | "Cannot save yet" toast; Quiz details selected |
+| 3 | Add title, questions of all three types, save | "Quiz saved"; URL changes to `/teacher/quizzes/<id>/edit` |
+| 4 | Upload a large photo as a question image | Uploads compressed (WebP ≤ 1280 px), preview shows it |
+| 5 | Publish with an incomplete question | Dialog lists exactly what is missing; clicking an item jumps to it |
+| 6 | Complete it, publish | "Quiz published"; badge turns green |
+| 7 | Edit a published quiz to blank a question, save | Rejected with "published, so every question must be complete" |
+| 8 | Edit, then click Back without saving | "Leave without saving?" dialog; Stay keeps the edits |
+| 9 | Ctrl+S | Saves |
+| 10 | Library: duplicate, archive, restore, delete (confirm) | Each works and the list updates |
+| 11 | Preview | Full-screen; ←/→ move between questions; Space reveals the answer |
+| 12 | Phone width | Editor usable; no sideways scrolling |
+
 ## Manual checklist: Phase 1 (against your Supabase project)
 
 | # | Step | Expected |

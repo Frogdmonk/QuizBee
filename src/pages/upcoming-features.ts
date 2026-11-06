@@ -3,17 +3,6 @@
  * They render an explicit "not built yet" notice instead of fake UI.
  */
 export const UPCOMING = {
-  quizzes: {
-    title: 'My Quizzes',
-    phase: 2,
-    summary: 'Create, edit and organise your quizzes.',
-    items: [
-      'Quiz builder with multiple choice, true/false and image questions',
-      'Live question preview, timers (5–120 s) and points',
-      'Duplicate, publish, archive and delete quizzes',
-      'Image uploads to Supabase Storage',
-    ],
-  },
   shared: {
     title: 'Shared with Me',
     phase: 2,

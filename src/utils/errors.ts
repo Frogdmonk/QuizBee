@@ -1,4 +1,8 @@
-/** Converts Supabase / network errors into short, friendly messages. */
+/**
+ * Converts Supabase / network errors into short, friendly messages.
+ * Unknown database errors fall back to a generic message so table names and
+ * SQL details never reach the screen.
+ */
 type MaybeError = { message?: unknown; code?: unknown } | null | undefined;
 
 const BY_CODE: Record<string, string> = {
@@ -25,6 +29,18 @@ export function friendlyError(error: unknown, fallback = 'Something went wrong. 
   if (code && BY_CODE[code]) return BY_CODE[code];
 
   const message = typeof e.message === 'string' ? e.message : '';
+
+  // Messages raised deliberately by our Postgres functions are written for users.
+  if ((code === 'P0001' || code === 'P0002') && message) return message;
+  if (code === '42501') return 'You do not have permission to do that.';
+  if (code === '22023' && message) return message;
+  if (code === '23514') return 'Some values are too long or out of range. Please check and try again.';
+  if (code === 'PGRST116') return 'That item could not be found.';
+  if (/Payload too large|maximum allowed size|exceeded the maximum/i.test(message)) {
+    return 'That file is too large.';
+  }
+  if (/mime type .* is not supported|invalid_mime_type/i.test(message)) return 'That file type is not allowed.';
+
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(message)) {
     return 'Cannot reach the server. Check your internet connection and try again.';
   }

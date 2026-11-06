@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
 import { LogOut, Menu, X } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
@@ -106,6 +106,8 @@ function AccountBlock() {
 export function TeacherLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  // Routes can opt into a wider content area (e.g. the quiz editor) via handle: { wide: true }.
+  const wide = useMatches().some((match) => (match.handle as { wide?: boolean } | undefined)?.wide);
 
   // Close the mobile drawer with Escape.
   useEffect(() => {
@@ -186,7 +188,7 @@ export function TeacherLayout() {
       </AnimatePresence>
 
       <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-        <div className="mx-auto max-w-5xl">
+        <div className={cn('mx-auto', wide ? 'max-w-[1400px]' : 'max-w-5xl')}>
           <PageTransition key={location.pathname}>
             <Outlet />
           </PageTransition>

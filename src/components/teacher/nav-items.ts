@@ -10,7 +10,7 @@ export type TeacherNavItem = {
 
 export const TEACHER_NAV: TeacherNavItem[] = [
   { to: '/teacher/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/teacher/quizzes', label: 'My Quizzes', icon: BookOpenText, availableInPhase: 2 },
+  { to: '/teacher/quizzes', label: 'My Quizzes', icon: BookOpenText },
   { to: '/teacher/shared', label: 'Shared with Me', icon: Share2, availableInPhase: 2 },
   { to: '/teacher/sessions', label: 'Live Sessions', icon: Radio, availableInPhase: 3 },
   { to: '/teacher/analytics', label: 'Quiz History', icon: History, availableInPhase: 5 },
