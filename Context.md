@@ -266,9 +266,30 @@ tests/unit/               Vitest (jsdom)          tests/integration/db/   PGlite
 * **Editor state:** `useReducer(editorReducer)`. "Unsaved changes" compares `draftFingerprint(draft)` with the
   fingerprint of the *version actually sent*, so edits made during a save stay dirty. A new quiz navigates from
   `/create` to `/:id/edit` with the draft in `location.state` to avoid a refetch.
-* **Design tokens** live in `src/styles/index.css`: warm `paper`/`ink` neutrals, `flame` brand accent,
-  `night-*` for the game and projector canvas, `answer-a…d` (cobalt, teal, berry, amber), plus `mint` (correct)
-  and `rose` (wrong). Answers always pair colour with a letter (A–D).
+* **Visual design: "Match Day"** (full spec: [docs/DESIGN.md](docs/DESIGN.md)). Teacher screens are an
+  editorial desk (paper, hairline ledgers, 3px section rules, one signal-red accent, nothing loops); student and
+  projector screens are a stage on the night canvas (score bugs, lower thirds, answer kits). Read DESIGN.md
+  before building any screen; Phase 4/5 game screens already have tokens and motion variants reserved there.
+* **Tokens** live in `src/styles/index.css` (`@theme`): `paper`, `surface`, `paper-sunk`, `ink-*`, `line`,
+  `line-strong`, `signal-*` (brand), `success/warning/error/info`, `night-950…800`, `night-text/muted/line`,
+  `volt-400` (student phones only, one element per screen), `answer-a…d` (+ `-press`, `-soft`), `answer-dim`,
+  rank colours, the type scale (`text-caption … text-display-xl`, `text-score-*`, `text-stage-*`) and utilities
+  `.type-display/.type-headline/.type-score/.type-stage/.type-kicker`, `.kit-a…d`, `.night-grid`. Legacy names
+  (`flame-*`, `mint-*`, `rose-*`, `sun-*`) still compile but point at the new values; don't use them in new code.
+  `tests/unit/design-tokens.test.ts` fails if a colour change breaks a text (4.5:1) or edge (3:1) pairing.
+* **Motion tokens** live in `src/lib/motion.ts` (`dur`, `ease`, `spring.*`, `enterUp`, `popIn`, `wipeIn`,
+  `slideFromLeft`, `stepSlide`). Never write inline springs.
+* **`cn()` uses tailwind-merge**, so later classes win. Gotcha: a font-size class (`text-*`) placed after a
+  `leading-*` class removes the leading; put `leading-*` last.
+* **Building blocks** (`src/components/ui/`): Ledger/LedgerRow/LedgerLink, SectionHead, StatStrip, Banner,
+  ScoreBug, LowerThird, Placeholder (planned features, never clickable), StatusBlock (every error, empty or
+  terminal state), StepStrip, Monogram, InitialsStack, CountRoll, BreathingLine (the one waiting idiom),
+  PinDigits, AnswerTile, NightCanvas, Kbd, Checkbox, UnderlineTabs, PasswordChecklist. Button variants include
+  `danger-outline`, `night`, `night-ghost` and `volt`; Dialog, TextField, Badge, Alert and Skeleton take a night
+  tone or surface.
+* **Teacher phone navigation** is a bottom tab bar (Home, Quizzes, Live, Shared, More). Its height is exposed as
+  `--tabbar-h` so floating bars and toasts sit above it. Routes with `handle: { wide: true }` (the editor) hide it.
+* Answers always pair colour with a letter, a kit pattern and a fixed position (A–D).
 
 ### Routes
 
@@ -462,4 +483,5 @@ Add a new migration (don't edit Phase 3): snapshot tables (`session_questions`, 
 * [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): GitHub and Cloudflare Pages (`npm run build`, output `dist`,
   `NODE_VERSION=22`)
 * [docs/TESTING.md](docs/TESTING.md): test coverage and manual checklists
+* [docs/DESIGN.md](docs/DESIGN.md): the "Match Day" visual design system (palette, type, motion, every screen)
 * [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): common errors and fixes

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
 import { Dialog } from '@/components/ui/Dialog';
+import { StatusBlock } from '@/components/ui/StatusBlock';
+import { Monogram } from '@/components/ui/Monogram';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { SegmentedControl, SelectField, Skeleton, Switch } from '@/components/ui/FormControls';
 import { Alert } from '@/components/ui/Alert';
@@ -121,7 +123,7 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
       open={open}
       onClose={onClose}
       dismissible={!saving}
-      className="sm:max-w-lg"
+      size="lg"
       title="Share quiz"
       description={
         <span>
@@ -157,20 +159,22 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
           </Button>
         </Alert>
       ) : workspaces.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-ink-200 px-5 py-8 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-flame-50 text-flame-600">
-            <Users className="size-6" />
-          </span>
-          <p className="mt-4 font-semibold">You are not in a workspace yet</p>
-          <p className="mt-1 text-sm text-ink-500">Create a workspace and invite colleagues, then share quizzes with them.</p>
-          <ButtonLink to="/teacher/workspaces" size="sm" className="mt-5" onClick={onClose}>
-            Go to Workspaces
-          </ButtonLink>
-        </div>
+        <StatusBlock
+          icon={<Users />}
+          title="You are not in a workspace yet"
+          headingLevel="h2"
+          actions={
+            <ButtonLink to="/teacher/workspaces" size="sm" onClick={onClose}>
+              Go to Workspaces
+            </ButtonLink>
+          }
+        >
+          Create a workspace and invite colleagues, then share quizzes with them.
+        </StatusBlock>
       ) : (
         workspace &&
         draft && (
-          <div className="max-h-[58dvh] space-y-5 overflow-y-auto pr-1">
+          <div className="space-y-6">
             {workspaces.length > 1 ? (
               <SelectField label="Workspace" value={selected} onChange={(e) => setSelected(e.target.value)}>
                 {workspaces.map((w) => (
@@ -180,12 +184,13 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
                 ))}
               </SelectField>
             ) : (
-              <p className="text-sm text-ink-600">
-                Workspace: <strong className="text-ink-900">{workspace.workspaceName}</strong>
+              <p className="flex items-center gap-2 text-body-sm text-ink-700">
+                <Monogram name={workspace.workspaceName} seed={workspace.workspaceId} size={28} />
+                <strong className="text-ink-900">{workspace.workspaceName}</strong>
               </p>
             )}
 
-            <section className="space-y-4 rounded-2xl border border-ink-100 p-4">
+            <section className="space-y-4 rounded-md bg-paper p-4">
               <Switch
                 label={`Open to everyone in ${workspace.workspaceName}`}
                 description={draft.everyoneOn ? ACCESS_DESCRIPTIONS[draft.everyone.access] : 'Off: only the members you choose below.'}
@@ -214,23 +219,23 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
             </section>
 
             <section>
-              <h3 className="text-sm font-semibold text-ink-800">
+              <h3 className="type-kicker">
                 {draft.everyoneOn ? 'Give chosen members more access' : 'Share only with chosen members'}
               </h3>
               {workspace.members.length === 0 ? (
-                <p className="mt-2 text-sm text-ink-500">Nobody else has joined this workspace yet. Invite colleagues from Workspaces.</p>
+                <p className="mt-2 text-body-sm text-ink-500">Nobody else has joined this workspace yet. Invite colleagues from Workspaces.</p>
               ) : (
-                <ul className="mt-2 divide-y divide-ink-100 rounded-2xl border border-ink-100">
+                <ul className="mt-2 divide-y divide-line border-y border-line">
                   {workspace.members.map((member) => {
                     const row = draft.members[member.teacherId];
                     const checkboxId = `share-${workspace.workspaceId}-${member.teacherId}`;
                     const access: QuizAccess = memberChoices.includes(row.access) ? row.access : memberChoices[0];
                     return (
-                      <li key={member.teacherId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+                      <li key={member.teacherId} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 py-2">
                         <input
                           id={checkboxId}
                           type="checkbox"
-                          className="size-4 shrink-0 accent-flame-500"
+                          className="size-5 shrink-0 accent-ink-900"
                           checked={row.on}
                           onChange={(e) =>
                             update((d) => ({
@@ -239,12 +244,13 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
                             }))
                           }
                         />
-                        <label htmlFor={checkboxId} className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {member.displayName}
+                        <label htmlFor={checkboxId} className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 text-body-sm font-semibold text-ink-900">
+                          <Monogram name={member.displayName} seed={member.teacherId} size={28} />
+                          <span className="truncate">{member.displayName}</span>
                         </label>
                         <select
                           aria-label={`Access for ${member.displayName}`}
-                          className="h-9 rounded-lg border border-ink-200 bg-surface px-2 text-sm disabled:opacity-50"
+                          className="h-11 rounded-sm border border-line-strong bg-surface px-2 text-body-sm text-ink-900 disabled:border-line disabled:bg-paper-sunk disabled:text-ink-500"
                           value={access}
                           disabled={!row.on}
                           onChange={(e) =>
@@ -264,10 +270,10 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
                           ))}
                         </select>
                         {row.on && access === 'edit' && (
-                          <label className="flex w-full items-center gap-2 pl-7 text-sm text-ink-600">
+                          <label className="flex min-h-11 w-full cursor-pointer items-center gap-2 pl-8 text-body-sm text-ink-700">
                             <input
                               type="checkbox"
-                              className="size-4 accent-flame-500"
+                              className="size-5 accent-ink-900"
                               checked={row.canPublish}
                               onChange={(e) =>
                                 update((d) => ({
@@ -284,7 +290,7 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
                   })}
                 </ul>
               )}
-              <p className="mt-3 text-xs text-ink-500">
+              <p className="mt-3 text-caption text-ink-500">
                 View: open and preview. Copy: add their own copy to change freely. Edit: change this quiz for everyone; you
                 can see who edited it.
               </p>

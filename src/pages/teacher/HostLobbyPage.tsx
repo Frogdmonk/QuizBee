@@ -1,20 +1,29 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
-import { ArrowLeft, Copy, ExternalLink, Lock, MonitorUp, Rocket, Users, X } from 'lucide-react';
+import { ArrowLeft, Check, Copy, ExternalLink, LogOut, MonitorUp, QrCode as QrIcon, UserMinus, X } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { ConfirmDialog, Dialog } from '@/components/ui/Dialog';
-import { Switch } from '@/components/ui/FormControls';
+import { SegmentedControl, Switch } from '@/components/ui/FormControls';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { SectionHead } from '@/components/ui/SectionHead';
+import { ScoreBug } from '@/components/ui/ScoreBug';
+import { PinDigits } from '@/components/ui/PinDigits';
+import { CountRoll } from '@/components/ui/CountRoll';
+import { BreathingLine } from '@/components/ui/BreathingLine';
+import { Placeholder } from '@/components/ui/Placeholder';
+import { LowerThird } from '@/components/ui/LowerThird';
 import { Avatar } from '@/components/avatar/Avatar';
 import { QrCode } from '@/components/live/QrCode';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useLobby } from '@/hooks/useLobby';
 import { useToast } from '@/hooks/useToast';
 import { getTeacherClient } from '@/lib/supabase';
-import { formatPin, joinHost, joinUrl, presenterUrl } from '@/lib/session-rules';
+import { joinHost, joinUrl, presenterUrl } from '@/lib/session-rules';
+import { popIn, slideFromLeft } from '@/lib/motion';
+import { cn } from '@/lib/cn';
 import { cancelSession, createPresenterLink, removeParticipant, setSessionLocked } from '@/services/sessions';
 import { copyText } from '@/utils/clipboard';
 import { friendlyError } from '@/utils/errors';
@@ -24,6 +33,7 @@ export default function HostLobbyPage() {
   const { sessionId } = useParams();
   const { toast } = useToast();
   const { lobby, setLobby, load, channel } = useLobby(getTeacherClient(), sessionId);
+  const [selected, setSelected] = useState<string | null>(null);
   const [toRemove, setToRemove] = useState<LobbyParticipant | null>(null);
   const [removing, setRemoving] = useState(false);
   const [locking, setLocking] = useState(false);
@@ -32,24 +42,26 @@ export default function HostLobbyPage() {
   const [projectorLink, setProjectorLink] = useState<string | null>(null);
   const [confirmRelink, setConfirmRelink] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [joinSheet, setJoinSheet] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   if (load === 'loading') {
     return (
-      <div className="grid min-h-[50vh] place-items-center">
+      <div className="grid min-h-[50vh] place-items-center text-ink-500">
         <Spinner className="size-6" label="Loading the lobby" />
       </div>
     );
   }
   if (load === 'not_found' || (load === 'error' && !lobby)) {
     return (
-      <div className="mx-auto max-w-lg space-y-4 py-10">
+      <div className="max-w-lg space-y-4 py-10">
         <Alert tone="error" title={load === 'not_found' ? 'Session not found' : 'Could not load the lobby'}>
           {load === 'not_found'
             ? 'It may have been closed, or it belongs to another teacher.'
             : 'Check your connection and reload the page.'}
         </Alert>
         <ButtonLink to="/teacher/sessions" variant="secondary" leftIcon={<ArrowLeft className="size-4" />}>
-          Live Sessions
+          Live sessions
         </ButtonLink>
       </div>
     );
@@ -58,6 +70,7 @@ export default function HostLobbyPage() {
 
   const isOpen = lobby.status === 'lobby' || lobby.status === 'in_progress';
   const link = joinUrl(lobby.pin);
+  const selectedPlayer = lobby.participants.find((p) => p.id === selected) ?? null;
 
   const toggleLock = async (locked: boolean) => {
     setLocking(true);
@@ -88,6 +101,7 @@ export default function HostLobbyPage() {
       );
       toast({ tone: 'success', title: `${toRemove.nickname} removed` });
       setToRemove(null);
+      setSelected(null);
     } catch (error) {
       toast({ tone: 'error', title: 'Could not remove the player', description: friendlyError(error) });
     } finally {
@@ -125,163 +139,256 @@ export default function HostLobbyPage() {
 
   const copy = async (text: string, what: string) => {
     const ok = await copyText(text);
-    toast(ok ? { tone: 'success', title: `${what} copied` } : { tone: 'error', title: 'Copy failed', description: text });
+    if (ok) {
+      setCopied(what);
+      window.setTimeout(() => setCopied((c) => (c === what ? null : c)), 1600);
+    } else {
+      toast({ tone: 'error', title: 'Copy failed', description: text });
+    }
   };
 
+  const copyButton = (text: string, what: string, variant: 'night' | 'secondary' = 'night') => (
+    <Button
+      variant={variant}
+      size="sm"
+      leftIcon={copied === what ? <Check className="size-4" /> : <Copy className="size-4" />}
+      onClick={() => void copy(text, what)}
+    >
+      {copied === what ? 'Copied' : 'Copy link'}
+    </Button>
+  );
+
+  const projectorControls = (
+    <div className="space-y-3">
+      <p className="text-label text-ink-900">Projector on another device</p>
+      <p className="text-body-sm text-ink-500">For a classroom computer that isn’t signed in. The link only shows the screen; it can’t control the game.</p>
+      <Button
+        variant="secondary"
+        size="sm"
+        loading={linking}
+        leftIcon={<MonitorUp className="size-4" />}
+        onClick={() => (lobby.hasPresenterLink ? setConfirmRelink(true) : void makeProjectorLink())}
+      >
+        {lobby.hasPresenterLink ? 'New projector link' : 'Create projector link'}
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <ButtonLink to="/teacher/sessions" variant="ghost" size="sm" leftIcon={<ArrowLeft className="size-4" />} className="-ml-2">
-            Live Sessions
-          </ButtonLink>
-          <h1 className="mt-1 truncate text-2xl font-extrabold sm:text-3xl">{lobby.quizTitle}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {isOpen ? <Badge tone="mint">Lobby open</Badge> : <Badge>Closed</Badge>}
-            {lobby.isLocked && isOpen && (
-              <Badge tone="sun">
-                <Lock className="size-3" /> Locked
-              </Badge>
-            )}
-            <span className="text-sm text-ink-500">
-              {lobby.questionCount} {lobby.questionCount === 1 ? 'question' : 'questions'}
-            </span>
-            {isOpen && <ConnectionPill status={channel} />}
-          </div>
+    <div className="space-y-8">
+      <header className="space-y-3">
+        <ButtonLink to="/teacher/sessions" variant="ghost" size="sm" leftIcon={<ArrowLeft className="size-4" />} className="-ml-3">
+          Live sessions
+        </ButtonLink>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className="type-display min-w-0 text-display-lg">{lobby.quizTitle}</h1>
+          {isOpen ? (
+            <Badge tone="signal" dot>
+              Lobby open
+            </Badge>
+          ) : (
+            <Badge>Closed</Badge>
+          )}
         </div>
-        {isOpen && (
-          <ButtonLink
-            to={`/presenter/${sessionId}`}
-            target="_blank"
-            rel="noopener"
-            variant="dark"
-            leftIcon={<ExternalLink className="size-4" />}
-          >
-            Open projector view
-          </ButtonLink>
-        )}
+        <p className="text-body-sm text-ink-500">
+          {lobby.questionCount} {lobby.questionCount === 1 ? 'question' : 'questions'} · up to {lobby.maxParticipants} players
+        </p>
       </header>
 
       {!isOpen && (
         <Alert tone="info" title="This session is closed">
-          Players can no longer join. Host the quiz again from Live Sessions to get a new PIN.
+          Players can no longer join. Host the quiz again from Live sessions to get a new PIN.
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          {isOpen && (
-            <section aria-label="How to join" className="rounded-3xl bg-night-900 p-5 text-white shadow-lift">
-              <p className="text-sm text-white/70">
-                Join at <span className="font-bold text-white">{joinHost()}/join</span>
-              </p>
-              <p className="mt-1 text-xs font-bold tracking-widest text-white/50 uppercase">Game PIN</p>
-              <p className="font-display text-5xl font-extrabold tracking-wider tabular">{formatPin(lobby.pin)}</p>
-              <div className="mt-4 flex items-end gap-4">
-                <QrCode value={link} label={`QR code to join with PIN ${lobby.pin}`} className="w-36 rounded-xl p-1.5" />
-                <Button variant="secondary" size="sm" leftIcon={<Copy className="size-4" />} onClick={() => void copy(link, 'Join link')}>
-                  Copy link
-                </Button>
-              </div>
-            </section>
-          )}
-
-          {isOpen && (
-            <section aria-label="Lobby controls" className="space-y-4 rounded-2xl border border-ink-100 bg-surface p-5 shadow-card">
-              <Switch
-                checked={lobby.isLocked}
-                onChange={(v) => void toggleLock(v)}
-                disabled={locking}
-                label="Lock lobby"
-                description="Stops new players joining. Players already in stay."
-              />
-              <div className="border-t border-ink-100 pt-4">
-                <p className="text-sm font-semibold text-ink-800">Projector on another device</p>
-                <p className="mt-0.5 text-sm text-ink-500">
-                  For a classroom PC that is not signed in. The link only shows the screen; it cannot control the game.
-                </p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="mt-3"
-                  loading={linking}
-                  leftIcon={<MonitorUp className="size-4" />}
-                  onClick={() => (lobby.hasPresenterLink ? setConfirmRelink(true) : void makeProjectorLink())}
-                >
-                  {lobby.hasPresenterLink ? 'New projector link' : 'Create projector link'}
-                </Button>
-              </div>
-              <div className="border-t border-ink-100 pt-4">
-                <Button variant="ghost" size="sm" className="text-rose-600" onClick={() => setConfirmClose(true)}>
-                  Close lobby
-                </Button>
-              </div>
-            </section>
-          )}
-
-          {isOpen && (
-            <section className="flex gap-3 rounded-2xl border border-dashed border-ink-200 p-4 text-sm text-ink-600">
-              <Rocket className="mt-0.5 size-5 shrink-0 text-flame-500" />
-              <p>
-                <strong className="text-ink-800">Starting the game comes in the next build (Phase 4).</strong> For now
-                students can join, pick their avatars and wait here, so you can try the lobby with your class.
-              </p>
-            </section>
-          )}
-        </div>
-
-        <section aria-labelledby="players-heading" className="min-w-0 rounded-2xl border border-ink-100 bg-surface p-5 shadow-card">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="players-heading" className="flex items-center gap-2 text-lg font-extrabold">
-              <Users className="size-5 text-ink-400" /> Players
-            </h2>
-            <span className="font-display text-lg font-extrabold tabular" aria-live="polite">
-              {lobby.participantCount}
-              <span className="text-ink-400">/{lobby.maxParticipants}</span>
+      {isOpen && (
+        <section
+          aria-label="Lobby controls"
+          className="ground-night sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 -mx-4 flex flex-wrap items-center gap-x-6 gap-y-3 bg-night-950 px-4 py-3 text-night-text sm:mx-0 sm:rounded-md sm:px-5 lg:top-4"
+        >
+          <button
+            type="button"
+            onClick={() => void copy(link, 'pin')}
+            className="group flex items-center gap-3 rounded-sm text-left"
+            aria-label={`Game PIN ${lobby.pin}. Copy the join link`}
+          >
+            <ScoreBug tab="bg-signal-400" className="py-1.5">
+              <PinDigits value={lobby.pin} size="bar" reveal className="text-night-text" />
+            </ScoreBug>
+            <span className="hidden text-caption text-night-muted group-hover:text-night-text sm:block">
+              {copied === 'pin' ? (
+                <span className="inline-flex items-center gap-1 text-success-400">
+                  <Check className="size-3.5" /> Link copied
+                </span>
+              ) : (
+                <>
+                  {joinHost()}/join
+                  <br />
+                  Tap to copy link
+                </>
+              )}
             </span>
+          </button>
+
+          <p className="type-score text-score-xl" aria-label={`${lobby.participantCount} of ${lobby.maxParticipants} players`}>
+            <CountRoll value={lobby.participantCount} />
+            <span className="text-score-md text-night-muted">/{lobby.maxParticipants}</span>
+          </p>
+
+          <div className="hidden w-48 md:block">
+            <SegmentedControl
+              label="Lobby access"
+              layoutId="lobby-lock"
+              tone="night"
+              value={lobby.isLocked ? 'locked' : 'open'}
+              onChange={(v) => !locking && void toggleLock(v === 'locked')}
+              options={[
+                { value: 'open', label: 'Open' },
+                { value: 'locked', label: 'Locked' },
+              ]}
+            />
+          </div>
+          <div className="md:hidden">
+            <Switch tone="night" checked={lobby.isLocked} onChange={(v) => void toggleLock(v)} disabled={locking} label="Lock" />
           </div>
 
+          <div className="ml-auto flex items-center gap-2">
+            <ConnectionPill status={channel} quiet surface="night" />
+            <Button variant="night" size="sm" className="md:hidden" leftIcon={<QrIcon className="size-4" />} onClick={() => setJoinSheet(true)}>
+              Join details
+            </Button>
+            <ButtonLink
+              to={`/presenter/${sessionId}`}
+              target="_blank"
+              rel="noopener"
+              variant="night"
+              size="sm"
+              className="hidden md:inline-flex"
+              leftIcon={<ExternalLink className="size-4" />}
+            >
+              Open projector view
+            </ButtonLink>
+          </div>
+        </section>
+      )}
+
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+        <section aria-labelledby="players-heading" className="min-w-0">
+          <SectionHead
+            id="players-heading"
+            kicker="Players"
+            action={<span className="type-score text-score-md">{lobby.participantCount}</span>}
+          />
           {lobby.participants.length === 0 ? (
-            <div className="grid place-items-center px-4 py-16 text-center">
-              <span className="relative grid size-14 place-items-center rounded-full bg-mint-50">
-                <span className="absolute inset-0 animate-ping rounded-full bg-mint-400/25" />
-                <Users className="size-6 text-mint-600" />
-              </span>
-              <p className="mt-4 font-bold">{isOpen ? 'Waiting for players…' : 'No players'}</p>
-              {isOpen && <p className="mt-1 text-sm text-ink-500">Students join on their phones with the PIN or QR code.</p>}
+            <div className="py-16">
+              <BreathingLine tone="paper" />
+              <p className="mt-4 text-title">{isOpen ? 'Waiting for the first player' : 'No players'}</p>
+              {isOpen && <p className="mt-1 text-body-sm text-ink-500">Share the PIN above, or open the projector view for the class.</p>}
             </div>
           ) : (
-            <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3">
-              <AnimatePresence initial={false}>
-                {lobby.participants.map((p) => (
-                  <m.li
-                    key={p.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.15 } }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-                    className="group relative flex flex-col items-center gap-2 rounded-2xl bg-paper p-3 text-center"
-                  >
-                    <Avatar code={p.avatar} className="size-16 rounded-full" />
-                    <span className="w-full truncate text-sm font-bold">{p.nickname}</span>
-                    {isOpen && (
-                      <button
-                        type="button"
-                        onClick={() => setToRemove(p)}
-                        aria-label={`Remove ${p.nickname}`}
-                        className="absolute top-1.5 right-1.5 grid size-7 place-items-center rounded-full bg-surface text-ink-500 shadow-card transition hover:bg-rose-50 hover:text-rose-600 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                      >
-                        <X className="size-4" />
-                      </button>
-                    )}
-                  </m.li>
-                ))}
-              </AnimatePresence>
-            </ul>
+            <>
+              <p className="mt-3 text-caption text-ink-500">{isOpen ? 'Select a player to remove them.' : ''}</p>
+              <ul className="mt-3 grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))]">
+                <AnimatePresence initial={false}>
+                  {lobby.participants.map((p) => {
+                    const isSelected = selected === p.id;
+                    return (
+                      <m.li key={p.id} variants={popIn} initial="hidden" animate="show" exit="exit" className="min-w-0">
+                        <button
+                          type="button"
+                          disabled={!isOpen}
+                          aria-pressed={isSelected}
+                          onClick={() => setSelected(isSelected ? null : p.id)}
+                          className={cn(
+                            'flex w-full flex-col items-center gap-1.5 rounded-sm p-1.5 text-center transition-colors duration-[var(--dur-fast)]',
+                            isOpen && 'hover:bg-paper-sunk',
+                            isSelected && 'bg-paper-sunk ring-2 ring-ink-900',
+                          )}
+                        >
+                          <Avatar code={p.avatar} className="size-14 rounded-full ring-1 ring-line sm:size-16" />
+                          <span className="w-full truncate text-caption font-semibold text-ink-900">{p.nickname}</span>
+                        </button>
+                      </m.li>
+                    );
+                  })}
+                </AnimatePresence>
+              </ul>
+            </>
           )}
         </section>
+
+        <aside className="min-w-0 space-y-8">
+          {isOpen && (
+            <section aria-label="Join with QR code" className="hidden md:block">
+              <SectionHead kicker="Scan to join" />
+              <div className="mt-4 flex items-end gap-4">
+                <QrCode value={link} label={`QR code to join with PIN ${lobby.pin}`} className="w-[200px] rounded-sm border border-line p-2" />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-body-sm text-ink-500">{joinHost()}/join</span>
+                {copyButton(link, 'link', 'secondary')}
+              </div>
+            </section>
+          )}
+          {isOpen && (
+            <Placeholder>Starting the game, questions and scores arrive with live games. Players can join and wait now.</Placeholder>
+          )}
+          {isOpen && <section className="hidden md:block">{projectorControls}</section>}
+          {isOpen && (
+            <section aria-labelledby="end-heading">
+              <SectionHead id="end-heading" kicker="End session" />
+              <p className="mt-3 text-body-sm text-ink-500">Every player is told the session ended and the PIN stops working.</p>
+              <Button variant="danger-outline" size="sm" className="mt-3" leftIcon={<LogOut className="size-4" />} onClick={() => setConfirmClose(true)}>
+                Close lobby
+              </Button>
+            </section>
+          )}
+        </aside>
       </div>
+
+      {/* Contextual action for the selected player */}
+      <AnimatePresence>
+        {selectedPlayer && isOpen && (
+          <m.div
+            variants={slideFromLeft}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="fixed inset-x-4 bottom-[calc(var(--tabbar-h,0px)+1rem)] z-30 flex justify-center lg:bottom-6"
+          >
+            <LowerThird surface="night" tab="bg-error-300" className="gap-3 pr-2 shadow-pop">
+              <span className="truncate">{selectedPlayer.nickname}</span>
+              <Button variant="night" size="sm" leftIcon={<UserMinus className="size-4" />} onClick={() => setToRemove(selectedPlayer)}>
+                Remove
+              </Button>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                aria-label="Clear selection"
+                className="grid size-10 place-items-center rounded-sm text-night-muted hover:text-night-text"
+              >
+                <X className="size-4" />
+              </button>
+            </LowerThird>
+          </m.div>
+        )}
+      </AnimatePresence>
+
+      <Dialog open={joinSheet} onClose={() => setJoinSheet(false)} title="Join details">
+        <div className="space-y-5">
+          <div className="flex justify-center">
+            <QrCode value={link} label={`QR code to join with PIN ${lobby.pin}`} className="w-56 rounded-sm border border-line p-2" />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-body-sm text-ink-500">{joinHost()}/join</span>
+            {copyButton(link, 'link', 'secondary')}
+          </div>
+          <ButtonLink to={`/presenter/${sessionId}`} target="_blank" rel="noopener" variant="dark" fullWidth leftIcon={<ExternalLink className="size-4" />}>
+            Open projector view
+          </ButtonLink>
+          <div className="border-t border-line pt-5">{projectorControls}</div>
+        </div>
+      </Dialog>
 
       <ConfirmDialog
         open={toRemove !== null}
@@ -316,22 +423,27 @@ export default function HostLobbyPage() {
         open={projectorLink !== null}
         onClose={() => setProjectorLink(null)}
         title="Projector link"
-        description="Open this on the classroom computer. Anyone with the link can watch this session's screen, so don't share it with students."
+        description="Open this on the classroom computer. Anyone with the link can watch this session’s screen, so don’t share it with students."
         footer={
           <>
             <Button variant="secondary" onClick={() => setProjectorLink(null)}>
               Done
             </Button>
-            <Button leftIcon={<Copy className="size-4" />} onClick={() => projectorLink && void copy(projectorLink, 'Projector link')} data-autofocus>
-              Copy link
+            <Button
+              leftIcon={copied === 'projector' ? <Check className="size-4" /> : <Copy className="size-4" />}
+              onClick={() => projectorLink && void copy(projectorLink, 'projector')}
+              data-autofocus
+            >
+              {copied === 'projector' ? 'Copied' : 'Copy link'}
             </Button>
           </>
         }
       >
-        <p className="rounded-xl bg-ink-50 p-3 font-mono text-xs break-all text-ink-700">{projectorLink}</p>
-        <p className="mt-3 text-sm text-ink-500">This link is shown only once. Create a new one any time.</p>
+        <ScoreBug tab="bg-signal-400" className="w-full">
+          <span className="min-w-0 font-mono text-caption break-all text-night-text">{projectorLink}</span>
+        </ScoreBug>
+        <p className="mt-3 text-body-sm text-ink-500">This link is shown only once. Create a new one any time.</p>
       </Dialog>
     </div>
   );
 }
-

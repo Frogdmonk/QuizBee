@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/figtree/wght.css';
-import '@fontsource-variable/bricolage-grotesque/wght.css';
+import '@fontsource-variable/archivo/wdth.css';
 import './styles/index.css';
 import { envResult } from '@/lib/env';
 import { ConfigErrorScreen } from '@/app/ConfigErrorScreen';

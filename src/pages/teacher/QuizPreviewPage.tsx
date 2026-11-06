@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
-import { ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Pencil, X } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Pencil, X } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { NightCanvas } from '@/components/ui/NightCanvas';
+import { StatusBlock } from '@/components/ui/StatusBlock';
+import { Kbd } from '@/components/ui/Kbd';
+import { spring } from '@/lib/motion';
 import { QuestionPreview } from '@/components/quiz/QuestionPreview';
 import { getQuizDraft, QuizNotFoundError } from '@/services/quizzes';
 import { copySharedQuiz, getQuizPermissions } from '@/services/sharing';
@@ -95,36 +99,42 @@ export default function QuizPreviewPage() {
 
   if (state !== 'ready' || !quiz) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-night-900 px-6 text-center text-white">
+      <NightCanvas className="grid place-items-center px-6">
         {state === 'loading' ? (
-          <Spinner className="size-8" label="Loading quiz" />
+          <span className="text-night-muted">
+            <Spinner className="size-8" label="Loading quiz" />
+          </span>
         ) : (
-          <div>
-            <h1 className="text-2xl font-extrabold">{state === 'notfound' ? 'Quiz not found' : 'Could not load this quiz'}</h1>
-            <ButtonLink to="/teacher/quizzes" variant="secondary" className="mt-6">
-              Back to My Quizzes
-            </ButtonLink>
-          </div>
+          <StatusBlock
+            surface="night"
+            tone="warning"
+            icon={<AlertTriangle />}
+            title={state === 'notfound' ? 'Quiz not found' : 'Could not load this quiz'}
+            actions={
+              <ButtonLink to="/teacher/quizzes" variant="night">
+                Back to My Quizzes
+              </ButtonLink>
+            }
+          />
         )}
-      </main>
+      </NightCanvas>
     );
   }
 
   const question = quiz.questions[index];
 
   return (
-    <main className="pt-safe pb-safe flex min-h-dvh flex-col bg-night-900 text-white">
+    <NightCanvas className="flex flex-col">
       <header className="flex items-center justify-between gap-4 px-4 py-3 sm:px-8">
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wide text-sun-400 uppercase">Preview</p>
-          <h1 className="truncate font-display text-lg font-bold">{quiz.title}</h1>
+          <p className="type-kicker">Preview</p>
+          <h1 className="type-headline truncate text-[1.25rem]">{quiz.title}</h1>
         </div>
         <div className="flex items-center gap-2">
           {canCopy && (
             <Button
-              variant="ghost"
+              variant="night-ghost"
               size="sm"
-              className="text-ink-200 hover:bg-white/10 hover:text-white"
               leftIcon={<Copy className="size-4" />}
               loading={copying}
               onClick={() => void copy()}
@@ -133,13 +143,13 @@ export default function QuizPreviewPage() {
             </Button>
           )}
           {canEdit && (
-            <ButtonLink to={editPath} variant="ghost" size="sm" className="text-ink-200 hover:bg-white/10 hover:text-white" leftIcon={<Pencil className="size-4" />}>
+            <ButtonLink to={editPath} variant="night-ghost" size="sm" leftIcon={<Pencil className="size-4" />}>
               Edit
             </ButtonLink>
           )}
           <Link
             to={closePath}
-            className="grid size-10 place-items-center rounded-xl text-ink-300 hover:bg-white/10 hover:text-white"
+            className="grid size-11 place-items-center rounded-sm text-night-muted hover:bg-night-900 hover:text-night-text"
             aria-label="Close preview"
           >
             <X className="size-5" />
@@ -156,8 +166,8 @@ export default function QuizPreviewPage() {
               initial={{ opacity: 0, x: direction * 60 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: direction * -60 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-              className="mx-auto w-full max-w-5xl"
+              transition={spring.sheet}
+              className="mx-auto w-full max-w-6xl"
             >
               <QuestionPreview question={question} index={index} total={total} variant="stage" reveal={reveal} />
               <AnimatePresence>
@@ -166,8 +176,9 @@ export default function QuizPreviewPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mx-auto mt-6 max-w-3xl rounded-2xl bg-white/8 px-5 py-4 text-center text-lg text-ink-100"
+                    className="relative mt-6 max-w-3xl overflow-hidden rounded-sm bg-night-900 py-4 pr-5 pl-7 text-body text-night-text"
                   >
+                    <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-success-400" />
                     {question.explanation}
                   </m.p>
                 )}
@@ -175,14 +186,21 @@ export default function QuizPreviewPage() {
             </m.div>
           </AnimatePresence>
         ) : (
-          <p className="mx-auto text-ink-300">This quiz has no questions yet.</p>
+          <div className="mx-auto text-center">
+            <p className="type-headline text-headline">This quiz has no questions yet.</p>
+            {canEdit && (
+              <ButtonLink to={editPath} variant="night" className="mt-4">
+                Add questions
+              </ButtonLink>
+            )}
+          </div>
         )}
       </div>
 
-      <footer className="flex items-center justify-between gap-3 px-4 py-4 sm:px-8">
+      <footer className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-night-rule bg-night-950 px-4 py-3 sm:px-8">
         <Button
-          variant="ghost"
-          className="text-white hover:bg-white/10"
+          variant="night-ghost"
+          className="h-12"
           onClick={() => go(-1)}
           disabled={index === 0}
           leftIcon={<ChevronLeft className="size-5" />}
@@ -190,13 +208,19 @@ export default function QuizPreviewPage() {
           <span className="hidden sm:inline">Previous</span>
         </Button>
         <div className="flex items-center gap-3">
-          <div className="hidden gap-1.5 md:flex" aria-hidden>
+          <div className="hidden items-center gap-1 lg:flex" aria-hidden>
             {quiz.questions.slice(0, 40).map((q, i) => (
-              <span key={q.key} className={cn('h-1.5 rounded-full transition-all', i === index ? 'w-6 bg-sun-400' : 'w-1.5 bg-white/25')} />
+              <span key={q.key} className={cn('h-1 w-5', i === index ? 'bg-signal-400' : i < index ? 'bg-night-muted' : 'bg-night-800')} />
             ))}
           </div>
+          <span className="hidden items-center gap-1 text-caption text-night-muted xl:flex" aria-hidden>
+            <Kbd tone="night">←</Kbd>
+            <Kbd tone="night">→</Kbd>
+            <Kbd tone="night">Space</Kbd>
+          </span>
           <Button
-            variant="secondary"
+            variant="night"
+            className="h-12"
             onClick={() => setReveal((r) => !r)}
             leftIcon={reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             disabled={!question}
@@ -206,6 +230,7 @@ export default function QuizPreviewPage() {
         </div>
         <Button
           variant="primary"
+          className="h-12"
           onClick={() => go(1)}
           disabled={index >= total - 1}
           rightIcon={<ChevronRight className="size-5" />}
@@ -213,6 +238,6 @@ export default function QuizPreviewPage() {
           <span className="hidden sm:inline">Next</span>
         </Button>
       </footer>
-    </main>
+    </NightCanvas>
   );
 }

@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Check, Copy, Link2, LogOut, MoreHorizontal, Pencil, Trash2, UserMinus } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, Copy, Link2, LogOut, MoreHorizontal, Pencil, Trash2, UserMinus } from 'lucide-react';
+import { m } from 'motion/react';
 import { Button, ButtonLink } from '@/components/ui/Button';
-import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { SectionHead } from '@/components/ui/SectionHead';
+import { Ledger, LedgerRow } from '@/components/ui/Ledger';
+import { Monogram } from '@/components/ui/Monogram';
+import { ScoreBug } from '@/components/ui/ScoreBug';
+import { StatusBlock } from '@/components/ui/StatusBlock';
+import { dur, ease } from '@/lib/motion';
 import { Badge } from '@/components/ui/Badge';
-import { Alert } from '@/components/ui/Alert';
 import { Menu } from '@/components/ui/Menu';
 import { ConfirmDialog, Dialog } from '@/components/ui/Dialog';
 import { TextField } from '@/components/ui/TextField';
@@ -29,11 +34,6 @@ import type { WorkspaceDetails, WorkspaceMember } from '@/types/workspace';
 
 type Pending = { kind: 'delete' } | { kind: 'leave' } | { kind: 'remove'; member: WorkspaceMember } | null;
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] ?? '?').slice(0, 2)).toUpperCase();
-}
-
 export default function WorkspaceDetailPage() {
   const { workspaceId = '' } = useParams();
   const navigate = useNavigate();
@@ -50,6 +50,8 @@ export default function WorkspaceDetailPage() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
@@ -70,24 +72,34 @@ export default function WorkspaceDetailPage() {
   if (state === 'loading') {
     return (
       <div className="space-y-6" aria-busy="true" aria-label="Loading workspace">
+        <Skeleton className="size-16" />
         <Skeleton className="h-10 w-1/2" />
-        <Skeleton className="h-64 rounded-2xl" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-16" />
+          ))}
+        </div>
       </div>
     );
   }
   if (state !== 'ready' || !workspace) {
     return (
-      <div className="mx-auto max-w-lg py-10 text-center">
-        <h1 className="text-2xl font-extrabold">{state === 'notfound' ? 'Workspace not found' : 'Could not load this workspace'}</h1>
-        <p className="mt-2 text-ink-600">
+      <div className="py-10">
+        <StatusBlock
+          tone={state === 'notfound' ? 'neutral' : 'error'}
+          icon={<AlertTriangle />}
+          title={state === 'notfound' ? 'Workspace not found' : 'Could not load this workspace'}
+          actions={
+            <>
+              {state === 'error' && <Button onClick={reload}>Retry</Button>}
+              <ButtonLink to="/teacher/workspaces" variant="secondary">
+                All workspaces
+              </ButtonLink>
+            </>
+          }
+        >
           {state === 'notfound' ? 'It may have been deleted, or you are no longer a member.' : 'Check your connection and try again.'}
-        </p>
-        <div className="mt-6 flex justify-center gap-3">
-          {state === 'error' && <Button onClick={reload}>Retry</Button>}
-          <ButtonLink to="/teacher/workspaces" variant="secondary">
-            All workspaces
-          </ButtonLink>
-        </div>
+        </StatusBlock>
       </div>
     );
   }
@@ -119,12 +131,16 @@ export default function WorkspaceDetailPage() {
   };
 
   const revoke = async (id: string) => {
+    setRevoking(id);
     try {
       await revokeInvite(id);
       toast({ tone: 'success', title: 'Invite link revoked', description: 'It can no longer be used to join.' });
+      setConfirmRevoke(null);
       reload();
     } catch (error) {
       toast({ tone: 'error', title: 'Could not revoke', description: friendlyError(error) });
+    } finally {
+      setRevoking(null);
     }
   };
 
@@ -174,155 +190,181 @@ export default function WorkspaceDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-center gap-3">
-        <Link
-          to="/teacher/workspaces"
-          className="grid size-10 shrink-0 place-items-center rounded-xl text-ink-600 hover:bg-ink-100 hover:text-ink-900"
-          aria-label="All workspaces"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-3xl font-extrabold">{workspace.name}</h1>
-            <Badge tone={isOwner ? 'flame' : 'neutral'}>{isOwner ? 'Owner' : 'Member'}</Badge>
-          </div>
-          <p className="mt-1 text-sm text-ink-500">
-            {workspace.members.length} {workspace.members.length === 1 ? 'member' : 'members'} · created{' '}
-            {relativeTime(workspace.createdAt)}
-          </p>
-        </div>
-        <Menu
-          label="Workspace actions"
-          trigger={<MoreHorizontal className="size-5" />}
-          items={
-            isOwner
-              ? [
-                  {
-                    label: 'Rename',
-                    icon: <Pencil />,
-                    onSelect: () => {
-                      setName(workspace.name);
-                      setNameError(null);
-                      setRenameOpen(true);
+    <div className="space-y-8">
+      <header>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            to="/teacher/workspaces"
+            className="-ml-3 grid size-11 shrink-0 place-items-center rounded-sm text-ink-700 hover:bg-paper-sunk hover:text-ink-900"
+            aria-label="All workspaces"
+          >
+            <ArrowLeft className="size-5" />
+          </Link>
+          <Menu
+            label="Workspace actions"
+            trigger={<MoreHorizontal className="size-5" />}
+            items={
+              isOwner
+                ? [
+                    {
+                      label: 'Rename',
+                      icon: <Pencil />,
+                      onSelect: () => {
+                        setName(workspace.name);
+                        setNameError(null);
+                        setRenameOpen(true);
+                      },
                     },
-                  },
-                  'separator',
-                  { label: 'Delete workspace', icon: <Trash2 />, tone: 'danger', onSelect: () => setPending({ kind: 'delete' }) },
-                ]
-              : [{ label: 'Leave workspace', icon: <LogOut />, tone: 'danger', onSelect: () => setPending({ kind: 'leave' }) }]
-          }
-        />
+                    'separator',
+                    { label: 'Delete workspace', icon: <Trash2 />, tone: 'danger', onSelect: () => setPending({ kind: 'delete' }) },
+                  ]
+                : [{ label: 'Leave workspace', icon: <LogOut />, tone: 'danger', onSelect: () => setPending({ kind: 'leave' }) }]
+            }
+          />
+        </div>
+        <div className="mt-3 flex items-start gap-4">
+          <Monogram name={workspace.name} seed={workspace.id} size={64} />
+          <div className="min-w-0">
+            <h1 className="type-display text-display-lg break-words">{workspace.name}</h1>
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-body-sm text-ink-500">
+              <span>
+                <span className="type-score text-score-sm text-ink-900">{workspace.members.length}</span>{' '}
+                {workspace.members.length === 1 ? 'member' : 'members'} · created {relativeTime(workspace.createdAt)}
+              </span>
+              <Badge tone={isOwner ? 'signal' : 'neutral'}>{isOwner ? 'Owner' : 'Member'}</Badge>
+            </p>
+          </div>
+        </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        <Card>
-          <CardHeader title="Members" description="Everyone here can see each other's names." />
-          <CardBody className="p-2 sm:p-2">
-            <ul>
-              {workspace.members.map((member) => (
-                <li key={member.teacherId} className="flex items-center gap-3 rounded-xl px-3 py-2.5">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ink-900 text-xs font-bold text-white">
-                    {initials(member.displayName)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">
-                      {member.displayName}
-                      {member.teacherId === user.id && <span className="font-normal text-ink-500"> (you)</span>}
-                    </p>
-                    <p className="text-xs text-ink-500">Joined {relativeTime(member.joinedAt)}</p>
-                  </div>
-                  {member.role === 'owner' && <Badge tone="flame">Owner</Badge>}
-                  {isOwner && member.role !== 'owner' && (
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <section aria-labelledby="members-heading" className="min-w-0">
+          <SectionHead id="members-heading" kicker="Members" action={<span className="text-caption text-ink-500">Everyone here sees each other’s names</span>} />
+          <Ledger>
+            {workspace.members.map((member) => (
+              <LedgerRow
+                key={member.teacherId}
+                interactive={false}
+                className="min-h-16 pl-1"
+                actions={
+                  isOwner && member.role !== 'owner' ? (
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="danger-outline"
                       aria-label={`Remove ${member.displayName}`}
                       leftIcon={<UserMinus className="size-4" />}
                       onClick={() => setPending({ kind: 'remove', member })}
                     >
                       <span className="hidden sm:inline">Remove</span>
                     </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </CardBody>
-        </Card>
+                  ) : undefined
+                }
+              >
+                <div className="flex items-center gap-3">
+                  <Monogram name={member.displayName} seed={member.teacherId} size={40} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-body font-semibold text-ink-900">
+                      {member.displayName}
+                      {member.teacherId === user.id && <span className="font-normal text-ink-500"> (you)</span>}
+                    </p>
+                    <p className="text-caption text-ink-500">Joined {relativeTime(member.joinedAt)}</p>
+                  </div>
+                  {member.role === 'owner' && <Badge tone="signal">Owner</Badge>}
+                </div>
+              </LedgerRow>
+            ))}
+          </Ledger>
+        </section>
 
         {isOwner ? (
-          <Card>
-            <CardHeader
-              title="Invite teachers"
-              description={`Anyone with a link can join for ${WORKSPACE_LIMITS.inviteDays} days, after signing in.`}
-            />
-            <CardBody className="space-y-4">
-              {newLink && (
-                <div className="space-y-2 rounded-xl border border-mint-400/40 bg-mint-50 p-3">
-                  <p className="text-sm font-semibold">Your new invite link</p>
+          <section aria-labelledby="invites-heading" className="min-w-0 space-y-4">
+            <SectionHead id="invites-heading" kicker="Invites" />
+            <p className="text-body-sm text-ink-700">Anyone with a link can join for {WORKSPACE_LIMITS.inviteDays} days, after signing in.</p>
+            <Button variant="secondary" leftIcon={<Link2 className="size-4" />} loading={creatingLink} onClick={() => void makeLink()}>
+              Create invite link
+            </Button>
+
+            {newLink && (
+              <m.div
+                key={newLink}
+                initial={{ scaleY: 0, opacity: 0 }}
+                animate={{ scaleY: 1, opacity: 1 }}
+                transition={{ duration: dur.base, ease: [...ease.out] }}
+                className="origin-top"
+              >
+                <ScoreBug tab="bg-signal-400" className="flex w-full flex-col items-stretch gap-3 py-3">
+                  <p className="type-kicker">New invite link · shown once</p>
                   <input
                     readOnly
                     value={newLink}
                     onFocus={(e) => e.currentTarget.select()}
                     aria-label="Invite link"
-                    className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 font-mono text-xs"
+                    className="h-11 w-full rounded-sm border border-night-line bg-night-950 px-3 font-mono text-caption text-night-text outline-none"
                   />
                   <Button
                     size="sm"
-                    fullWidth
-                    variant={copied ? 'secondary' : 'primary'}
+                    variant="night"
                     leftIcon={copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                     onClick={() => void copyLink()}
+                    className="self-start"
                   >
                     {copied ? 'Copied' : 'Copy link'}
                   </Button>
-                  <p className="text-xs text-ink-600">For security, this link is shown only once. Copy it now.</p>
-                </div>
-              )}
-              <Button
-                variant={newLink ? 'secondary' : 'primary'}
-                fullWidth
-                leftIcon={<Link2 className="size-4" />}
-                loading={creatingLink}
-                onClick={() => void makeLink()}
-              >
-                Create invite link
-              </Button>
+                </ScoreBug>
+              </m.div>
+            )}
 
-              <div>
-                <h3 className="text-sm font-semibold text-ink-800">Active links</h3>
-                {workspace.invites.length === 0 ? (
-                  <p className="mt-1 text-sm text-ink-500">No active links.</p>
-                ) : (
-                  <ul className="mt-2 space-y-2">
-                    {workspace.invites.map((invite) => (
-                      <li key={invite.id} className="flex items-center gap-3 rounded-xl bg-ink-50 px-3 py-2">
-                        <div className="min-w-0 flex-1 text-sm">
-                          <p className="font-medium">
-                            Created {relativeTime(invite.createdAt)} · used {invite.useCount}{' '}
-                            {invite.useCount === 1 ? 'time' : 'times'}
-                          </p>
-                          <p className="text-xs text-ink-500">Expires {relativeTime(invite.expiresAt)}</p>
-                        </div>
-                        <Button size="sm" variant="ghost" onClick={() => void revoke(invite.id)}>
-                          Revoke
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </CardBody>
-          </Card>
+            <div>
+              <p className="type-kicker mt-4">Active links</p>
+              {workspace.invites.length === 0 ? (
+                <p className="mt-2 text-body-sm text-ink-500">No active links.</p>
+              ) : (
+                <Ledger className="mt-1">
+                  {workspace.invites.map((invite) => (
+                    <LedgerRow
+                      key={invite.id}
+                      interactive={false}
+                      className="min-h-14 pl-0"
+                      actions={
+                        confirmRevoke === invite.id ? (
+                          <span className="flex items-center gap-1">
+                            <span className="text-caption text-ink-700">Revoke?</span>
+                            <Button size="sm" variant="danger-outline" loading={revoking === invite.id} onClick={() => void revoke(invite.id)}>
+                              Yes
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(null)} disabled={revoking === invite.id}>
+                              Cancel
+                            </Button>
+                          </span>
+                        ) : (
+                          <Button size="sm" variant="ghost" onClick={() => setConfirmRevoke(invite.id)}>
+                            Revoke
+                          </Button>
+                        )
+                      }
+                    >
+                      <p className="text-body-sm font-semibold text-ink-900">
+                        Created {relativeTime(invite.createdAt)} · used <span className="type-score">{invite.useCount}</span>{' '}
+                        {invite.useCount === 1 ? 'time' : 'times'}
+                      </p>
+                      <p className="text-caption text-ink-500">Expires {relativeTime(invite.expiresAt)}</p>
+                    </LedgerRow>
+                  ))}
+                </Ledger>
+              )}
+            </div>
+          </section>
         ) : (
-          <Alert tone="info" title="Shared quizzes">
-            Quizzes that members share with you appear in{' '}
-            <Link to="/teacher/shared" className="font-semibold underline underline-offset-2">
-              Shared with Me
-            </Link>
-            . To share one of your quizzes here, open its menu in My Quizzes and choose Share.
-          </Alert>
+          <section aria-labelledby="shared-heading" className="min-w-0 space-y-3">
+            <SectionHead id="shared-heading" kicker="Shared quizzes" />
+            <p className="text-body-sm text-ink-700">
+              Quizzes that members share with you appear in{' '}
+              <Link to="/teacher/shared" className="font-semibold text-signal-600 underline underline-offset-2">
+                Shared with Me
+              </Link>
+              . To share one of your quizzes here, open its menu in My Quizzes and choose Share.
+            </p>
+          </section>
         )}
       </div>
 

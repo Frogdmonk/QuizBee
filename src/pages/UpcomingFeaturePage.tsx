@@ -1,49 +1,54 @@
 import { useMatches } from 'react-router';
-import { Construction, Check } from 'lucide-react';
-import { Card, CardBody } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/Button';
+import { SectionHead } from '@/components/ui/SectionHead';
 import { UPCOMING, type UpcomingKey } from './upcoming-features';
 
-/** Reads which feature to describe from the route's `handle: { upcoming }`. */
+/** Reads which feature to describe from the route's `handle: { upcoming }`. Nothing here is simulated. */
 export default function UpcomingFeaturePage() {
   const matches = useMatches();
   const key = (matches.at(-1)?.handle as { upcoming?: UpcomingKey } | undefined)?.upcoming ?? 'history';
   const feature = UPCOMING[key];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-3xl font-extrabold">{feature.title}</h1>
-        <Badge tone="sun">Phase {feature.phase}</Badge>
-      </div>
-      <p className="mt-2 text-ink-600">{feature.summary}</p>
+    <div className="max-w-2xl">
+      <p className="type-kicker">Coming next</p>
+      <h1 className="type-display mt-2 text-display-lg">{feature.title}</h1>
+      <p className="mt-3 text-body text-ink-700">{feature.summary} Arrives after live games launch.</p>
 
-      <Card className="mt-8">
-        <CardBody className="flex flex-col gap-6 sm:flex-row sm:items-start">
-          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sun-300/30 text-ink-800">
-            <Construction className="size-6" />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold">Not built yet</h2>
-            <p className="mt-1 text-ink-600">
-              This page becomes functional in development phase {feature.phase}. Nothing here is simulated. It
-              will connect to your real data once that phase ships.
-            </p>
-            <ul className="mt-5 space-y-2.5">
-              {feature.items.map((item) => (
-                <li key={item} className="flex gap-2.5 text-ink-700">
-                  <Check className="mt-0.5 size-4 shrink-0 text-ink-400" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <ButtonLink to="/teacher/dashboard" variant="secondary" className="mt-6">
-              Back to dashboard
-            </ButtonLink>
+      <section aria-labelledby="planned-heading" className="mt-10">
+        <SectionHead id="planned-heading" kicker="Planned" />
+        <ul className="divide-y divide-line">
+          {feature.items.map((item) => (
+            <li key={item} className="flex min-h-12 items-center gap-3 text-body text-ink-900">
+              <span aria-hidden className="size-3 shrink-0 rounded-full border-2 border-line-strong" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* A wireframe of the results table, deliberately without values. */}
+      <figure aria-label="Planned results table, no data yet" className="mt-10 rounded-md border border-line p-4">
+        <figcaption className="type-kicker">Planned · results table</figcaption>
+        <div aria-hidden className="mt-4 space-y-0">
+          <div className="grid grid-cols-[3rem_1fr_5rem] gap-4 border-b border-line-strong pb-2">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="h-2 rounded-full bg-paper-sunk" />
+            ))}
           </div>
-        </CardBody>
-      </Card>
+          {[0, 1, 2, 3].map((row) => (
+            <div key={row} className={`grid grid-cols-[3rem_1fr_5rem] gap-4 border-b border-line py-4 ${row > 2 ? 'hidden sm:grid' : ''}`}>
+              <span className="h-2 rounded-full bg-paper-sunk" />
+              <span className="h-2 w-2/3 rounded-full bg-paper-sunk" />
+              <span className="h-2 rounded-full bg-paper-sunk" />
+            </div>
+          ))}
+        </div>
+      </figure>
+
+      <ButtonLink to="/teacher/sessions" variant="secondary" className="mt-8">
+        Go to Live sessions
+      </ButtonLink>
     </div>
   );
 }

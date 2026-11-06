@@ -3,12 +3,16 @@ import { Link } from 'react-router';
 import { m } from 'motion/react';
 import { Archive, Copy, Eye, MoreVertical, Pencil, Radio, RotateCcw, Rocket, Trash2, Undo2, Users } from 'lucide-react';
 import { Menu, type MenuItem } from '@/components/ui/Menu';
+import { Button } from '@/components/ui/Button';
+import { LedgerLink, LedgerRow } from '@/components/ui/Ledger';
+import { LEDGER_TABS } from '@/components/ui/ledger-tabs';
 import { cn } from '@/lib/cn';
 import { mediaUrl } from '@/lib/media-url';
+import { enterUp } from '@/lib/motion';
 import { relativeTime } from '@/utils/time';
 import type { QuizStatus, QuizSummary } from '@/types/quiz';
 import { StatusBadge } from './StatusBadge';
-import { ANSWER_STYLES } from './answer-styles';
+import { QuizCover } from './QuizCover';
 
 export type QuizCardActions = {
   onEdit: (quiz: QuizSummary) => void;
@@ -20,18 +24,8 @@ export type QuizCardActions = {
   onDelete: (quiz: QuizSummary) => void;
 };
 
-function hashIndex(text: string, modulo: number): number {
-  let h = 0;
-  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
-  return Math.abs(h) % modulo;
-}
-
-export const QuizCard = memo(function QuizCard({ quiz, actions }: { quiz: QuizSummary; actions: QuizCardActions }) {
-  const cover = mediaUrl(quiz.coverImagePath);
-  const style = ANSWER_STYLES[hashIndex(quiz.id, ANSWER_STYLES.length)];
-  const editPath = `/teacher/quizzes/${quiz.id}/edit`;
-
-  const items: MenuItem[] = [
+function menuItems(quiz: QuizSummary, actions: QuizCardActions): MenuItem[] {
+  return [
     ...(quiz.status === 'published'
       ? [{ label: 'Host live', icon: <Radio />, onSelect: () => actions.onHost(quiz) }, 'separator' as const]
       : []),
@@ -49,53 +43,81 @@ export const QuizCard = memo(function QuizCard({ quiz, actions }: { quiz: QuizSu
     'separator',
     { label: 'Delete', icon: <Trash2 />, onSelect: () => actions.onDelete(quiz), tone: 'danger' as const },
   ];
+}
 
+const meta = (quiz: QuizSummary) =>
+  `${quiz.questionCount} ${quiz.questionCount === 1 ? 'question' : 'questions'} · edited ${relativeTime(quiz.updatedAt)}`;
+
+/** The one main action for a quiz: Host when published, otherwise Edit. */
+function PrimaryAction({ quiz, actions, compact = false }: { quiz: QuizSummary; actions: QuizCardActions; compact?: boolean }) {
+  return quiz.status === 'published' ? (
+    <Button size="sm" variant="secondary" leftIcon={compact ? undefined : <Radio className="size-4" />} onClick={() => actions.onHost(quiz)} aria-label={`Host ${quiz.title}`}>
+      Host
+    </Button>
+  ) : (
+    <Button size="sm" variant={compact ? 'ghost' : 'secondary'} leftIcon={compact ? undefined : <Pencil className="size-4" />} onClick={() => actions.onEdit(quiz)} aria-label={`Edit ${quiz.title}`}>
+      Edit
+    </Button>
+  );
+}
+
+/** "Fixture card": cover band, subject kicker, title, one action. Status is shown by the left tab and a badge. */
+export const QuizCard = memo(function QuizCard({ quiz, actions }: { quiz: QuizSummary; actions: QuizCardActions }) {
   return (
     <m.article
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-100 bg-surface shadow-card transition-shadow hover:shadow-lift"
+      variants={enterUp}
+      initial="hidden"
+      animate="show"
+      exit="exit"
+      className="group relative flex flex-col overflow-hidden rounded-md border border-line bg-surface transition-[transform,box-shadow] duration-[var(--dur-base)] hover:-translate-y-0.5 hover:shadow-pop"
     >
-      <div className={cn('relative aspect-[16/9] overflow-hidden', !cover && style.bg)}>
-        {cover ? (
-          <img src={cover} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
-        ) : (
-          <div aria-hidden className="absolute inset-0">
-            <span className="absolute -right-6 -bottom-10 size-36 rounded-full bg-white/12" />
-            <span className="absolute top-4 -left-8 size-24 rounded-full bg-black/8" />
-            <span className="absolute bottom-3 left-4 font-display text-5xl font-extrabold text-white/90">
-              {(quiz.title.trim()[0] ?? '?').toUpperCase()}
-            </span>
-          </div>
-        )}
-        <div className="absolute top-3 left-3">
+      <span aria-hidden className={cn('absolute top-0 bottom-0 left-0 z-10 w-1', LEDGER_TABS[quiz.status === 'published' ? 'published' : quiz.status === 'archived' ? 'archived' : 'draft'])} />
+      <QuizCover coverUrl={mediaUrl(quiz.coverImagePath)} seed={quiz.id} title={quiz.title} />
+      <div className="flex flex-1 flex-col gap-1 py-4 pr-4 pl-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="type-kicker truncate">{quiz.subject || 'No subject'}</p>
           <StatusBadge status={quiz.status} />
         </div>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-1 p-4">
-        {quiz.subject && <p className="truncate text-xs font-semibold tracking-wide text-ink-400 uppercase">{quiz.subject}</p>}
-        <h3 className="line-clamp-2 text-[17px] leading-snug font-bold">
-          <Link to={editPath} className="outline-none after:absolute after:inset-0 after:content-[''] focus-visible:underline">
+        <h3 className="line-clamp-2 text-title text-ink-900">
+          <Link to={`/teacher/quizzes/${quiz.id}/edit`} className="outline-none after:absolute after:inset-0 after:content-[''] focus-visible:underline">
             {quiz.title}
           </Link>
         </h3>
-        <p className="mt-auto pt-2 text-sm text-ink-500">
-          {quiz.questionCount} {quiz.questionCount === 1 ? 'question' : 'questions'} · Edited {relativeTime(quiz.updatedAt)}
-        </p>
-      </div>
-
-      <div className="absolute top-2 right-2 z-10">
-        <Menu
-          label={`Actions for ${quiz.title}`}
-          trigger={<MoreVertical className="size-5" />}
-          triggerClassName="bg-white/90 text-ink-700 shadow-card backdrop-blur hover:bg-white"
-          items={items}
-        />
+        <p className={cn('text-caption', quiz.questionCount === 0 ? 'text-warning-700' : 'text-ink-500')}>{meta(quiz)}</p>
+        <div className="relative z-10 mt-auto flex items-center justify-between gap-2 pt-3">
+          <PrimaryAction quiz={quiz} actions={actions} />
+          <Menu label={`Actions for ${quiz.title}`} trigger={<MoreVertical className="size-5" />} items={menuItems(quiz, actions)} />
+        </div>
       </div>
     </m.article>
+  );
+});
+
+/** The same quiz as a ledger row (phones, and the list view). */
+export const QuizRow = memo(function QuizRow({ quiz, actions }: { quiz: QuizSummary; actions: QuizCardActions }) {
+  return (
+    <LedgerRow
+      tab={quiz.status === 'published' ? 'published' : quiz.status === 'archived' ? 'archived' : 'draft'}
+      className="min-h-[72px]"
+      actions={
+        <>
+          <PrimaryAction quiz={quiz} actions={actions} compact />
+          <Menu label={`Actions for ${quiz.title}`} trigger={<MoreVertical className="size-5" />} items={menuItems(quiz, actions)} />
+        </>
+      }
+    >
+      <div className="flex items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <LedgerLink to={`/teacher/quizzes/${quiz.id}/edit`}>{quiz.title}</LedgerLink>
+          <p className={cn('mt-0.5 truncate text-caption', quiz.questionCount === 0 ? 'text-warning-700' : 'text-ink-500')}>
+            {quiz.subject ? `${quiz.subject} · ` : ''}
+            {meta(quiz)}
+          </p>
+        </div>
+        <span className="hidden sm:block">
+          <StatusBadge status={quiz.status} />
+        </span>
+      </div>
+    </LedgerRow>
   );
 });

@@ -3,18 +3,19 @@
  * Motion/Router so it renders even when nothing else can.
  */
 export function ConfigErrorScreen({ issues }: { issues: string[] }) {
+  const code = 'rounded-xs bg-paper-sunk px-1.5 py-0.5 font-mono text-body-sm';
   return (
-    <main className="grid min-h-dvh place-items-center bg-paper px-6 py-12">
-      <div className="w-full max-w-xl rounded-2xl border border-ink-100 bg-surface p-8 shadow-card">
-        <p className="text-sm font-semibold tracking-wide text-flame-600 uppercase">Setup needed</p>
-        <h1 className="mt-2 text-2xl font-extrabold">The app is not configured yet</h1>
-        <p className="mt-3 text-ink-600">
-          Create a <code className="rounded bg-ink-100 px-1.5 py-0.5 text-sm">.env.local</code> file from{' '}
-          <code className="rounded bg-ink-100 px-1.5 py-0.5 text-sm">.env.example</code> and fill in your Supabase
-          project URL and publishable key, then restart <code className="rounded bg-ink-100 px-1.5 py-0.5 text-sm">npm run dev</code>.
-          On Cloudflare Pages, set the same variables in the project settings and redeploy.
+    <main className="min-h-dvh bg-paper px-4 py-12 sm:px-6">
+      <div className="mx-auto w-full max-w-xl border-t-[3px] border-ink-950 pt-8">
+        <p className="type-kicker">Setup needed</p>
+        <h1 className="type-display mt-3 text-display-lg">The app is not configured yet</h1>
+        <p className="mt-4 text-body text-ink-700">
+          Create a <code className={code}>.env.local</code> file from <code className={code}>.env.example</code> and fill in
+          your Supabase project URL and publishable key, then restart <code className={code}>npm run dev</code>. On
+          Cloudflare Pages, set the same variables in the project settings and redeploy.
         </p>
-        <ul className="mt-5 space-y-2 rounded-xl bg-rose-50 p-4 text-sm text-rose-600">
+        <ul className="relative mt-6 space-y-2 overflow-hidden rounded-sm bg-error-50 py-4 pr-4 pl-6 text-body-sm text-ink-900">
+          <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-error-600" />
           {issues.map((issue) => (
             <li key={issue} className="font-medium">
               {issue}

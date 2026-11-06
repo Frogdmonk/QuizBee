@@ -1,31 +1,13 @@
 import { m } from 'motion/react';
-import { ArrowRight, MonitorPlay, Smartphone, Sparkles, Trophy } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { ButtonLink } from '@/components/ui/Button';
-import { AnswerTilesArt } from '@/components/marketing/AnswerTilesArt';
+import { AnswerTile } from '@/components/ui/AnswerTile';
+import { PinDigits } from '@/components/ui/PinDigits';
+import { ScoreBug } from '@/components/ui/ScoreBug';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
+import { dur } from '@/lib/motion';
 
-const features = [
-  {
-    icon: Sparkles,
-    title: 'Build in minutes',
-    body: 'Multiple choice, true/false and picture questions with timers, points and a live preview.',
-  },
-  {
-    icon: Smartphone,
-    title: 'Join from any phone',
-    body: 'Students scan a QR code or type a six-digit PIN. No accounts, no passwords, no app install.',
-  },
-  {
-    icon: MonitorPlay,
-    title: 'Made for the projector',
-    body: 'Huge countdowns, answer distributions and an animated top-10 that reads from the back row.',
-  },
-  {
-    icon: Trophy,
-    title: 'Fair, server-side scoring',
-    body: 'One shared deadline for everyone. Answers and points are checked on the server, never the browser.',
-  },
-];
+const EXAMPLE_ANSWERS = ['Mercury', 'Venus', 'Earth', 'Mars'];
 
 export default function LandingPage() {
   const { state } = useTeacherAuth();
@@ -33,69 +15,111 @@ export default function LandingPage() {
 
   return (
     <>
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-10 pb-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:pt-16 lg:pb-24">
-        <m.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <p className="inline-flex items-center gap-2 rounded-full border border-ink-200 bg-surface px-3 py-1 text-sm font-semibold text-ink-700">
-            <span className="size-2 rounded-full bg-mint-500" />
-            Live classroom quizzes
-          </p>
-          <h1 className="mt-5 text-[2.6rem] leading-[1.05] font-extrabold text-ink-900 sm:text-6xl">
-            Turn any lesson into a <span className="text-flame-500">rally</span>.
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-ink-600">
-            Put questions on the big screen, let every student answer from their phone, and watch the leaderboard
-            shuffle after every round.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink to="/join" size="xl" rightIcon={<ArrowRight className="size-5" />}>
-              Join a game
-            </ButtonLink>
-            <ButtonLink to={signedIn ? '/teacher/dashboard' : '/register'} size="xl" variant="secondary">
-              {signedIn ? 'Open dashboard' : 'I’m a teacher'}
-            </ButtonLink>
-          </div>
-          <p className="mt-4 text-sm text-ink-500">Free for classrooms. Students never need an account.</p>
-        </m.div>
+      {/* Phones: students are the most likely visitors, so the PIN entry comes first. */}
+      <section aria-label="Join a game" className="ground-night night-grid bg-night-950 px-4 py-8 text-night-text sm:hidden">
+        <p className="type-kicker">Got a PIN?</p>
+        <PinDigits value="" size="phone" className="mt-4 w-full justify-between" />
+        <ButtonLink to="/join" size="xl" variant="night" fullWidth className="mt-6" rightIcon={<ArrowRight className="size-5" />}>
+          Join a game
+        </ButtonLink>
+      </section>
 
-        <div className="relative">
-          <div className="rounded-[28px] bg-night-900 p-5 shadow-lift sm:p-7">
-            <div className="mb-5 flex items-center justify-between">
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-ink-200">Question 3 of 10</span>
-              <m.span
-                className="grid size-12 place-items-center rounded-full bg-sun-400 font-display text-lg font-extrabold text-ink-900"
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.5, type: 'spring', stiffness: 300, damping: 18 }}
-              >
-                20
-              </m.span>
+      <section className="mx-auto max-w-6xl px-4 pt-10 sm:px-6 sm:pt-12">
+        <div className="grid gap-12 border-t-[3px] border-ink-950 pt-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:pt-12">
+          <div className="min-w-0">
+            <p className="type-kicker">Classroom quiz, live</p>
+            <h1 className="type-display mt-4 text-display-xl text-ink-900">
+              Turn any lesson
+              <br />
+              into a <span className="text-signal-600">rally.</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-[1.125rem] leading-relaxed text-ink-700">
+              Build a quiz, put the PIN on the projector, and your class answers from their phones. No student accounts.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <ButtonLink to={signedIn ? '/teacher/dashboard' : '/register'} size="lg" rightIcon={<ArrowRight className="size-5" />}>
+                {signedIn ? 'Open dashboard' : 'Create a teacher account'}
+              </ButtonLink>
+              <ButtonLink to="/join" size="lg" variant="secondary" className="hidden sm:inline-flex">
+                Join a game
+              </ButtonLink>
             </div>
-            <div className="mb-5 space-y-2" aria-hidden>
-              <div className="h-4 w-4/5 rounded-full bg-white/80" />
-              <div className="h-4 w-1/2 rounded-full bg-white/40" />
-            </div>
-            <AnswerTilesArt />
           </div>
+
+          {/* An honest example of a question as students see it. */}
+          <figure className="ground-night min-w-0 rounded-md bg-night-950 p-4 text-night-text sm:p-6" aria-label="Example question">
+            <div className="flex items-center justify-between gap-3">
+              <ScoreBug tab="bg-signal-400" className="py-1.5">
+                <span className="type-kicker">Example</span>
+                <span className="type-score text-score-sm">Q 1/1</span>
+              </ScoreBug>
+            </div>
+            <p className="type-headline mt-5 text-headline">Which planet is closest to the sun?</p>
+            <div className="mt-2 h-1 overflow-hidden bg-night-800">
+              <m.span
+                className="block h-full origin-left bg-signal-400"
+                initial={{ scaleX: 1 }}
+                animate={{ scaleX: 0.35 }}
+                transition={{ duration: 2.4, ease: 'linear', delay: dur.slow }}
+              />
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              {EXAMPLE_ANSWERS.map((label, i) => (
+                <AnswerTile key={label} index={i} label={label} size="compact" />
+              ))}
+            </div>
+          </figure>
         </div>
       </section>
 
-      <section className="border-t border-ink-100 bg-surface">
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
-          {features.map((f, i) => (
-            <m.div
-              key={f.title}
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ delay: i * 0.06, duration: 0.35 }}
-            >
-              <span className="grid size-11 place-items-center rounded-xl bg-ink-900 text-white">
-                <f.icon className="size-5" />
-              </span>
-              <h2 className="mt-4 text-lg font-bold">{f.title}</h2>
-              <p className="mt-1.5 text-ink-600">{f.body}</p>
-            </m.div>
-          ))}
+      <section aria-labelledby="round-heading" className="mx-auto mt-20 max-w-6xl px-4 sm:px-6">
+        <div className="border-t-[3px] border-ink-950 pt-3">
+          <h2 id="round-heading" className="type-kicker">
+            How a round works
+          </h2>
+        </div>
+        <ol className="mt-6 grid gap-6 md:grid-cols-3">
+          <li className="min-w-0">
+            <div aria-hidden className="h-40 rounded-md border border-line bg-surface p-4">
+              {['Which planet is closest…', 'True or false: the Sun…', 'Pick the gas giant'].map((row, i) => (
+                <div key={row} className="relative flex h-10 items-center border-b border-line pl-3 text-caption text-ink-700 last:border-b-0">
+                  <span className={`absolute top-2 bottom-2 left-0 w-1 ${['bg-answer-a', 'bg-answer-b', 'bg-answer-c'][i]}`} />
+                  {row}
+                </div>
+              ))}
+            </div>
+            <p className="type-score mt-4 text-score-sm text-ink-500">01</p>
+            <h3 className="mt-1 text-title">Build</h3>
+            <p className="mt-1 text-body-sm text-ink-700">Multiple choice, true or false and picture questions, with timers and points.</p>
+          </li>
+          <li className="min-w-0">
+            <div aria-hidden className="ground-night flex h-40 flex-col justify-center rounded-md bg-night-950 px-5 text-night-text">
+              <p className="type-kicker">Game PIN · example</p>
+              <PinDigits value="482913" size="bar" className="mt-2" />
+            </div>
+            <p className="type-score mt-4 text-score-sm text-ink-500">02</p>
+            <h3 className="mt-1 text-title">Project the PIN</h3>
+            <p className="mt-1 text-body-sm text-ink-700">Students scan the QR code or type the PIN. Their avatars appear on the big screen.</p>
+          </li>
+          <li className="min-w-0">
+            <div aria-hidden className="grid h-40 grid-cols-2 gap-2 rounded-md bg-paper-sunk p-4">
+              {[0, 1, 2, 3].map((i) => (
+                <AnswerTile key={i} index={i} label="" size="compact" className="min-h-0" />
+              ))}
+            </div>
+            <p className="type-score mt-4 text-score-sm text-ink-500">03</p>
+            <h3 className="mt-1 text-title">Answer on phones</h3>
+            <p className="mt-1 text-body-sm text-ink-700">Everyone answers at the same time from their own phone. No app to install.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section className="mt-20 bg-signal-600 text-white">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-12 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <h2 className="type-display text-display-lg">Your first game is five minutes away.</h2>
+          <ButtonLink to={signedIn ? '/teacher/quizzes/create' : '/register'} variant="dark" size="lg" rightIcon={<ArrowRight className="size-5" />}>
+            {signedIn ? 'Build a quiz' : 'Create an account'}
+          </ButtonLink>
         </div>
       </section>
     </>

@@ -1,12 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { ChevronRight, Plus, Users } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { ChevronRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { TextField } from '@/components/ui/TextField';
 import { Badge } from '@/components/ui/Badge';
 import { Alert } from '@/components/ui/Alert';
 import { Skeleton } from '@/components/ui/FormControls';
+import { Ledger, LedgerLink, LedgerRow } from '@/components/ui/Ledger';
+import { Monogram } from '@/components/ui/Monogram';
+import { SectionHead } from '@/components/ui/SectionHead';
+import { StepStrip } from '@/components/ui/StepStrip';
 import { createWorkspace, listMyWorkspaces } from '@/services/workspaces';
 import { useToast } from '@/hooks/useToast';
 import { friendlyError } from '@/utils/errors';
@@ -66,13 +70,10 @@ export default function WorkspacesPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold">Workspaces</h1>
-          <p className="mt-2 max-w-xl text-ink-600">
-            A workspace is a group of teachers, such as your department. Share quizzes with everyone in it, or with
-            chosen members only.
-          </p>
+          <p className="type-kicker">Share</p>
+          <h1 className="type-display mt-1 text-display-lg">Workspaces</h1>
         </div>
-        <Button leftIcon={<Plus className="size-4" />} onClick={openCreate}>
+        <Button variant="secondary" leftIcon={<Plus className="size-4" />} onClick={openCreate}>
           New workspace
         </Button>
       </header>
@@ -89,51 +90,63 @@ export default function WorkspacesPage() {
       )}
 
       {status === 'loading' ? (
-        <div className="grid gap-4 sm:grid-cols-2" aria-busy="true" aria-label="Loading workspaces">
+        <div className="max-w-[760px] space-y-2" aria-busy="true" aria-label="Loading workspaces">
           {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-28 rounded-2xl" />
+            <Skeleton key={i} className="h-[72px]" />
           ))}
         </div>
       ) : status === 'ready' && workspaces.length === 0 ? (
-        <div className="flex flex-col items-center rounded-3xl border border-dashed border-ink-200 bg-surface px-6 py-16 text-center">
-          <span className="grid size-14 place-items-center rounded-2xl bg-flame-50 text-flame-600">
-            <Users className="size-7" />
-          </span>
-          <h2 className="mt-5 text-xl font-extrabold">Work together on quizzes</h2>
-          <p className="mt-2 max-w-sm text-ink-600">
-            Create a workspace, send colleagues an invite link, then choose who can view, copy or edit each quiz.
-          </p>
-          <Button className="mt-6" leftIcon={<Plus className="size-4" />} onClick={openCreate}>
+        <section className="space-y-6 border-t-[3px] border-ink-950 pt-6">
+          <div>
+            <h2 className="type-headline text-headline">Work together on quizzes</h2>
+            <p className="mt-2 max-w-md text-body text-ink-700">A workspace is a group of teachers, such as your department.</p>
+          </div>
+          <StepStrip
+            steps={[
+              { title: 'Create', body: 'Start a workspace for your department or year team.' },
+              { title: 'Invite', body: 'Send colleagues a link. It works for 7 days.' },
+              { title: 'Share', body: 'Choose who can view, copy or edit each quiz.' },
+            ]}
+          />
+          <Button leftIcon={<Plus className="size-4" />} onClick={openCreate}>
             Create a workspace
           </Button>
-        </div>
+        </section>
       ) : (
         status === 'ready' && (
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {workspaces.map((w) => (
-              <li key={w.id}>
-                <Link
-                  to={`/teacher/workspaces/${w.id}`}
-                  className="flex items-center gap-4 rounded-2xl border border-ink-100 bg-surface p-5 shadow-card transition-shadow hover:shadow-lift"
-                >
-                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-ink-900 text-white">
-                    <Users className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-bold">{w.name}</p>
-                      <Badge tone={w.role === 'owner' ? 'flame' : 'neutral'}>{w.role === 'owner' ? 'Owner' : 'Member'}</Badge>
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+            <Ledger className="border-t border-line">
+              {workspaces.map((w) => (
+                <LedgerRow key={w.id} className="min-h-[72px] pl-3" actions={<ChevronRight aria-hidden className="mr-2 size-5 text-ink-500" />}>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <Monogram name={w.name} seed={w.id} size={44} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <LedgerLink to={`/teacher/workspaces/${w.id}`} className="min-w-0">
+                          {w.name}
+                        </LedgerLink>
+                        <Badge tone={w.role === 'owner' ? 'signal' : 'neutral'}>{w.role === 'owner' ? 'Owner' : 'Member'}</Badge>
+                      </div>
+                      <p className="mt-0.5 truncate text-caption text-ink-500">
+                        {w.role === 'member' ? `Owner: ${w.ownerName}` : 'You own this workspace'}
+                      </p>
                     </div>
-                    <p className="mt-0.5 truncate text-sm text-ink-500">
-                      {w.memberCount} {w.memberCount === 1 ? 'member' : 'members'}
-                      {w.role === 'member' ? ` · Owner: ${w.ownerName}` : ''}
+                    <p className="hidden shrink-0 text-right sm:block">
+                      <span className="type-score block text-score-md text-ink-900">{w.memberCount}</span>
+                      <span className="text-caption text-ink-500">{w.memberCount === 1 ? 'member' : 'members'}</span>
                     </p>
                   </div>
-                  <ChevronRight className="size-5 shrink-0 text-ink-300" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                </LedgerRow>
+              ))}
+            </Ledger>
+            <aside>
+              <SectionHead kicker="How sharing works" />
+              <p className="mt-3 text-body-sm text-ink-700">
+                Share a quiz with everyone in a workspace, or with chosen members. Each person can view, copy or edit, and
+                only you can delete or archive your quizzes.
+              </p>
+            </aside>
+          </div>
         )
       )}
 

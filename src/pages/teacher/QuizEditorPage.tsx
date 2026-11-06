@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link, useBlocker, useLocation, useNavigate, useParams } from 'react-router';
-import { Archive, ArrowLeft, CheckCircle2, ChevronRight, Copy, Eye, History, MoreHorizontal, RotateCcw, Rocket, Save, Undo2, Users } from 'lucide-react';
+import { AlertTriangle, Archive, ArrowLeft, CheckCircle2, ChevronRight, Copy, Eye, History, Lock, MoreHorizontal, RotateCcw, Rocket, Save, Undo2, Users } from 'lucide-react';
+import { m } from 'motion/react';
+import { StatusBlock } from '@/components/ui/StatusBlock';
+import { SegmentedControl } from '@/components/ui/FormControls';
+import { wipeIn } from '@/lib/motion';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Menu, type MenuItem } from '@/components/ui/Menu';
@@ -54,6 +58,8 @@ export default function QuizEditorPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
+  // Phones show either the form or the student preview.
+  const [phoneView, setPhoneView] = useState<'edit' | 'preview'>('edit');
   const allowNavigation = useRef(false);
 
   const { draft } = state;
@@ -225,28 +231,31 @@ export default function QuizEditorPage() {
   if (loadState === 'loading') return <EditorSkeleton />;
   if (loadState === 'notfound' || loadState === 'error') {
     return (
-      <div className="mx-auto max-w-lg py-10 text-center">
-        <h1 className="text-2xl font-extrabold">{loadState === 'notfound' ? 'Quiz not found' : 'Could not load this quiz'}</h1>
-        <p className="mt-2 text-ink-600">
-          {loadState === 'notfound'
-            ? 'It may have been deleted, or it is not shared with you.'
-            : 'Check your connection and try again.'}
-        </p>
-        <div className="mt-6 flex justify-center gap-3">
-          {loadState === 'error' && (
-            <Button
-              onClick={() => {
-                setLoadState('loading');
-                setLoadNonce((n) => n + 1);
-              }}
-            >
-              Retry
-            </Button>
-          )}
-          <ButtonLink to="/teacher/quizzes" variant="secondary">
-            Back to My Quizzes
-          </ButtonLink>
-        </div>
+      <div className="py-10">
+        <StatusBlock
+          tone={loadState === 'notfound' ? 'neutral' : 'error'}
+          icon={<AlertTriangle />}
+          title={loadState === 'notfound' ? 'Quiz not found' : 'Could not load this quiz'}
+          actions={
+            <>
+              {loadState === 'error' && (
+                <Button
+                  onClick={() => {
+                    setLoadState('loading');
+                    setLoadNonce((n) => n + 1);
+                  }}
+                >
+                  Retry
+                </Button>
+              )}
+              <ButtonLink to="/teacher/quizzes" variant="secondary">
+                Back to My Quizzes
+              </ButtonLink>
+            </>
+          }
+        >
+          {loadState === 'notfound' ? 'It may have been deleted, or it is not shared with you.' : 'Check your connection and try again.'}
+        </StatusBlock>
       </div>
     );
   }
@@ -270,48 +279,63 @@ export default function QuizEditorPage() {
   return (
     <div className="space-y-6">
       {/* Toolbar */}
-      <div className="sticky top-14 z-20 -mx-4 border-b border-ink-100 bg-paper/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-10 lg:-mt-10 lg:px-10 lg:pt-5">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 -mx-4 border-b border-line bg-paper px-4 py-2.5 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-10 lg:-mt-10 lg:px-10 lg:pt-5 lg:pb-3">
+        <div className="flex items-center gap-x-3 gap-y-2">
           <Link
             to={backPath}
-            className="grid size-10 shrink-0 place-items-center rounded-xl text-ink-600 hover:bg-ink-100 hover:text-ink-900"
+            className="grid size-11 shrink-0 place-items-center rounded-sm text-ink-700 hover:bg-paper-sunk hover:text-ink-900"
             aria-label={isOwner ? 'Back to My Quizzes' : 'Back to Shared with Me'}
           >
             <ArrowLeft className="size-5" />
           </Link>
-          {/* On phones the title takes its own row; actions wrap underneath. */}
-          <div className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] md:basis-auto">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-lg font-extrabold sm:text-xl">{draft.title.trim() || 'Untitled quiz'}</h1>
-              <StatusBadge status={draft.status} />
+              <h1 className="type-headline truncate text-[1.25rem] sm:text-headline">{draft.title.trim() || 'Untitled quiz'}</h1>
+              <span className="hidden sm:inline-flex">
+                <StatusBadge status={draft.status} />
+              </span>
             </div>
             <SaveState saving={saving} dirty={dirty} saved={Boolean(draft.id)} />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" leftIcon={<Eye className="size-4" />} onClick={() => void openPreview()} disabled={busy}>
-              <span className="hidden sm:inline">Preview</span>
-            </Button>
-            <Button
-              variant={dirty || !draft.id ? 'secondary' : 'ghost'}
-              leftIcon={<Save className="size-4" />}
-              onClick={() => void save()}
-              loading={saving}
-              disabled={statusBusy || (!dirty && Boolean(draft.id))}
-            >
-              Save
-            </Button>
-            {isOwner && draft.id && (
-              <Button variant="ghost" leftIcon={<Users className="size-4" />} onClick={() => setShareOpen(true)} disabled={busy}>
-                <span className="hidden sm:inline">Share</span>
+            <div className="hidden items-center gap-2 md:flex">
+              <Button variant="ghost" leftIcon={<Eye className="size-4" />} onClick={() => void openPreview()} disabled={busy}>
+                Preview
               </Button>
-            )}
-            {canPublish && draft.status === 'draft' && (
-              <Button variant="primary" leftIcon={<Rocket className="size-4" />} onClick={() => void changeStatus('published')} loading={statusBusy} disabled={saving}>
-                Publish
+              {isOwner && draft.id && (
+                <Button variant="ghost" leftIcon={<Users className="size-4" />} onClick={() => setShareOpen(true)} disabled={busy}>
+                  Share
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                leftIcon={<Save className="size-4" />}
+                onClick={() => void save()}
+                loading={saving}
+                disabled={statusBusy || (!dirty && Boolean(draft.id))}
+              >
+                Save
               </Button>
-            )}
+              {canPublish && draft.status === 'draft' && (
+                <span className="relative inline-flex">
+                  {issues.count === 0 && draft.questions.length > 0 && (
+                    <m.span
+                      variants={wipeIn}
+                      initial="hidden"
+                      animate="show"
+                      className="absolute -top-2 left-2 z-10 rounded-xs bg-success-600 px-1.5 text-[0.6875rem] leading-4 font-bold tracking-[0.06em] text-white"
+                    >
+                      READY
+                    </m.span>
+                  )}
+                  <Button variant="primary" leftIcon={<Rocket className="size-4" />} onClick={() => void changeStatus('published')} loading={statusBusy} disabled={saving}>
+                    Publish
+                  </Button>
+                </span>
+              )}
+            </div>
             {canArchive && draft.status === 'archived' && (
-              <Button variant="dark" leftIcon={<RotateCcw className="size-4" />} onClick={() => void changeStatus('draft')} loading={statusBusy}>
+              <Button variant="dark" className="hidden md:inline-flex" leftIcon={<RotateCcw className="size-4" />} onClick={() => void changeStatus('draft')} loading={statusBusy}>
                 Restore
               </Button>
             )}
@@ -359,8 +383,21 @@ export default function QuizEditorPage() {
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_340px]">
-        <aside className="lg:sticky lg:top-28 lg:max-h-[calc(100dvh-9rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
+      <div className="lg:hidden">
+        <SegmentedControl
+          label="Editor view"
+          layoutId="editor-view"
+          value={phoneView}
+          onChange={setPhoneView}
+          options={[
+            { value: 'edit', label: 'Edit' },
+            { value: 'preview', label: 'Student view' },
+          ]}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)_340px]">
+        <aside className="lg:sticky lg:top-28 lg:max-h-[calc(100dvh-9rem)] lg:self-start lg:overflow-y-auto">
           <QuestionList
             questions={draft.questions}
             selected={activeSelection}
@@ -371,7 +408,7 @@ export default function QuizEditorPage() {
           />
         </aside>
 
-        <section className="min-w-0">
+        <section className={cn('min-w-0', phoneView === 'preview' && 'hidden lg:block')}>
           {selectedQuestion ? (
             <QuestionEditor
               key={selectedQuestion.key}
@@ -390,10 +427,10 @@ export default function QuizEditorPage() {
             <button
               type="button"
               onClick={() => setSelected(draft.questions[0].key)}
-              className="mt-4 flex w-full items-center justify-between rounded-2xl border border-ink-100 bg-surface px-5 py-4 text-left font-semibold shadow-card hover:border-ink-200"
+              className="mt-4 flex min-h-14 w-full items-center justify-between rounded-md border border-line bg-surface px-5 text-left text-title hover:bg-paper"
             >
               Continue to the questions
-              <ChevronRight className="size-5 text-ink-400" />
+              <ChevronRight className="size-5 text-ink-500" />
             </button>
           )}
         </section>
@@ -401,9 +438,42 @@ export default function QuizEditorPage() {
         <PreviewPanel
           draft={draft}
           selectedIndex={selectedIndex}
-          className="lg:col-span-2 xl:sticky xl:top-28 xl:col-span-1 xl:self-start"
+          className={cn('lg:col-span-2 xl:sticky xl:top-28 xl:col-span-1 xl:self-start', phoneView === 'edit' && 'hidden lg:block')}
         />
       </div>
+
+      {/* Phones: labelled actions at the thumb. */}
+      <div className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper px-4 pt-2 md:hidden">
+        <div className="mb-2 grid grid-cols-3 gap-2">
+          <Button variant="ghost" className="h-12" leftIcon={<Eye className="size-4" />} onClick={() => void openPreview()} disabled={busy}>
+            Preview
+          </Button>
+          <Button
+            variant="secondary"
+            className="h-12"
+            leftIcon={<Save className="size-4" />}
+            onClick={() => void save()}
+            loading={saving}
+            disabled={statusBusy || (!dirty && Boolean(draft.id))}
+          >
+            Save
+          </Button>
+          {canPublish && draft.status === 'draft' ? (
+            <Button variant="primary" className="h-12" leftIcon={<Rocket className="size-4" />} onClick={() => void changeStatus('published')} loading={statusBusy} disabled={saving}>
+              Publish
+            </Button>
+          ) : canArchive && draft.status === 'archived' ? (
+            <Button variant="dark" className="h-12" leftIcon={<RotateCcw className="size-4" />} onClick={() => void changeStatus('draft')} loading={statusBusy}>
+              Restore
+            </Button>
+          ) : (
+            <span className="grid place-items-center">
+              <StatusBadge status={draft.status} />
+            </span>
+          )}
+        </div>
+      </div>
+      <div aria-hidden className="h-20 md:hidden" />
 
       <Dialog
         open={issuesOpen}
@@ -416,12 +486,12 @@ export default function QuizEditorPage() {
           </Button>
         }
       >
-        <ul className="max-h-[50vh] space-y-2 overflow-y-auto">
+        <ul className="space-y-2">
           {issues.quiz.map((issue) => (
             <li key={issue}>
               <button
                 type="button"
-                className="w-full rounded-xl bg-ink-50 px-3 py-2 text-left text-sm hover:bg-ink-100"
+                className="flex min-h-11 w-full items-center rounded-sm border border-line bg-surface px-3 py-2 text-left text-body-sm hover:bg-paper"
                 onClick={() => {
                   setSelected('details');
                   setIssuesOpen(false);
@@ -436,7 +506,7 @@ export default function QuizEditorPage() {
               <li key={q.key}>
                 <button
                   type="button"
-                  className="w-full rounded-xl bg-ink-50 px-3 py-2 text-left text-sm hover:bg-ink-100"
+                  className="flex min-h-11 w-full items-start gap-1 rounded-sm border border-line bg-surface px-3 py-2 text-left text-body-sm hover:bg-paper"
                   onClick={() => {
                     setSelected(q.key);
                     setIssuesOpen(false);
@@ -514,16 +584,13 @@ function NoEditAccess({ quizId, title, perms }: { quizId: string; title: string;
   };
 
   return (
-    <div className="mx-auto max-w-lg py-10 text-center">
-      <div className="flex justify-center">{perms.role !== 'owner' && <AccessBadge access={perms.role} />}</div>
-      <h1 className="mt-4 text-2xl font-extrabold">{title || 'Shared quiz'}</h1>
-      <p className="mt-2 text-ink-600">
-        {perms.ownerName} shared this quiz with you to{' '}
-        {perms.role === 'copy'
-          ? 'view and copy. Copy it to your library to make your own changes.'
-          : 'view. Ask them for copy or edit access to change it.'}
-      </p>
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
+    <div className="space-y-4 py-10">
+      {perms.role !== 'owner' && <AccessBadge access={perms.role} />}
+      <StatusBlock
+        icon={<Lock />}
+        title={title || 'Shared quiz'}
+        actions={
+          <>
         <ButtonLink to={`/teacher/quizzes/${quizId}/preview`} leftIcon={<Eye className="size-4" />}>
           Preview
         </ButtonLink>
@@ -535,7 +602,14 @@ function NoEditAccess({ quizId, title, perms }: { quizId: string; title: string;
         <ButtonLink to="/teacher/shared" variant="ghost">
           Back to Shared with Me
         </ButtonLink>
-      </div>
+          </>
+        }
+      >
+        {perms.ownerName} shared this quiz with you to{' '}
+        {perms.role === 'copy'
+          ? 'view and copy. Copy it to your library to make your own changes.'
+          : 'view. Ask them for copy or edit access to change it.'}
+      </StatusBlock>
     </div>
   );
 }
@@ -545,18 +619,18 @@ function SaveState({ saving, dirty, saved }: { saving: boolean; dirty: boolean; 
   if (saving) content = <span className="text-ink-500">Saving…</span>;
   else if (dirty || !saved)
     content = (
-      <span className="flex items-center gap-1.5 text-ink-600">
-        <span className="size-2 rounded-full bg-sun-500" /> {saved ? 'Unsaved changes' : 'Not saved yet'}
+      <span className="flex items-center gap-1.5 text-ink-700">
+        <span className="size-2 rounded-full bg-answer-d" /> {saved ? 'Unsaved changes' : 'Not saved yet'}
       </span>
     );
   else
     content = (
       <span className="flex items-center gap-1.5 text-ink-500">
-        <CheckCircle2 className="size-3.5 text-mint-500" /> All changes saved
+        <CheckCircle2 className="size-3.5 text-success-600" /> All changes saved
       </span>
     );
   return (
-    <p className={cn('mt-0.5 text-xs font-medium')} aria-live="polite">
+    <p className="mt-0.5 text-caption" aria-live="polite">
       {content}
     </p>
   );
@@ -566,14 +640,14 @@ function EditorSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Loading quiz">
       <Skeleton className="h-12 w-2/3" />
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_340px]">
+      <div className="grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)_340px]">
         <div className="space-y-2">
           {Array.from({ length: 5 }, (_, i) => (
             <Skeleton key={i} className="h-14" />
           ))}
         </div>
-        <Skeleton className="h-[520px] rounded-2xl" />
-        <Skeleton className="hidden h-[460px] rounded-[2rem] xl:block" />
+        <Skeleton className="h-[520px] rounded-md" />
+        <Skeleton className="hidden h-[460px] rounded-[1.75rem] xl:block" />
       </div>
     </div>
   );

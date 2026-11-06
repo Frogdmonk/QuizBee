@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { KeyRound, LinkIcon } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { PasswordField } from '@/components/ui/TextField';
 import { Alert } from '@/components/ui/Alert';
-import { Spinner } from '@/components/ui/Spinner';
+import { Skeleton } from '@/components/ui/FormControls';
+import { StatusBlock } from '@/components/ui/StatusBlock';
+import { PasswordChecklist } from '@/components/ui/PasswordChecklist';
 import { newPasswordSchema, type NewPasswordValues } from '@/lib/validation/auth';
 import { updatePassword } from '@/services/auth';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
@@ -34,11 +36,13 @@ export default function ResetPasswordPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<NewPasswordValues>({
     resolver: zodResolver(newPasswordSchema),
     defaultValues: { password: '', confirmPassword: '' },
   });
+  const [password, confirmPassword] = useWatch({ control, name: ['password', 'confirmPassword'] });
 
   const onSubmit = handleSubmit(async ({ password }) => {
     setFormError(null);
@@ -54,36 +58,39 @@ export default function ResetPasswordPage() {
 
   if (state.status === 'loading') {
     return (
-      <div className="flex justify-center py-10 text-ink-500">
-        <Spinner label="Verifying your reset link" />
+      <div role="status" aria-label="Verifying your reset link" aria-busy="true" className="space-y-5">
+        <Skeleton className="h-10 w-3/4" />
+        <Skeleton className="h-11" />
+        <Skeleton className="h-11" />
+        <p className="text-caption text-ink-500">Checking your link…</p>
       </div>
     );
   }
 
   if (state.status === 'signed_out') {
     return (
-      <div className="text-center">
-        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-rose-50 text-rose-500">
-          <LinkIcon className="size-7" />
-        </span>
-        <h1 className="mt-6 text-3xl font-extrabold">Reset link not valid</h1>
-        <p className="mt-3 text-ink-600">
-          {linkError ?? 'Open the most recent reset link from your email, or request a new one.'}
-        </p>
-        <ButtonLink to="/forgot-password" size="lg" className="mt-8" fullWidth>
-          Request a new link
-        </ButtonLink>
-      </div>
+      <StatusBlock
+        tone="error"
+        icon={<LinkIcon />}
+        title="Reset link not valid"
+        actions={
+          <ButtonLink to="/forgot-password" size="lg">
+            Request a new link
+          </ButtonLink>
+        }
+      >
+        {linkError ?? 'Open the most recent reset link from your email, or request a new one.'}
+      </StatusBlock>
     );
   }
 
   return (
     <div>
-      <span className="grid size-12 place-items-center rounded-2xl bg-ink-900 text-white">
-        <KeyRound className="size-6" />
-      </span>
-      <h1 className="mt-6 text-3xl font-extrabold">Choose a new password</h1>
-      <p className="mt-2 text-ink-600">
+      <p className="type-kicker inline-flex items-center gap-2">
+        <KeyRound className="size-4" /> Password reset
+      </p>
+      <h1 className="type-display mt-2 text-display-lg">Choose a new password</h1>
+      <p className="mt-3 text-body text-ink-700">
         Signed in as <strong className="text-ink-900">{state.user.email}</strong>.
       </p>
       <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
@@ -101,6 +108,7 @@ export default function ResetPasswordPage() {
           error={errors.confirmPassword?.message}
           {...register('confirmPassword')}
         />
+        <PasswordChecklist password={password} confirm={confirmPassword} />
         <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
           Update password
         </Button>

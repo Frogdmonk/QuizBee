@@ -1,8 +1,20 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
-export function Card({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('rounded-2xl border border-ink-100 bg-surface shadow-card', className)} {...rest} />;
+export type CardVariant = 'sheet' | 'flat' | 'night';
+
+const variants: Record<CardVariant, string> = {
+  /** White sheet with a hairline edge. No shadow. */
+  sheet: 'rounded-md border border-line bg-surface',
+  /** Paper-sunk band, no border. Never place inputs on it. */
+  flat: 'rounded-md bg-paper-sunk',
+  /** Raised panel on the night canvas. */
+  night: 'rounded-md border border-night-rule bg-night-900 text-night-text',
+};
+
+/** Generic container. Prefer a Ledger, StatStrip or SectionHead before reaching for a card. */
+export function Card({ className, variant = 'sheet', ...rest }: HTMLAttributes<HTMLDivElement> & { variant?: CardVariant }) {
+  return <div className={cn(variants[variant], className)} {...rest} />;
 }
 
 export function CardHeader({
@@ -17,10 +29,10 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-start justify-between gap-4 border-b border-ink-100 px-5 py-4 sm:px-6', className)}>
+    <div className={cn('flex items-start justify-between gap-4 border-b border-line px-5 py-4 sm:px-6', className)}>
       <div className="min-w-0">
-        <h2 className="text-lg font-bold text-ink-900">{title}</h2>
-        {description && <p className="mt-0.5 text-sm text-ink-500">{description}</p>}
+        <h2 className="text-title text-ink-900">{title}</h2>
+        {description && <p className="mt-0.5 text-body-sm text-ink-500">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

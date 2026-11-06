@@ -60,10 +60,10 @@ export function ImagePicker({ value, onChange, label, variant = 'wide', classNam
         onChange={(e) => void onFile(e.target.files?.[0])}
       />
       {url ? (
-        <div className={cn('group relative overflow-hidden rounded-xl border border-ink-200 bg-ink-50', tile ? 'aspect-square' : 'aspect-[16/9]')}>
+        <div className={cn('group relative overflow-hidden rounded-sm border border-line bg-paper-sunk', tile ? 'aspect-square' : 'aspect-[16/9]')}>
           <img src={url} alt="" className={cn('size-full', tile ? 'object-cover' : 'object-contain')} />
           {uploading && (
-            <div className="absolute inset-0 grid place-items-center bg-white/70">
+            <div className="absolute inset-0 grid place-items-center bg-surface/80 text-ink-700">
               <Spinner label="Uploading image" />
             </div>
           )}
@@ -72,7 +72,7 @@ export function ImagePicker({ value, onChange, label, variant = 'wide', classNam
               type="button"
               onClick={open}
               disabled={uploading}
-              className="grid size-8 place-items-center rounded-lg bg-white/95 text-ink-800 shadow-card hover:bg-white"
+              className="grid size-10 place-items-center rounded-sm bg-surface text-ink-900 shadow-pop hover:bg-paper"
               aria-label={`Replace ${label.toLowerCase()}`}
               title="Replace"
             >
@@ -82,7 +82,7 @@ export function ImagePicker({ value, onChange, label, variant = 'wide', classNam
               type="button"
               onClick={() => onChange(null)}
               disabled={uploading}
-              className="grid size-8 place-items-center rounded-lg bg-white/95 text-rose-600 shadow-card hover:bg-white"
+              className="grid size-10 place-items-center rounded-sm bg-surface text-error-600 shadow-pop hover:bg-paper"
               aria-label={`Remove ${label.toLowerCase()}`}
               title="Remove"
             >
@@ -96,14 +96,14 @@ export function ImagePicker({ value, onChange, label, variant = 'wide', classNam
           onClick={open}
           disabled={uploading}
           className={cn(
-            'flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-ink-200 text-ink-500',
-            'transition-colors hover:border-ink-300 hover:bg-ink-50 hover:text-ink-800 disabled:opacity-70',
-            tile ? 'aspect-square text-xs' : 'py-6 text-sm',
+            'flex w-full flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed border-line-strong bg-surface text-ink-700',
+            'transition-colors hover:bg-paper hover:text-ink-900 disabled:cursor-wait',
+            tile ? 'aspect-square text-caption' : 'py-6 text-body-sm',
           )}
         >
           {uploading ? <Spinner label="Uploading image" /> : <ImagePlus className={tile ? 'size-5' : 'size-6'} />}
           <span className="font-semibold">{uploading ? 'Uploading…' : label}</span>
-          {!tile && !uploading && <span className="text-xs text-ink-400">JPG, PNG, WebP or GIF · up to 10 MB</span>}
+          {!tile && !uploading && <span className="text-caption text-ink-500">JPG, PNG, WebP or GIF · up to 10 MB</span>}
         </button>
       )}
     </div>

@@ -1,7 +1,9 @@
 import type { Dispatch } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { ArrowDown, ArrowUp, Check, Copy, Lightbulb, MoreHorizontal, Plus, Timer, Trash2, Trophy, X } from 'lucide-react';
-import { Card, CardBody } from '@/components/ui/Card';
+import { ArrowDown, ArrowUp, Check, Copy, MoreHorizontal, Plus, Timer, Trash2, Trophy, X } from 'lucide-react';
+import { Alert } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { spring } from '@/lib/motion';
 import { Menu } from '@/components/ui/Menu';
 import { SegmentedControl, SelectField, TextAreaField } from '@/components/ui/FormControls';
 import { cn } from '@/lib/cn';
@@ -42,16 +44,23 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
   const pointsKnown = POINTS_CHOICES.some((p) => p.value === q.points);
   const timeKnown = (TIME_LIMIT_CHOICES as readonly number[]).includes(q.timeLimitSeconds);
 
+  const moveButton =
+    'grid size-10 place-items-center rounded-sm text-ink-500 hover:bg-paper-sunk hover:text-ink-900 disabled:text-line-strong disabled:hover:bg-transparent pointer-coarse:size-11';
+
   return (
-    <Card>
-      <div className="flex items-center justify-between gap-3 border-b border-ink-100 px-5 py-3 sm:px-6">
-        <h2 className="text-lg font-bold">Question {index + 1}</h2>
+    <div className="rounded-md border border-line bg-surface">
+      <div className="flex items-center justify-between gap-3 border-b border-line py-2 pr-2 pl-5 sm:pl-6">
+        <h2 className="flex items-baseline gap-2">
+          <span className="type-kicker">Question</span>
+          <span className="type-score text-score-md text-ink-900">{index + 1}</span>
+          <span className="text-caption text-ink-500">of {total}</span>
+        </h2>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => dispatch({ type: 'moveQuestion', key: q.key, delta: -1 })}
             disabled={index === 0}
-            className="grid size-9 place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900 disabled:opacity-30"
+            className={moveButton}
             aria-label="Move question up"
             title="Move up"
           >
@@ -61,7 +70,7 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
             type="button"
             onClick={() => dispatch({ type: 'moveQuestion', key: q.key, delta: 1 })}
             disabled={index === total - 1}
-            className="grid size-9 place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900 disabled:opacity-30"
+            className={moveButton}
             aria-label="Move question down"
             title="Move down"
           >
@@ -78,7 +87,7 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
         </div>
       </div>
 
-      <CardBody className="space-y-6">
+      <div className="space-y-6 px-5 py-5 sm:px-6">
         <SegmentedControl
           label="Question type"
           layoutId="question-type"
@@ -89,6 +98,7 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
 
         <TextAreaField
           label="Question"
+          className="[&_textarea]:text-[1.125rem]"
           placeholder={trueFalse ? 'e.g. Water boils at 100 °C at sea level.' : 'e.g. Which planet is closest to the Sun?'}
           value={q.prompt}
           maxChars={LIMITS.promptMax}
@@ -97,9 +107,10 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
         />
 
         <div className="space-y-1.5">
-          <p className="text-sm font-semibold text-ink-800">
-            Question image <span className="font-normal text-ink-400">(optional)</span>
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-label text-ink-900">Question image</p>
+            <span className="text-caption text-ink-500">Optional</span>
+          </div>
           <ImagePicker
             label="Add question image"
             value={q.imagePath}
@@ -108,10 +119,10 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
         </div>
 
         <fieldset className="space-y-3">
-          <legend className="text-sm font-semibold text-ink-800">
-            Answers <span className="font-normal text-ink-500">· tap the circle to mark the correct one</span>
+          <legend className="text-label text-ink-900">
+            Answers <span className="font-normal text-ink-500">· tick the correct one</span>
           </legend>
-          <div role="radiogroup" aria-label="Correct answer" className={cn('grid gap-3', pictureAnswers && 'grid-cols-2')}>
+          <div role="radiogroup" aria-label="Correct answer" className={cn('grid grid-cols-[minmax(0,1fr)] gap-2', pictureAnswers && 'grid-cols-2')}>
             <AnimatePresence initial={false}>
               {q.options.map((option, i) => {
                 const style = answerStyle(i);
@@ -123,15 +134,21 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.12 } }}
                     className={cn(
-                      'rounded-xl border-2 p-2 transition-colors',
-                      option.isCorrect ? 'border-mint-500 bg-mint-50' : 'border-ink-100 bg-surface',
+                      'relative min-w-0 overflow-hidden rounded-sm border py-2 pr-2 pl-5 transition-colors duration-[var(--dur-fast)]',
+                      option.isCorrect ? 'border-success-600 bg-success-50' : ['border-line', style.softBg],
                       pictureAnswers ? 'space-y-2' : 'flex items-center gap-2',
                     )}
                   >
+                    <span aria-hidden className={cn('absolute inset-y-0 left-0 w-3', style.kit)} />
                     <div className={cn('flex items-center gap-2', pictureAnswers && 'justify-between')}>
-                      <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg font-display font-extrabold text-white', style.bg)}>
+                      <span className={cn('type-stage grid size-10 shrink-0 place-items-center rounded-[4px] text-[1.25rem]', style.bg, style.fg)}>
                         {style.letter}
                       </span>
+                      {option.isCorrect && (
+                        <Badge tone="success" className={pictureAnswers ? '' : 'hidden sm:inline-flex'}>
+                          Correct
+                        </Badge>
+                      )}
                       {pictureAnswers && (
                         <CorrectToggle
                           checked={option.isCorrect}
@@ -163,11 +180,11 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
                         dispatch({ type: 'updateOption', questionKey: q.key, optionKey: option.key, patch: { label: e.target.value } })
                       }
                       className={cn(
-                        'h-10 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-[15px] font-medium outline-none',
-                        'placeholder:text-ink-400 focus:border-ink-200 focus:bg-surface',
-                        pictureAnswers && 'w-full border-ink-100 bg-surface text-sm',
+                        'h-11 min-w-0 flex-1 rounded-sm border border-transparent bg-transparent px-2 text-body font-semibold text-ink-900 outline-none',
+                        'placeholder:font-normal placeholder:text-ink-500 focus:border-line-strong focus:bg-surface',
+                        pictureAnswers && 'w-full border-line-strong bg-surface text-body-sm',
                         trueFalse && 'cursor-default',
-                        option.label.length > LIMITS.optionLabelMax && 'border-rose-400 text-rose-600',
+                        option.label.length > LIMITS.optionLabelMax && 'border-error-600 text-error-600',
                       )}
                     />
 
@@ -183,7 +200,7 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
                         type="button"
                         onClick={() => dispatch({ type: 'removeOption', questionKey: q.key, optionKey: option.key })}
                         className={cn(
-                          'grid size-9 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-ink-100 hover:text-rose-600',
+                          'grid size-10 shrink-0 place-items-center rounded-sm text-ink-500 hover:bg-surface hover:text-error-600 pointer-coarse:size-11',
                           pictureAnswers && 'w-full',
                         )}
                         aria-label={`Remove answer ${style.letter}`}
@@ -201,14 +218,14 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
             <button
               type="button"
               onClick={() => dispatch({ type: 'addOption', questionKey: q.key })}
-              className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-ink-600 hover:bg-ink-100 hover:text-ink-900"
+              className="flex h-11 items-center gap-1.5 rounded-sm px-3 text-label text-ink-700 hover:bg-paper-sunk hover:text-ink-900"
             >
               <Plus className="size-4" /> Add answer
             </button>
           )}
         </fieldset>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 border-t border-line pt-6 sm:grid-cols-2">
           <SelectField
             label="Time limit"
             icon={<Timer />}
@@ -238,7 +255,8 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
         </div>
 
         <TextAreaField
-          label="Explanation (optional)"
+          label="Explanation"
+          optional
           hint="Shown to students after the answer is revealed."
           placeholder="e.g. Mercury orbits closest to the Sun at about 58 million km."
           value={q.explanation}
@@ -248,20 +266,16 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
         />
 
         {issues.length > 0 && (
-          <div className="flex gap-3 rounded-xl bg-sun-300/20 p-3 text-sm text-ink-700">
-            <Lightbulb className="mt-0.5 size-4 shrink-0 text-sun-500" />
-            <div>
-              <p className="font-semibold text-ink-900">Before publishing</p>
-              <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                {issues.map((issue) => (
-                  <li key={issue}>{issue}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          <Alert tone="warning" title="Before publishing">
+            <ul className="list-disc space-y-0.5 pl-4">
+              {issues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </Alert>
         )}
-      </CardBody>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -275,11 +289,22 @@ function CorrectToggle({ checked, letter, onSelect }: { checked: boolean; letter
       title={checked ? 'Correct answer' : 'Mark as correct'}
       onClick={onSelect}
       className={cn(
-        'grid size-9 shrink-0 place-items-center rounded-full border-2 transition-colors',
-        checked ? 'border-mint-500 bg-mint-500 text-white' : 'border-ink-200 text-transparent hover:border-mint-400 hover:text-mint-400',
+        'grid size-11 shrink-0 place-items-center rounded-full transition-colors duration-[var(--dur-fast)]',
+        checked ? 'text-white' : 'text-line-strong hover:text-success-600',
       )}
     >
-      <Check className="size-5" strokeWidth={3} />
+      <m.span
+        key={String(checked)}
+        initial={checked ? { scale: 0.5 } : false}
+        animate={{ scale: 1 }}
+        transition={spring.pop}
+        className={cn(
+          'grid size-8 place-items-center rounded-full border-2',
+          checked ? 'border-success-600 bg-success-600' : 'border-line-strong bg-surface',
+        )}
+      >
+        <Check className="size-4" strokeWidth={3} />
+      </m.span>
     </button>
   );
 }

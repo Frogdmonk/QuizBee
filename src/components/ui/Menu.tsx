@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { cn } from '@/lib/cn';
+import { dur } from '@/lib/motion';
 
 export type MenuItem =
   | {
@@ -79,7 +80,10 @@ export function Menu({ label, trigger, items, align = 'right', triggerClassName,
         className={
           plainTrigger
             ? triggerClassName
-            : cn('grid size-9 place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900', triggerClassName)
+            : cn(
+                'grid size-9 place-items-center rounded-sm text-ink-500 hover:bg-paper-sunk hover:text-ink-900 pointer-coarse:size-11',
+                triggerClassName,
+              )
         }
       >
         {trigger}
@@ -91,18 +95,18 @@ export function Menu({ label, trigger, items, align = 'right', triggerClassName,
             role="menu"
             aria-label={label}
             onKeyDown={onMenuKeyDown}
-            initial={{ opacity: 0, y: -4, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.1 } }}
-            transition={{ duration: 0.14 }}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4, transition: { duration: dur.instant } }}
+            transition={{ duration: dur.fast }}
             className={cn(
-              'absolute top-full z-40 mt-1 min-w-48 origin-top rounded-xl border border-ink-100 bg-surface p-1 shadow-lift',
+              'absolute top-full z-40 mt-1 min-w-52 origin-top rounded-sm border border-line bg-surface p-1 text-ink-900 shadow-pop',
               align === 'right' ? 'right-0' : 'left-0',
             )}
           >
             {items.map((item, i) =>
               item === 'separator' ? (
-                <div key={`sep-${i}`} role="separator" className="my-1 h-px bg-ink-100" />
+                <div key={`sep-${i}`} role="separator" className="my-1 h-px bg-line" />
               ) : (
                 <button
                   key={item.label}
@@ -116,9 +120,9 @@ export function Menu({ label, trigger, items, align = 'right', triggerClassName,
                     item.onSelect();
                   }}
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium outline-none',
-                    'focus-visible:bg-ink-100 disabled:opacity-40 hover:bg-ink-100',
-                    item.tone === 'danger' ? 'text-rose-600' : 'text-ink-800',
+                    'flex min-h-10 w-full items-center gap-2.5 rounded-[4px] px-3 text-left text-body-sm font-medium outline-none pointer-coarse:min-h-11',
+                    'hover:bg-paper-sunk focus-visible:bg-paper-sunk disabled:cursor-not-allowed disabled:text-ink-500',
+                    item.tone === 'danger' ? 'text-error-600' : 'text-ink-900',
                   )}
                 >
                   {item.icon && <span className="shrink-0 [&>svg]:size-4">{item.icon}</span>}

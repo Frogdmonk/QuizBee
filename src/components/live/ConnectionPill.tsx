@@ -1,5 +1,6 @@
 import { cn } from '@/lib/cn';
 import type { ChannelStatus } from '@/hooks/useSessionChannel';
+import { Badge } from '@/components/ui/Badge';
 
 const LABELS: Record<ChannelStatus, string> = {
   connecting: 'Connecting…',
@@ -7,23 +8,41 @@ const LABELS: Record<ChannelStatus, string> = {
   offline: 'Reconnecting…',
 };
 
-export function ConnectionPill({ status, dark = false }: { status: ChannelStatus; dark?: boolean }) {
+/**
+ * Realtime connection status. `quiet`: when healthy it is only an 8px dot (with screen-reader
+ * text); when connecting or offline it expands to a labelled badge.
+ */
+export function ConnectionPill({
+  status,
+  dark = false,
+  quiet = false,
+  surface,
+}: {
+  status: ChannelStatus;
+  /** Legacy: same as surface="night". */
+  dark?: boolean;
+  quiet?: boolean;
+  surface?: 'paper' | 'night';
+}) {
+  const s = surface ?? (dark ? 'night' : 'paper');
+  if (quiet && status === 'live') {
+    return (
+      <span role="status" className="inline-flex size-11 items-center justify-center" title="Live">
+        <span aria-hidden className="size-2 rounded-full bg-success-400" />
+        <span className="sr-only">Live</span>
+      </span>
+    );
+  }
   return (
-    <span
-      role="status"
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold',
-        dark ? 'bg-white/10 text-white/80' : 'bg-ink-50 text-ink-600',
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          'size-2 rounded-full',
-          status === 'live' ? 'bg-mint-400' : status === 'offline' ? 'bg-rose-400' : 'animate-pulse bg-sun-400',
-        )}
-      />
-      {LABELS[status]}
+    <span role="status" className="inline-flex">
+      <Badge
+        surface={s}
+        tone={status === 'live' ? 'success' : status === 'offline' ? 'error' : 'warning'}
+        dot
+        className={cn(status === 'connecting' && '[&>span:first-child]:animate-pulse')}
+      >
+        {LABELS[status]}
+      </Badge>
     </span>
   );
 }

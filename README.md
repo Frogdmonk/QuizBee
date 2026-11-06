@@ -67,6 +67,7 @@ docs/           architecture, setup, deploy, testing, troubleshooting
 * [Deployment (GitHub + Cloudflare Pages)](docs/DEPLOYMENT.md)
 * [Testing](docs/TESTING.md)
 * [Troubleshooting](docs/TROUBLESHOOTING.md)
+* [Design system ("Match Day")](docs/DESIGN.md): palette, type, motion and the layout of every screen
 
 ## Security model in one paragraph
 

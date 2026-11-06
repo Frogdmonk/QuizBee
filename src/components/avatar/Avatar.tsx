@@ -15,13 +15,15 @@ type AvatarProps = {
   className?: string;
   /** Accessible name; omit for decorative avatars next to a visible name. */
   title?: string;
+  /** `own`: the 3px night-text ring marking the player's own avatar. */
+  ring?: 'own';
 };
 
 /**
  * Original layered character drawn as inline SVG (120×120). Pure and memoised:
  * a projector renders up to 100 of these.
  */
-export const Avatar = memo(function Avatar({ code, className, title }: AvatarProps) {
+export const Avatar = memo(function Avatar({ code, className, title, ring }: AvatarProps) {
   const p = decodeAvatar(code);
   const uid = useId().replace(/:/g, '');
   const clip = `av-clip-${uid}`;
@@ -34,7 +36,7 @@ export const Avatar = memo(function Avatar({ code, className, title }: AvatarPro
   return (
     <svg
       viewBox="0 0 120 120"
-      className={cn('block aspect-square shrink-0', className)}
+      className={cn('block aspect-square shrink-0', ring === 'own' && 'rounded-full ring-[3px] ring-night-text', className)}
       role={title ? 'img' : undefined}
       aria-label={title}
       aria-hidden={title ? undefined : true}

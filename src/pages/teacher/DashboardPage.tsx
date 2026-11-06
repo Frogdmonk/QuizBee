@@ -1,16 +1,26 @@
-import { Link } from 'react-router';
-import { m } from 'motion/react';
-import { ArrowRight, BookOpenText, CheckCircle2, CircleDashed, FilePen, MailWarning, Plus, Radio, Rocket } from 'lucide-react';
-import { Card, CardBody, CardHeader } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { ArrowRight, Eye, MoreVertical, Pencil, Plus, Radio } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/FormControls';
+import { SectionHead } from '@/components/ui/SectionHead';
+import { Ledger, LedgerLink, LedgerRow } from '@/components/ui/Ledger';
+import { StatStrip } from '@/components/ui/StatStrip';
+import { Banner } from '@/components/ui/Banner';
+import { Badge } from '@/components/ui/Badge';
+import { PinDigits } from '@/components/ui/PinDigits';
+import { CountRoll } from '@/components/ui/CountRoll';
+import { StepStrip } from '@/components/ui/StepStrip';
+import { Menu } from '@/components/ui/Menu';
 import { StatusBadge } from '@/components/quiz/StatusBadge';
+import { HostQuizDialog } from '@/components/live/HostQuizDialog';
 import { useSignedInTeacher } from '@/hooks/useTeacherAuth';
 import { useMyQuizzes } from '@/hooks/useMyQuizzes';
+import { listMySessions } from '@/services/sessions';
 import { relativeTime } from '@/utils/time';
-import { cn } from '@/lib/cn';
+import type { SessionSummary } from '@/types/session';
+import type { QuizSummary } from '@/types/quiz';
 
 function greeting(date = new Date()): string {
   const hour = date.getHours();
@@ -19,44 +29,47 @@ function greeting(date = new Date()): string {
   return 'Good evening';
 }
 
-/** Development roadmap, mirroring docs/ARCHITECTURE.md §6. */
-const ROADMAP = [
-  { title: 'Foundation & authentication', done: true },
-  { title: 'Quiz builder & library', done: true },
-  { title: 'Quiz sharing via share links', done: false },
-  { title: 'Workspaces & team quiz sharing', done: true },
-  { title: 'Live sessions: PIN, QR & waiting room', done: false },
-  { title: 'Game engine & scoring', done: false },
-  { title: 'Leaderboards, reactions & podium', done: false },
-];
-
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { user, profile, profileStatus, reloadProfile } = useSignedInTeacher();
   const { quizzes, status, reload } = useMyQuizzes();
+  const [openSession, setOpenSession] = useState<SessionSummary | null>(null);
+  const [hosting, setHosting] = useState<QuizSummary | null>(null);
   const name = profile?.display_name ?? '';
   const emailConfirmed = Boolean(user.email_confirmed_at);
 
+  // The Host band shows a real open lobby when there is one (same data as Live sessions).
+  useEffect(() => {
+    let cancelled = false;
+    listMySessions(user.id)
+      .then((list) => {
+        if (!cancelled) setOpenSession(list.find((s) => s.status === 'lobby' || s.status === 'in_progress') ?? null);
+      })
+      .catch(() => {
+        // The band falls back to "Host a game"; nothing to report.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
   const active = quizzes.filter((q) => q.status !== 'archived');
-  const stats = [
-    { label: 'Quizzes', value: active.length, icon: BookOpenText, tone: 'bg-ink-900 text-white' },
-    { label: 'Published', value: quizzes.filter((q) => q.status === 'published').length, icon: Rocket, tone: 'bg-mint-50 text-mint-600' },
-    { label: 'Drafts', value: quizzes.filter((q) => q.status === 'draft').length, icon: FilePen, tone: 'bg-sun-300/30 text-ink-800' },
-  ];
+  const published = quizzes.filter((q) => q.status === 'published').length;
+  const drafts = quizzes.filter((q) => q.status === 'draft').length;
   const recent = active.slice(0, 5);
+  const brandNew = status === 'ready' && quizzes.length === 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-ink-500">
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
-          <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">
+        <div className="min-w-0">
+          <p className="type-kicker">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className="type-display mt-2 text-display-lg">
             {greeting()}
-            {name ? `, ${name.split(' ')[0]}` : ''}
+            {name ? `, ${name}` : ''}
           </h1>
         </div>
-        <ButtonLink to="/teacher/quizzes/create" leftIcon={<Plus className="size-4" />}>
+        <ButtonLink to="/teacher/quizzes/create" variant="secondary" leftIcon={<Plus className="size-4" />}>
           New quiz
         </ButtonLink>
       </header>
@@ -72,152 +85,159 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      <section aria-label="Overview" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s, i) => (
-          <m.div
-            key={s.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="flex items-center gap-4 rounded-2xl border border-ink-100 bg-surface p-5 shadow-card"
-          >
-            <span className={cn('grid size-11 shrink-0 place-items-center rounded-xl', s.tone)}>
-              <s.icon className="size-5" />
-            </span>
-            <div>
-              {status === 'loading' ? (
-                <Skeleton className="h-8 w-10" />
-              ) : (
-                <p className="font-display text-3xl font-extrabold tabular">{status === 'error' ? '–' : s.value}</p>
-              )}
-              <p className="text-sm text-ink-500">{s.label}</p>
+      {/* Host band: always present */}
+      <Banner className="-mx-4 rounded-none sm:mx-0 sm:rounded-md" aria-label="Live">
+        {openSession ? (
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+            <div className="min-w-0 flex-1 basis-56">
+              <Badge tone="signal" surface="night" dot>
+                Lobby open
+              </Badge>
+              <p className="mt-2 truncate text-title">{openSession.quizTitle}</p>
+              <p className="mt-1 text-body-sm text-night-muted">
+                <span className="type-score text-score-sm text-night-text">
+                  <CountRoll value={openSession.participantCount} />
+                </span>{' '}
+                waiting
+              </p>
             </div>
-          </m.div>
-        ))}
-        <div className="flex items-center gap-4 rounded-2xl border border-dashed border-ink-200 p-5">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-ink-100 text-ink-400">
-            <Radio className="size-5" />
-          </span>
-          <div>
-            <p className="font-semibold text-ink-600">Sessions hosted</p>
-            <p className="text-sm text-ink-400">Live hosting arrives in phase 3</p>
+            <PinDigits value={openSession.pin} size="bar" label={`PIN ${openSession.pin}`} className="text-night-text" />
+            <ButtonLink to={`/teacher/sessions/${openSession.id}`}>Back to lobby</ButtonLink>
           </div>
-        </div>
-      </section>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="type-kicker">Live</p>
+              <p className="type-headline mt-1 text-headline">Ready to run a quiz?</p>
+              <p className="mt-1 text-body-sm text-night-muted">Open a lobby and put the PIN on the big screen.</p>
+            </div>
+            <ButtonLink to="/teacher/sessions" leftIcon={<Radio className="size-4" />}>
+              Host a game
+            </ButtonLink>
+          </div>
+        )}
+      </Banner>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Card>
-          <CardHeader
-            title="Recent quizzes"
-            action={
-              <Link to="/teacher/quizzes" className="flex items-center gap-1 text-sm font-semibold text-flame-600 hover:text-flame-700">
-                View all <ArrowRight className="size-4" />
-              </Link>
-            }
+      {status === 'loading' ? (
+        <Skeleton className="h-[88px]" />
+      ) : status === 'error' ? null : (
+        <StatStrip
+          items={[
+            { label: 'Quizzes', value: active.length, to: '/teacher/quizzes' },
+            { label: 'Published', value: published, to: '/teacher/quizzes' },
+            { label: 'Drafts', value: drafts, to: '/teacher/quizzes' },
+          ]}
+        />
+      )}
+
+      {brandNew ? (
+        <section aria-labelledby="start-heading" className="space-y-6">
+          <SectionHead id="start-heading" kicker="Getting started" title="Your first game in three steps" />
+          <StepStrip
+            steps={[
+              { title: 'Build', body: 'Write a few questions. Multiple choice, true or false, or pictures.' },
+              { title: 'Host', body: 'Publish the quiz and open a lobby from Live sessions.' },
+              { title: 'Join', body: 'Students scan the QR code or type the PIN on their phones.' },
+            ]}
           />
-          <CardBody className="p-2 sm:p-2">
+          <ButtonLink to="/teacher/quizzes/create" leftIcon={<Plus className="size-4" />}>
+            Create your first quiz
+          </ButtonLink>
+        </section>
+      ) : (
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+          <section aria-labelledby="recent-heading" className="min-w-0">
+            <SectionHead
+              id="recent-heading"
+              kicker="Recent quizzes"
+              action={
+                <Link to="/teacher/quizzes" className="inline-flex min-h-11 items-center gap-1 text-body-sm font-semibold text-signal-600 hover:text-signal-700">
+                  View all <ArrowRight className="size-4" />
+                </Link>
+              }
+            />
             {status === 'loading' ? (
-              <div className="space-y-2 p-3">
+              <div className="mt-2 space-y-2" aria-busy="true" aria-label="Loading quizzes">
                 {Array.from({ length: 3 }, (_, i) => (
-                  <Skeleton key={i} className="h-12" />
+                  <Skeleton key={i} className="h-16" />
                 ))}
               </div>
             ) : status === 'error' ? (
-              <div className="flex items-center justify-between gap-3 p-4 text-sm text-ink-600">
+              <div className="flex items-center justify-between gap-3 py-6 text-body-sm text-ink-700">
                 Could not load your quizzes.
                 <Button size="sm" variant="secondary" onClick={reload}>
                   Retry
                 </Button>
               </div>
-            ) : recent.length === 0 ? (
-              <div className="flex flex-col items-center px-6 py-10 text-center">
-                <p className="font-semibold">No quizzes yet</p>
-                <p className="mt-1 text-sm text-ink-500">Your first quiz takes about five minutes.</p>
-                <ButtonLink to="/teacher/quizzes/create" size="sm" className="mt-4" leftIcon={<Plus className="size-4" />}>
-                  Create a quiz
-                </ButtonLink>
-              </div>
             ) : (
-              <ul>
+              <Ledger>
                 {recent.map((quiz) => (
-                  <li key={quiz.id}>
-                    <Link
-                      to={`/teacher/quizzes/${quiz.id}/edit`}
-                      className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-ink-50"
-                    >
+                  <LedgerRow
+                    key={quiz.id}
+                    tab={quiz.status === 'published' ? 'published' : 'draft'}
+                    className="min-h-16"
+                    actions={
+                      <>
+                        {quiz.status === 'published' && (
+                          <Button size="sm" variant="secondary" className="hidden sm:inline-flex" leftIcon={<Radio className="size-4" />} onClick={() => setHosting(quiz)}>
+                            Host
+                          </Button>
+                        )}
+                        <Menu
+                          label={`Actions for ${quiz.title}`}
+                          trigger={<MoreVertical className="size-5" />}
+                          items={[
+                            { label: 'Edit', icon: <Pencil />, onSelect: () => navigate(`/teacher/quizzes/${quiz.id}/edit`) },
+                            { label: 'Preview', icon: <Eye />, onSelect: () => navigate(`/teacher/quizzes/${quiz.id}/preview`) },
+                            ...(quiz.status === 'published' ? [{ label: 'Host live', icon: <Radio />, onSelect: () => setHosting(quiz) }] : []),
+                          ]}
+                        />
+                      </>
+                    }
+                  >
+                    <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold">{quiz.title}</p>
-                        <p className="text-sm text-ink-500">
-                          {quiz.questionCount} {quiz.questionCount === 1 ? 'question' : 'questions'} · {relativeTime(quiz.updatedAt)}
+                        <LedgerLink to={`/teacher/quizzes/${quiz.id}/edit`}>{quiz.title}</LedgerLink>
+                        <p className="mt-0.5 truncate text-caption text-ink-500">
+                          {quiz.questionCount} {quiz.questionCount === 1 ? 'question' : 'questions'} · edited {relativeTime(quiz.updatedAt)}
                         </p>
                       </div>
-                      <StatusBadge status={quiz.status} />
-                    </Link>
-                  </li>
+                      <span className="hidden sm:block">
+                        <StatusBadge status={quiz.status} />
+                      </span>
+                    </div>
+                  </LedgerRow>
                 ))}
-              </ul>
+              </Ledger>
             )}
-          </CardBody>
-        </Card>
+          </section>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader title="Your account" />
-            <CardBody className="space-y-3 text-sm">
-              {profileStatus === 'loading' ? (
-                <Skeleton className="h-16" />
-              ) : (
-                <dl className="space-y-2">
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-500">Name</dt>
-                    <dd className="truncate font-semibold">{profile?.display_name ?? '—'}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-500">Email</dt>
-                    <dd className="truncate font-semibold">{user.email}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-500">School</dt>
-                    <dd className="truncate font-semibold">{profile?.school_name || '—'}</dd>
-                  </div>
-                </dl>
-              )}
-              {!emailConfirmed && (
-                <p className="flex items-start gap-2 rounded-xl bg-sun-300/20 p-3 text-ink-700">
-                  <MailWarning className="mt-0.5 size-4 shrink-0 text-sun-500" />
-                  Your email address is not confirmed. Password reset emails need a confirmed address.
-                </p>
-              )}
-              <Link to="/teacher/profile" className="inline-flex items-center gap-1 font-semibold text-flame-600 hover:text-flame-700">
-                Edit profile <ArrowRight className="size-4" />
-              </Link>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Build progress" />
-            <CardBody>
-              <ol className="space-y-2">
-                {ROADMAP.map((step) => (
-                  <li key={step.title} className="flex items-center gap-3 text-sm">
-                    {step.done ? (
-                      <CheckCircle2 className="size-5 shrink-0 text-mint-500" />
-                    ) : (
-                      <CircleDashed className="size-5 shrink-0 text-ink-300" />
-                    )}
-                    <span className={step.done ? 'font-semibold' : 'text-ink-600'}>{step.title}</span>
-                    {step.done && (
-                      <Badge tone="mint" className="ml-auto">
-                        Ready
-                      </Badge>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </CardBody>
-          </Card>
+          <aside aria-labelledby="account-heading" className="min-w-0 space-y-4">
+            <SectionHead id="account-heading" kicker="Account" />
+            {!emailConfirmed && (
+              <Alert tone="warning" title="Email not confirmed">
+                Password reset emails need a confirmed address.
+              </Alert>
+            )}
+            <ul className="divide-y divide-line">
+              {[
+                { to: '/teacher/profile', label: 'Profile and password' },
+                { to: '/teacher/workspaces', label: 'Workspaces' },
+                { to: '/teacher/shared', label: 'Shared with me' },
+              ].map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to} className="flex min-h-12 items-center justify-between text-body-sm font-semibold text-ink-900 hover:text-signal-600">
+                    {link.label}
+                    <ArrowRight className="size-4 text-ink-500" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </aside>
         </div>
-      </div>
+      )}
+
+      <HostQuizDialog quiz={hosting} onClose={() => setHosting(null)} />
     </div>
   );
 }

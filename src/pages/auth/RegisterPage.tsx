@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MailCheck } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { PasswordField, TextField } from '@/components/ui/TextField';
 import { Alert } from '@/components/ui/Alert';
+import { StatusBlock } from '@/components/ui/StatusBlock';
+import { PasswordChecklist } from '@/components/ui/PasswordChecklist';
 import { registerSchema, type RegisterValues } from '@/lib/validation/auth';
 import { signUpTeacher } from '@/services/auth';
 import { friendlyError } from '@/utils/errors';
@@ -22,11 +24,13 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: { displayName: '', email: '', password: '', confirmPassword: '' },
   });
+  const [password, confirmPassword] = useWatch({ control, name: ['password', 'confirmPassword'] });
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
@@ -45,27 +49,30 @@ export default function RegisterPage() {
 
   if (pendingEmail) {
     return (
-      <div className="text-center">
-        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-mint-50 text-mint-600">
-          <MailCheck className="size-7" />
-        </span>
-        <h1 className="mt-6 text-3xl font-extrabold">Check your inbox</h1>
-        <p className="mt-3 text-ink-600">
-          If <strong className="text-ink-900">{pendingEmail}</strong> can be registered, we have sent a confirmation link
-          to it. Open the link to activate your account, then sign in.
+      <StatusBlock
+        tone="success"
+        icon={<MailCheck />}
+        title="Check your inbox"
+        actions={
+          <ButtonLink to={loginPath} variant="secondary" size="lg">
+            Back to sign in
+          </ButtonLink>
+        }
+      >
+        <p>
+          If <strong className="text-ink-900">{pendingEmail}</strong> can be registered, we have sent a confirmation link to
+          it. Open the link to activate your account, then sign in.
         </p>
-        <p className="mt-3 text-sm text-ink-500">No email after a few minutes? Check your spam folder.</p>
-        <ButtonLink to={loginPath} variant="secondary" size="lg" className="mt-8" fullWidth>
-          Back to sign in
-        </ButtonLink>
-      </div>
+        <p className="mt-2 text-body-sm text-ink-500">No email after a few minutes? Check your spam folder.</p>
+      </StatusBlock>
     );
   }
 
   return (
     <div>
-      <h1 className="text-3xl font-extrabold">Create your teacher account</h1>
-      <p className="mt-2 text-ink-600">Free for classrooms. Students join with a PIN and never need an account.</p>
+      <p className="type-kicker">New teacher</p>
+      <h1 className="type-display mt-2 text-display-lg">Create your account</h1>
+      <p className="mt-3 text-body text-ink-700">Students join with a PIN and never need an account.</p>
 
       <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
         {formError && <Alert tone="error">{formError}</Alert>}
@@ -97,14 +104,15 @@ export default function RegisterPage() {
           error={errors.confirmPassword?.message}
           {...register('confirmPassword')}
         />
+        <PasswordChecklist password={password} confirm={confirmPassword} />
         <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
           Create account
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-ink-600">
+      <p className="mt-8 border-t border-line pt-6 text-body-sm text-ink-700">
         Already have an account?{' '}
-        <Link to={loginPath} className="font-semibold text-ink-900 underline-offset-4 hover:underline">
+        <Link to={loginPath} className="font-semibold text-signal-600 underline-offset-4 hover:underline">
           Sign in
         </Link>
       </p>

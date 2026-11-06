@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { m } from 'motion/react';
-import { Lock, LogOut, Palette, Users } from 'lucide-react';
-import { Logo } from '@/components/ui/Logo';
+import { Lock, LogOut, Palette, WifiOff } from 'lucide-react';
+import { LogoMark } from '@/components/ui/Logo';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { ConfirmDialog, Dialog } from '@/components/ui/Dialog';
-import { Spinner } from '@/components/ui/Spinner';
+import { NightCanvas } from '@/components/ui/NightCanvas';
+import { ScoreBug } from '@/components/ui/ScoreBug';
+import { LowerThird } from '@/components/ui/LowerThird';
+import { CountRoll } from '@/components/ui/CountRoll';
+import { BreathingLine } from '@/components/ui/BreathingLine';
+import { StatusBlock } from '@/components/ui/StatusBlock';
+import { TextField } from '@/components/ui/TextField';
 import { Avatar } from '@/components/avatar/Avatar';
 import { AvatarBuilder } from '@/components/avatar/AvatarBuilder';
+import { AvatarHero } from '@/components/avatar/AvatarHero';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useSessionChannel } from '@/hooks/useSessionChannel';
 import { getPlayerClient } from '@/lib/supabase';
 import { sessionTopic } from '@/lib/session-rules';
 import { NICKNAME_MAX, cleanNickname, nicknameIssue } from '@/lib/nickname-rules';
+import { dur, ease, spring } from '@/lib/motion';
+import { cn } from '@/lib/cn';
 import { getPlayerState, joinSession, leaveSession, savePlayerProfile } from '@/services/player';
 import { toSessionUpdate } from '@/services/live';
 import { friendlyError } from '@/utils/errors';
@@ -26,6 +35,17 @@ const heartbeatDelay = () => 10_000 + Math.random() * 5_000;
 
 type Load = 'loading' | 'ready' | 'not_in_game' | 'error';
 
+/** "YOU'RE IN" plays once per session on this device (pure read; the flag is written in an effect). */
+const arrivalKey = (sessionId: string) => `rally.arrived.${sessionId}`;
+function firstArrival(sessionId: string | undefined): boolean {
+  if (!sessionId) return false;
+  try {
+    return !sessionStorage.getItem(arrivalKey(sessionId));
+  } catch {
+    return false;
+  }
+}
+
 /** /game/:sessionId: the student's waiting room (game screens arrive in Phase 4). */
 export default function PlayerLobbyPage() {
   const { sessionId } = useParams();
@@ -37,8 +57,19 @@ export default function PlayerLobbyPage() {
   const [leaving, setLeaving] = useState(false);
   const [rejoining, setRejoining] = useState(false);
   const [rejoinError, setRejoinError] = useState<string | null>(null);
+  const [celebrate] = useState(() => firstArrival(sessionId));
   const client = getPlayerClient();
   const inFlight = useRef(false);
+  const arrived = load === 'ready' && state?.me.status === 'active';
+
+  useEffect(() => {
+    if (!arrived || !sessionId) return;
+    try {
+      sessionStorage.setItem(arrivalKey(sessionId), '1');
+    } catch {
+      // Storage unavailable: the celebration may simply play again.
+    }
+  }, [arrived, sessionId]);
 
   const refresh = useCallback(async () => {
     if (!sessionId || inFlight.current) return;
@@ -111,21 +142,45 @@ export default function PlayerLobbyPage() {
   if (load === 'loading') {
     return (
       <Screen>
-        <div className="grid flex-1 place-items-center">
-          <Spinner className="size-8" label="Joining" />
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center" role="status" aria-label="Joining">
+          <span aria-hidden className="block size-40 rounded-full bg-night-800" />
+          <p className="text-body text-night-muted">Joining the game…</p>
+          <BreathingLine />
         </div>
       </Screen>
     );
   }
 
-  if (load === 'not_in_game' || (load === 'error' && !state) || !state || !sessionId) {
+  if (load === 'error' && !state) {
+    return (
+      <Screen>
+        <div className="flex flex-1 items-center">
+          <StatusBlock
+            surface="night"
+            tone="warning"
+            icon={<WifiOff />}
+            title="Can’t reach the game"
+            actions={
+              <Button variant="night" size="lg" onClick={() => void refresh()}>
+                Try again
+              </Button>
+            }
+          >
+            Check your internet connection. We’ll keep trying in the background.
+          </StatusBlock>
+        </div>
+      </Screen>
+    );
+  }
+
+  if (load === 'not_in_game' || !state || !sessionId) {
     return (
       <Screen>
         <Message
-          title={load === 'error' ? 'Can’t reach the game' : 'You’re not in this game'}
-          body={load === 'error' ? 'Check your internet connection. We’ll keep trying.' : 'Join with the PIN on the big screen.'}
+          title="You’re not in this game"
+          body="Join with the PIN on the big screen."
           action={
-            <ButtonLink to="/join" size="lg" fullWidth>
+            <ButtonLink to="/join" size="xl" variant="night" fullWidth>
               Enter a PIN
             </ButtonLink>
           }
@@ -140,10 +195,11 @@ export default function PlayerLobbyPage() {
     return (
       <Screen>
         <Message
+          avatar={me.avatar}
           title="This game has ended"
-          body="Thanks for playing! Your teacher closed the session."
+          body="Thanks for playing. Your teacher closed the session."
           action={
-            <ButtonLink to="/join" size="lg" fullWidth variant="secondary">
+            <ButtonLink to="/join" size="xl" variant="night" fullWidth>
               Join another game
             </ButtonLink>
           }
@@ -156,10 +212,12 @@ export default function PlayerLobbyPage() {
     return (
       <Screen>
         <Message
-          title="You were removed"
-          body="The host removed you from this game. Ask your teacher if you think this was a mistake."
+          avatar={me.avatar}
+          muted
+          title="You’re out of this game"
+          body="The host removed you. Ask your teacher if you think this was a mistake."
           action={
-            <ButtonLink to="/join" size="lg" fullWidth variant="secondary">
+            <ButtonLink to="/join" size="xl" variant="night" fullWidth>
               Join a different game
             </ButtonLink>
           }
@@ -184,14 +242,16 @@ export default function PlayerLobbyPage() {
     return (
       <Screen>
         <Message
+          avatar={me.avatar}
+          muted
           title="You left the game"
           body={rejoinError ?? `Want to go back to “${session.quizTitle}”?`}
           action={
             <div className="space-y-3">
-              <Button size="lg" fullWidth loading={rejoining} onClick={() => void rejoin()}>
+              <Button size="xl" variant="night" fullWidth loading={rejoining} onClick={() => void rejoin()}>
                 Rejoin as {me.nickname}
               </Button>
-              <ButtonLink to="/join" size="lg" fullWidth variant="ghost" className="text-white">
+              <ButtonLink to="/join" size="lg" fullWidth variant="night-ghost">
                 Enter a different PIN
               </ButtonLink>
             </div>
@@ -214,45 +274,79 @@ export default function PlayerLobbyPage() {
   };
 
   return (
-    <Screen status={<ConnectionPill status={gameStatus} dark />}>
+    <Screen
+      bug={
+        <ScoreBug className="w-full pr-1" tab="bg-signal-400">
+          <span className="min-w-0 flex-1 truncate text-body-sm font-semibold">{session.quizTitle}</span>
+          <span className="type-score shrink-0 text-score-md">
+            <CountRoll value={session.participantCount} />
+            <span className="ml-1 font-sans text-caption font-bold tracking-[0.08em] text-night-muted">IN</span>
+          </span>
+          <ConnectionPill status={gameStatus} quiet surface="night" />
+        </ScoreBug>
+      }
+    >
       <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
-        <p className="max-w-full truncate text-sm font-bold tracking-wide text-flame-300 uppercase">{session.quizTitle}</p>
         <m.div
-          className="mt-6"
-          animate={{ y: [0, -8, 0] }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+          initial={celebrate ? { y: 24, opacity: 0 } : false}
+          animate={{ y: 0, opacity: 1 }}
+          transition={spring.land}
         >
-          <Avatar code={me.avatar} className="size-40 rounded-full ring-4 ring-white/10" title={`${me.nickname}'s avatar`} />
+          <m.div
+            animate={{ y: [0, -6, 0] }}
+            transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 1.8, ease: 'easeInOut', delay: celebrate ? 1.6 : 0.4 }}
+          >
+            <Avatar code={me.avatar} ring="own" className="size-44 sm:size-60" title={`${me.nickname}'s avatar`} />
+          </m.div>
         </m.div>
-        <h1 className="mt-5 max-w-full truncate text-4xl font-extrabold">{me.nickname}</h1>
-        <p className="mt-3 text-xl font-bold text-mint-400">You’re in!</p>
-        <p className="mt-1 text-white/70">Look for your name on the big screen. The game starts when your teacher is ready.</p>
 
-        <p className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/8 px-4 py-2 text-sm font-semibold text-white/80" aria-live="polite">
-          <Users className="size-4" /> {session.participantCount} {session.participantCount === 1 ? 'player' : 'players'} in the lobby
+        <div className="relative mt-6 inline-grid px-4 py-1">
+          {celebrate && (
+            <m.span
+              aria-hidden
+              className="absolute inset-0 origin-left bg-volt-400"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 0.35, duration: dur.slow, ease: [...ease.wipe] }}
+            />
+          )}
+          <h1 className={cn('type-display relative text-display-xl', celebrate ? 'text-night-950' : 'text-night-text')}>YOU’RE IN</h1>
+        </div>
+
+        <m.div
+          className="mt-5 max-w-full"
+          initial={celebrate ? { x: -24, opacity: 0 } : false}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: celebrate ? 0.75 : 0, duration: dur.base, ease: [...ease.out] }}
+        >
+          <LowerThird surface="night" tab="bg-volt-400">
+            <span className="truncate text-[1.25rem] font-bold">{me.nickname}</span>
+          </LowerThird>
+        </m.div>
+
+        <p className="mt-6 text-body text-night-muted">
+          {session.status === 'in_progress' ? 'Get ready — the game is starting.' : 'Look for your name on the big screen.'}
         </p>
+        <BreathingLine className="mt-4" />
         {session.isLocked && (
-          <p className="mt-3 inline-flex items-center gap-2 text-sm text-white/60">
+          <p className="mt-5 inline-flex items-center gap-2 text-body-sm text-night-muted">
             <Lock className="size-4" /> The lobby is locked. You’re still in.
           </p>
         )}
-        {session.status === 'in_progress' && (
-          <p className="mt-4 text-sm text-white/60">The game has started. Game screens arrive in Phase 4.</p>
-        )}
         {rejoinError && (
-          <p role="alert" className="mt-4 text-sm font-semibold text-rose-300">
+          <p role="alert" className="mt-4 text-body-sm font-semibold text-error-300">
             {rejoinError}
           </p>
         )}
-      </div>
 
-      <div className="grid grid-cols-2 gap-3 pb-2">
-        <Button variant="secondary" size="lg" leftIcon={<Palette className="size-5" />} onClick={() => setEditing(true)}>
-          Change look
-        </Button>
-        <Button variant="ghost" size="lg" className="text-white hover:bg-white/10" leftIcon={<LogOut className="size-5" />} onClick={() => setConfirmLeave(true)}>
-          Leave
-        </Button>
+        <div className="mt-8 grid w-full max-w-sm grid-cols-2 gap-3">
+          <Button variant="night" size="lg" leftIcon={<Palette className="size-5" />} onClick={() => setEditing(true)}>
+            Change look
+          </Button>
+          <Button variant="night-ghost" size="lg" leftIcon={<LogOut className="size-5" />} onClick={() => setConfirmLeave(true)}>
+            Leave
+          </Button>
+        </div>
       </div>
 
       <EditProfileDialog
@@ -268,6 +362,7 @@ export default function PlayerLobbyPage() {
       />
       <ConfirmDialog
         open={confirmLeave}
+        surface="night"
         title="Leave this game?"
         description="You can rejoin with the same PIN while the lobby is open."
         confirmLabel="Leave game"
@@ -336,66 +431,80 @@ function EditProfileDialog({
       open={open}
       onClose={onClose}
       dismissible={!saving}
+      tone="night"
+      size="lg"
       title="Change your look"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
+          <Button variant="night-ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-player" loading={saving}>
+          <Button type="submit" form="edit-player" variant="night" loading={saving}>
             Save
           </Button>
         </>
       }
     >
-      <form id="edit-player" onSubmit={(e) => void save(e)} className="space-y-4" noValidate>
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-ink-800">Nickname</span>
-          <input
-            value={nickname}
-            onChange={(e) => {
-              setNickname(e.target.value);
-              setError(null);
-            }}
-            maxLength={NICKNAME_MAX + 8}
-            className="h-12 w-full rounded-xl border border-ink-200 px-3 text-lg font-bold outline-none focus:border-flame-400 focus:ring-4 focus:ring-flame-100"
-          />
-        </label>
-        {error && (
-          <p role="alert" className="text-sm font-semibold text-rose-600">
-            {error}
-          </p>
-        )}
+      <form id="edit-player" onSubmit={(e) => void save(e)} className="space-y-6" noValidate>
+        <AvatarHero value={avatar} onChange={setAvatar} nickname={nickname} size={128} />
+        <TextField
+          tone="night"
+          label="Nickname"
+          value={nickname}
+          onChange={(e) => {
+            setNickname(e.target.value);
+            setError(null);
+          }}
+          maxLength={NICKNAME_MAX + 8}
+          labelAside={<span className="tabular">{[...cleanNickname(nickname)].length}/{NICKNAME_MAX}</span>}
+          error={error ?? undefined}
+        />
         <AvatarBuilder value={avatar} onChange={setAvatar} />
       </form>
     </Dialog>
   );
 }
 
-function Screen({ children, status }: { children: ReactNode; status?: ReactNode }) {
+function Screen({ children, bug }: { children: ReactNode; bug?: ReactNode }) {
   return (
-    <main className="pt-safe pb-safe flex min-h-dvh flex-col bg-night-900 px-5 text-white">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col py-5">
-        <div className="flex items-center justify-between">
-          <Link to="/" aria-label="Home">
-            <Logo inverted />
-          </Link>
-          {status}
+    <NightCanvas className="flex flex-col px-5">
+      <div className="mx-auto flex w-full max-w-[35rem] flex-1 flex-col py-4">
+        <div className="flex items-center gap-3">
+          <LogoMark tone="night" className="size-9" />
+          {bug && <div className="min-w-0 flex-1">{bug}</div>}
         </div>
         {children}
       </div>
-    </main>
+    </NightCanvas>
   );
 }
 
-function Message({ title, body, action }: { title: string; body: string; action: ReactNode }) {
+function Message({
+  title,
+  body,
+  action,
+  avatar,
+  muted = false,
+}: {
+  title: string;
+  body: string;
+  action: ReactNode;
+  avatar?: string;
+  muted?: boolean;
+}) {
   return (
-    <div className="flex flex-1 flex-col justify-center gap-6 py-10 text-center">
+    <m.div
+      className="flex flex-1 flex-col justify-center gap-6 py-10"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: dur.base }}
+    >
+      {avatar && <Avatar code={avatar} className={cn('size-28 rounded-full', muted && 'opacity-70 grayscale')} />}
       <div>
-        <h1 className="text-3xl font-extrabold">{title}</h1>
-        <p className="mt-3 text-white/70">{body}</p>
+        <h1 className="type-display text-display-lg">{title}</h1>
+        <p className="mt-3 text-body text-night-muted">{body}</p>
       </div>
       {action}
-    </div>
+    </m.div>
   );
 }

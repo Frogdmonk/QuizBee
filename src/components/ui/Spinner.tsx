@@ -1,17 +1,20 @@
 import { cn } from '@/lib/cn';
 
+/**
+ * Loading indicator: the three LogoMark bars as a level meter. Marked `.motion-essential`, so under
+ * reduced motion it switches to a stepped opacity cycle instead of freezing (loading is never silent).
+ */
 export function Spinner({ className, label }: { className?: string; label?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
+    <span
       role={label ? 'status' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
-      className={cn('size-5 animate-spin', className)}
+      className={cn('motion-essential level-meter inline-flex size-5 items-end justify-center gap-[12%]', className)}
     >
-      <circle cx="12" cy="12" r="9.5" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
-      <path d="M21.5 12a9.5 9.5 0 0 0-9.5-9.5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
+      <span className="motion-essential h-[55%] w-[22%] rounded-[1px] bg-current" />
+      <span className="motion-essential h-full w-[22%] rounded-[1px] bg-current" />
+      <span className="motion-essential h-[75%] w-[22%] rounded-[1px] bg-current" />
+    </span>
   );
 }

@@ -1,12 +1,18 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence } from 'motion/react';
-import { BookOpenText, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/Dialog';
 import { SegmentedControl, Skeleton } from '@/components/ui/FormControls';
+import { UnderlineTabs } from '@/components/ui/UnderlineTabs';
+import { Ledger } from '@/components/ui/Ledger';
+import { StepStrip } from '@/components/ui/StepStrip';
 import { Alert } from '@/components/ui/Alert';
-import { QuizCard, type QuizCardActions } from '@/components/quiz/QuizCard';
+import { inputClasses } from '@/components/ui/field-styles';
+import { QuizCard, QuizRow, type QuizCardActions } from '@/components/quiz/QuizCard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { cn } from '@/lib/cn';
 import { ShareQuizDialog } from '@/components/sharing/ShareQuizDialog';
 import { HostQuizDialog } from '@/components/live/HostQuizDialog';
 import { useMyQuizzes } from '@/hooks/useMyQuizzes';
@@ -16,6 +22,16 @@ import { friendlyError } from '@/utils/errors';
 import type { QuizStatus, QuizSummary } from '@/types/quiz';
 
 type Filter = 'active' | 'draft' | 'published' | 'archived';
+type View = 'grid' | 'list';
+const VIEW_KEY = 'rally.library.view';
+
+function savedView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
+  } catch {
+    return 'grid';
+  }
+}
 
 const FILTERS: Record<Filter, (q: QuizSummary) => boolean> = {
   active: (q) => q.status !== 'archived',
@@ -34,6 +50,18 @@ export default function QuizzesPage() {
   const [deleting, setDeleting] = useState(false);
   const [toShare, setToShare] = useState<QuizSummary | null>(null);
   const [toHost, setToHost] = useState<QuizSummary | null>(null);
+  const [view, setView] = useState<View>(savedView);
+  const phone = useMediaQuery('(max-width: 639px)');
+  const effectiveView: View = phone ? 'list' : view;
+
+  const changeView = (next: View) => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Remembering the view is only a convenience.
+    }
+  };
 
   const counts = useMemo(
     () => ({
@@ -117,40 +145,53 @@ export default function QuizzesPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold">My Quizzes</h1>
-          <p className="mt-2 text-ink-600">Build, organise and publish the quizzes you host.</p>
+          <p className="type-kicker">Library</p>
+          <h1 className="type-display mt-1 text-display-lg">My quizzes</h1>
         </div>
-        <ButtonLink to="/teacher/quizzes/create" leftIcon={<Plus className="size-4" />}>
+        <ButtonLink to="/teacher/quizzes/create" leftIcon={<Plus className="size-4" />} className="hidden sm:inline-flex">
           New quiz
         </ButtonLink>
       </header>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="md:w-[460px]">
-          <SegmentedControl
-            label="Filter quizzes"
-            layoutId="quiz-filter"
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: 'active', label: `All ${counts.active}`, shortLabel: `All ${counts.active}` },
-              { value: 'draft', label: `Drafts ${counts.draft}`, shortLabel: 'Drafts' },
-              { value: 'published', label: `Published ${counts.published}`, shortLabel: 'Live' },
-              { value: 'archived', label: `Archived ${counts.archived}`, shortLabel: 'Archived' },
-            ]}
-          />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <UnderlineTabs
+          label="Filter quizzes"
+          layoutId="quiz-filter"
+          value={filter}
+          onChange={setFilter}
+          className="min-w-0 flex-1"
+          options={[
+            { value: 'active', label: 'All', count: counts.active },
+            { value: 'published', label: 'Published', count: counts.published },
+            { value: 'draft', label: 'Drafts', count: counts.draft },
+            { value: 'archived', label: 'Archived', count: counts.archived },
+          ]}
+        />
+        <div className="flex items-center gap-2">
+          <label className="relative block flex-1 lg:w-72">
+            <span className="sr-only">Search quizzes</span>
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-500" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by title or subject"
+              className={cn(inputClasses, 'h-11 pl-9')}
+            />
+          </label>
+          <div className="hidden w-[8.5rem] sm:block">
+            <SegmentedControl<View>
+              label="Layout"
+              layoutId="library-view"
+              value={view}
+              onChange={changeView}
+              options={[
+                { value: 'grid', label: 'Grid' },
+                { value: 'list', label: 'List' },
+              ]}
+            />
+          </div>
         </div>
-        <label className="relative block md:w-72">
-          <span className="sr-only">Search quizzes</span>
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-400" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title or subject"
-            className="h-11 w-full rounded-xl border border-ink-200 bg-surface pr-3 pl-9 text-[15px] outline-none placeholder:text-ink-400 focus:border-flame-400 focus:ring-4 focus:ring-flame-100"
-          />
-        </label>
       </div>
 
       {status === 'error' && (
@@ -165,18 +206,34 @@ export default function QuizzesPage() {
       )}
 
       {status === 'loading' ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading quizzes">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-64 rounded-2xl" />
-          ))}
-        </div>
+        effectiveView === 'grid' ? (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading quizzes">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-[232px] rounded-md" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2" aria-busy="true" aria-label="Loading quizzes">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-[72px]" />
+            ))}
+          </div>
+        )
       ) : status === 'ready' && quizzes.length === 0 ? (
         <EmptyLibrary />
       ) : status === 'ready' && visible.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-ink-200 px-6 py-12 text-center text-ink-500">
-          {query ? `No quizzes match “${query}”.` : 'Nothing here yet.'}
-        </p>
-      ) : (
+        <div className="border-t border-line py-10">
+          <p className="text-title">{query ? `No quizzes match “${query}”.` : 'Nothing here yet.'}</p>
+          <p className="mt-1 text-body-sm text-ink-500">
+            {query ? 'Search looks at titles and subjects in the selected tab.' : 'Quizzes appear here when they have this status.'}
+          </p>
+          {query && (
+            <Button variant="ghost" size="sm" className="mt-2 -ml-3" onClick={() => setQuery('')}>
+              Clear search
+            </Button>
+          )}
+        </div>
+      ) : effectiveView === 'grid' ? (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence initial={false}>
             {visible.map((quiz) => (
@@ -184,7 +241,23 @@ export default function QuizzesPage() {
             ))}
           </AnimatePresence>
         </div>
+      ) : (
+        <Ledger className="border-t border-line">
+          {visible.map((quiz) => (
+            <QuizRow key={quiz.id} quiz={quiz} actions={actions} />
+          ))}
+        </Ledger>
       )}
+
+      {/* Phones: the main action floats above the tab bar. */}
+      <ButtonLink
+        to="/teacher/quizzes/create"
+        size="lg"
+        leftIcon={<Plus className="size-5" />}
+        className="fixed right-4 bottom-[calc(var(--tabbar-h,0px)+env(safe-area-inset-bottom)+1rem)] z-30 h-14 shadow-pop sm:hidden"
+      >
+        New quiz
+      </ButtonLink>
 
       <HostQuizDialog quiz={toHost} onClose={() => setToHost(null)} />
       <ShareQuizDialog
@@ -215,17 +288,23 @@ export default function QuizzesPage() {
 
 function EmptyLibrary() {
   return (
-    <div className="flex flex-col items-center rounded-3xl border border-dashed border-ink-200 bg-surface px-6 py-16 text-center">
-      <span className="grid size-14 place-items-center rounded-2xl bg-flame-50 text-flame-600">
-        <BookOpenText className="size-7" />
-      </span>
-      <h2 className="mt-5 text-xl font-extrabold">Create your first quiz</h2>
-      <p className="mt-2 max-w-sm text-ink-600">
-        Add multiple-choice, true/false or picture questions, set timers and points, then publish it to host live.
-      </p>
-      <ButtonLink to="/teacher/quizzes/create" className="mt-6" leftIcon={<Plus className="size-4" />}>
+    <section aria-labelledby="empty-heading" className="space-y-6 border-t-[3px] border-ink-950 pt-6">
+      <div>
+        <h2 id="empty-heading" className="type-headline text-headline">
+          Create your first quiz
+        </h2>
+        <p className="mt-2 max-w-md text-body text-ink-700">It takes about five minutes. Publish it, and you can host it live straight away.</p>
+      </div>
+      <StepStrip
+        steps={[
+          { title: 'Write questions', body: 'Multiple choice, true or false, or picture answers.' },
+          { title: 'Set the pace', body: 'Choose a timer and points for each question.' },
+          { title: 'Publish and host', body: 'Students join with a PIN or QR code.' },
+        ]}
+      />
+      <ButtonLink to="/teacher/quizzes/create" leftIcon={<Plus className="size-4" />}>
         New quiz
       </ButtonLink>
-    </div>
+    </section>
   );
 }

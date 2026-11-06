@@ -1,11 +1,24 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type Ref } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import {
+  fieldErrorClasses,
+  fieldHintClasses,
+  fieldLabelClasses,
+  inputClasses,
+  nightFieldErrorClasses,
+  nightInputClasses,
+  type FieldTone,
+} from './field-styles';
 
-export const inputClasses =
-  'block w-full rounded-xl border bg-surface px-3.5 text-[15px] text-ink-900 placeholder:text-ink-400 ' +
-  'transition-[border-color,box-shadow] duration-150 outline-none ' +
-  'focus:border-flame-400 focus:ring-4 focus:ring-flame-100 disabled:bg-ink-50 disabled:text-ink-500';
+export function FieldError({ id, tone = 'paper', children }: { id?: string; tone?: FieldTone; children: ReactNode }) {
+  return (
+    <p id={id} className={cn('flex items-start gap-1.5 text-body-sm font-medium', tone === 'night' ? 'text-error-300' : 'text-error-600')}>
+      <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
+}
 
 export type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & {
   label: string;
@@ -14,21 +27,49 @@ export type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'>
   /** Visually hide the label (it stays available to screen readers). */
   hideLabel?: boolean;
   trailing?: ReactNode;
+  /** Content right-aligned on the label row (e.g. a "Forgot password?" link or a counter). */
+  labelAside?: ReactNode;
+  /** Shows the single "Optional" caption on the label row. */
+  optional?: boolean;
+  tone?: FieldTone;
   ref?: Ref<HTMLInputElement>;
 };
 
-export function TextField({ label, error, hint, hideLabel, trailing, className, id, ref, ...rest }: TextFieldProps) {
+/** Labelled text input. The hint stays visible above the error message. */
+export function TextField({
+  label,
+  error,
+  hint,
+  hideLabel,
+  trailing,
+  labelAside,
+  optional,
+  tone = 'paper',
+  className,
+  id,
+  ref,
+  ...rest
+}: TextFieldProps) {
   const autoId = useId();
   const inputId = id ?? autoId;
   const hintId = `${inputId}-hint`;
   const errorId = `${inputId}-error`;
-  const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(' ') || undefined;
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
+  const night = tone === 'night';
 
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={inputId} className={cn('block text-sm font-semibold text-ink-800', hideLabel && 'sr-only')}>
-        {label}
-      </label>
+      <div className={cn('flex items-center justify-between gap-3', hideLabel && !labelAside && 'sr-only')}>
+        <label htmlFor={inputId} className={cn(fieldLabelClasses(tone), hideLabel && 'sr-only')}>
+          {label}
+        </label>
+        {(optional || labelAside) && (
+          <span className={cn('flex items-center gap-3 text-caption', night ? 'text-night-muted' : 'text-ink-500')}>
+            {optional && 'Optional'}
+            {labelAside}
+          </span>
+        )}
+      </div>
       <div className="relative">
         <input
           ref={ref}
@@ -38,22 +79,24 @@ export function TextField({ label, error, hint, hideLabel, trailing, className, 
           className={cn(
             inputClasses,
             'h-11',
-            trailing ? 'pr-11' : undefined,
-            error ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-50' : 'border-ink-200',
+            night && nightInputClasses,
+            trailing ? 'pr-12' : undefined,
+            error && (night ? nightFieldErrorClasses : fieldErrorClasses),
           )}
           {...rest}
         />
-        {trailing && <div className="absolute inset-y-0 right-1 flex items-center">{trailing}</div>}
+        {trailing && <div className="absolute inset-y-0 right-0 flex items-center">{trailing}</div>}
       </div>
-      {error ? (
-        <p id={errorId} className="text-sm font-medium text-rose-600">
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={hintId} className="text-sm text-ink-500">
+      {hint && (
+        <p id={hintId} className={fieldHintClasses(tone)}>
           {hint}
         </p>
-      ) : null}
+      )}
+      {error && (
+        <FieldError id={errorId} tone={tone}>
+          {error}
+        </FieldError>
+      )}
     </div>
   );
 }
@@ -68,7 +111,7 @@ export function PasswordField(props: Omit<TextFieldProps, 'type' | 'trailing'>) 
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          className="grid size-9 place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-800"
+          className="grid size-11 place-items-center rounded-sm text-ink-500 hover:text-ink-900"
           aria-label={visible ? 'Hide password' : 'Show password'}
           aria-pressed={visible}
         >

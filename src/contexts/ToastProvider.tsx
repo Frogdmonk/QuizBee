@@ -1,14 +1,21 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, m } from 'motion/react';
+import { slideFromLeft } from '@/lib/motion';
 import { CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import { ToastContext, type ToastInput, type ToastTone } from './toast-context';
 
 type ToastItem = Required<Pick<ToastInput, 'title' | 'tone'>> & { id: number; description?: string };
 
 const icons: Record<ToastTone, ReactNode> = {
-  success: <CheckCircle2 className="size-5 text-mint-400" />,
-  error: <XCircle className="size-5 text-rose-400" />,
-  info: <Info className="size-5 text-sun-400" />,
+  success: <CheckCircle2 className="size-5 text-success-400" />,
+  error: <XCircle className="size-5 text-error-300" />,
+  info: <Info className="size-5 text-night-muted" />,
+};
+
+const tabs: Record<ToastTone, string> = {
+  success: 'bg-success-400',
+  error: 'bg-error-300',
+  info: 'bg-night-text',
 };
 
 const MAX_VISIBLE = 3;
@@ -43,29 +50,29 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex flex-col items-center gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-end sm:px-6"
+        className="pointer-events-none fixed inset-x-0 bottom-[var(--tabbar-h,0px)] z-[100] flex flex-col items-start gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:bottom-0 sm:px-6"
       >
         <AnimatePresence initial={false}>
           {items.map((t) => (
             <m.div
               key={t.id}
-              layout
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.96, transition: { duration: 0.15 } }}
-              transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+              variants={slideFromLeft}
+              initial="hidden"
+              animate="show"
+              exit="exit"
               role={t.tone === 'error' ? 'alert' : 'status'}
-              className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl bg-ink-900 px-4 py-3 text-white shadow-lift"
+              className="ground-night pointer-events-auto relative flex w-full max-w-sm items-start gap-3 overflow-hidden rounded-l-sm bg-night-900 py-3 pr-3 pl-5 text-night-text shadow-pop"
             >
+              <span aria-hidden className={`absolute inset-y-0 left-0 w-1.5 ${tabs[t.tone]}`} />
               <span className="mt-0.5 shrink-0">{icons[t.tone]}</span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{t.title}</p>
-                {t.description && <p className="mt-0.5 text-sm text-ink-300">{t.description}</p>}
+                <p className="text-body-sm font-semibold">{t.title}</p>
+                {t.description && <p className="mt-0.5 text-body-sm text-night-muted">{t.description}</p>}
               </div>
               <button
                 type="button"
                 onClick={() => dismiss(t.id)}
-                className="-mr-1 grid size-7 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-white/10 hover:text-white"
+                className="-my-2 grid size-10 shrink-0 place-items-center rounded-sm text-night-muted hover:bg-night-800 hover:text-night-text"
                 aria-label="Dismiss notification"
               >
                 <X className="size-4" />

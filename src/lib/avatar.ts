@@ -50,19 +50,25 @@ export const SKIN_TONES: readonly (readonly [string, string])[] = [
 export const HAIR_COLORS = ['#1f1a17', '#4a2e1d', '#7b4a25', '#b9692f', '#e3b866', '#c9c3ba', '#d9467a', '#3e7be0'] as const;
 
 export const SHIRT_COLORS = [
-  '#3456e0',
-  '#0e9f9a',
-  '#d23e7f',
-  '#e09a00',
-  '#f0532b',
-  '#22b07d',
-  '#7a5af8',
-  '#2a2840',
+  '#3b5bea',
+  '#0a7a6e',
+  '#b8285f',
+  '#f2b100',
+  '#c8361a',
+  '#33c47a',
+  '#6b4fd8',
+  '#3a3f46',
   '#ece9e2',
-  '#e5484d',
+  '#ff7a5c',
 ] as const;
 
-export const BACKGROUNDS = ['#ffe1d5', '#dce6ff', '#d3f1ec', '#fbdbea', '#fff0c2', '#e4dafe', '#d9f2e6', '#2a2840'] as const;
+export const BACKGROUNDS = ['#ffe1d5', '#dce6ff', '#d3f1ec', '#fbdbea', '#fff0c2', '#e4dafe', '#d9f2e6', '#3a3f46'] as const;
+
+/* Descriptive names for colour swatches (screen readers). Same order as the colour arrays. */
+export const SKIN_NAMES = ['Very light', 'Light', 'Light medium', 'Medium', 'Medium tan', 'Tan', 'Brown', 'Deep brown'] as const;
+export const HAIR_COLOR_NAMES = ['Black', 'Dark brown', 'Brown', 'Auburn', 'Blonde', 'Grey', 'Pink', 'Blue'] as const;
+export const SHIRT_COLOR_NAMES = ['Cobalt', 'Pine', 'Berry', 'Amber', 'Signal red', 'Green', 'Violet', 'Graphite', 'Chalk', 'Coral'] as const;
+export const BACKGROUND_NAMES = ['Peach', 'Sky', 'Mint', 'Rose', 'Butter', 'Lilac', 'Sage', 'Graphite'] as const;
 
 export const HAIR_STYLES = ['Buzz', 'Short', 'Spiky', 'Curly', 'Long', 'Bun', 'Bob', 'Puff', 'Swoop', 'Beanie'] as const;
 export const EYES = ['Dots', 'Happy', 'Wide', 'Wink', 'Sleepy', 'Sparkle'] as const;

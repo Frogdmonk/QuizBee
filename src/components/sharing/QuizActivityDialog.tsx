@@ -19,7 +19,16 @@ const ICONS: Record<QuizActivityAction, typeof Pencil> = {
   copied: Copy,
 };
 
-/** Who edited, published or copied a quiz (owner and editors). */
+const ACTION_TONES: Record<QuizActivityAction, string> = {
+  edited: 'bg-paper-sunk text-ink-700',
+  published: 'bg-success-50 text-success-600',
+  unpublished: 'bg-warning-50 text-warning-700',
+  archived: 'bg-ink-900 text-white',
+  restored: 'bg-info-50 text-info-700',
+  copied: 'bg-signal-50 text-signal-700',
+};
+
+/** Who edited, published or copied a quiz (owner and editors), on a timeline rail. */
 export function QuizActivityDialog({ open, quizId, onClose }: { open: boolean; quizId: string | null; onClose: () => void }) {
   const [entries, setEntries] = useState<QuizActivityEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,19 +76,19 @@ export function QuizActivityDialog({ open, quizId, onClose }: { open: boolean; q
           ))}
         </div>
       ) : entries.length === 0 ? (
-        <p className="text-sm text-ink-500">No activity yet.</p>
+        <p className="text-body-sm text-ink-500">No activity yet.</p>
       ) : (
-        <ol className="max-h-[50dvh] space-y-1 overflow-y-auto">
+        <ol className="relative space-y-1 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-line">
           {entries.map((entry, i) => {
             const Icon = ICONS[entry.action];
             return (
-              <li key={`${entry.createdAt}-${i}`} className="flex items-start gap-3 rounded-xl px-2 py-2">
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-ink-100 text-ink-600">
+              <li key={`${entry.createdAt}-${i}`} className="relative flex items-start gap-3 py-2">
+                <span className={`grid size-8 shrink-0 place-items-center rounded-sm ${ACTION_TONES[entry.action]}`}>
                   <Icon className="size-4" />
                 </span>
-                <p className="min-w-0 text-sm">
+                <p className="min-w-0 pt-1 text-body-sm">
                   <span className="font-semibold">{entry.isMe ? 'You' : entry.actorName}</span> {ACTIVITY_LABELS[entry.action]}
-                  <span className="block text-xs text-ink-500">{relativeTime(entry.createdAt)}</span>
+                  <span className="block text-caption text-ink-500">{relativeTime(entry.createdAt)}</span>
                 </p>
               </li>
             );

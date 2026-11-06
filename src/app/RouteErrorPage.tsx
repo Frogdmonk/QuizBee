@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router';
 import { RefreshCw } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
-import { LogoMark } from '@/components/ui/Logo';
+import { Logo } from '@/components/ui/Logo';
 
 const RELOAD_FLAG = 'rally.chunk-reload';
 
@@ -42,30 +42,39 @@ export function RouteErrorPage() {
   if (import.meta.env.DEV && !stale) console.error(error);
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-paper px-6">
-      <div className="max-w-md text-center">
-        <LogoMark className="mx-auto size-12" />
-        <h1 className="mt-6 text-3xl font-extrabold">{title}</h1>
-        <p className="mt-2 text-ink-600">{body}</p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button
-            leftIcon={<RefreshCw className="size-4" />}
-            onClick={() => {
-              try {
-                sessionStorage.removeItem(RELOAD_FLAG);
-              } catch {
-                /* ignore */
-              }
-              window.location.reload();
-            }}
-          >
-            Reload
-          </Button>
-          <ButtonLink to="/" variant="secondary" reloadDocument>
-            Go home
-          </ButtonLink>
+    <div className="flex min-h-dvh flex-col bg-paper">
+      <header className="pt-safe">
+        <div className="mx-auto flex h-16 max-w-6xl items-center px-4 sm:px-6">
+          <a href="/" aria-label="Home" className="rounded-sm">
+            <Logo />
+          </a>
         </div>
-      </div>
-    </main>
+      </header>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 sm:px-6">
+        <div className="max-w-xl border-t-[3px] border-ink-950 pt-8 lg:pt-14">
+          <p className="type-kicker">{stale ? 'Update' : notFound ? 'Error 404' : 'Error'}</p>
+          <h1 className="type-display mt-3 text-display-lg">{title}</h1>
+          <p className="mt-4 text-body text-ink-700">{body}</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button
+              leftIcon={<RefreshCw className="size-4" />}
+              onClick={() => {
+                try {
+                  sessionStorage.removeItem(RELOAD_FLAG);
+                } catch {
+                  /* ignore */
+                }
+                window.location.reload();
+              }}
+            >
+              Reload
+            </Button>
+            <ButtonLink to="/" variant="secondary" reloadDocument>
+              Go home
+            </ButtonLink>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

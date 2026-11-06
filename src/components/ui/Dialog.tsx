@@ -4,6 +4,7 @@ import { AnimatePresence, m } from 'motion/react';
 import { X } from 'lucide-react';
 import { Button, type ButtonProps } from './Button';
 import { cn } from '@/lib/cn';
+import { dur, spring } from '@/lib/motion';
 
 type DialogProps = {
   open: boolean;
@@ -15,14 +16,35 @@ type DialogProps = {
   /** Prevent closing via backdrop / Escape (e.g. while saving). */
   dismissible?: boolean;
   className?: string;
+  /** Paper (teacher) or night (student / projector). */
+  tone?: 'paper' | 'night';
+  /** md = 28rem, lg = 40rem. */
+  size?: 'md' | 'lg';
 };
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export function Dialog({ open, onClose, title, description, children, footer, dismissible = true, className }: DialogProps) {
+/**
+ * Modal dialog. Phone: a bottom sheet with a grabber. Larger screens: a centred panel.
+ * Always capped to the viewport with a scrolling body and a sticky footer. Traps focus,
+ * closes on Escape (when dismissible) and restores focus on close.
+ */
+export function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  dismissible = true,
+  className,
+  tone = 'paper',
+  size = 'md',
+}: DialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const night = tone === 'night';
 
   useEffect(() => {
     if (!open) return;
@@ -69,12 +91,12 @@ export function Dialog({ open, onClose, title, description, children, footer, di
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center p-0 sm:items-center sm:p-6">
+        <div className={cn('fixed inset-0 z-[90] flex items-end justify-center p-0 sm:items-center sm:p-6', night ? 'ground-night' : 'ground-paper')}>
           <m.div
-            className="absolute inset-0 bg-ink-950/45"
+            className={cn('absolute inset-0', night ? 'bg-black/70' : 'bg-ink-950/50')}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, transition: { duration: dur.fast } }}
             onClick={dismissible ? onClose : undefined}
           />
           <m.div
@@ -84,37 +106,56 @@ export function Dialog({ open, onClose, title, description, children, footer, di
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             tabIndex={-1}
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98, transition: { duration: 0.15 } }}
-            transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24, transition: { duration: dur.fast } }}
+            transition={spring.sheet}
             className={cn(
-              'pb-safe relative w-full max-w-md rounded-t-3xl bg-surface p-6 shadow-lift outline-none sm:rounded-3xl',
+              'relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-16px)] w-full flex-col overflow-hidden rounded-t-md outline-none sm:rounded-md',
+              size === 'lg' ? 'sm:max-w-[40rem]' : 'sm:max-w-md',
+              night
+                ? 'border border-night-line bg-night-900 text-night-text'
+                : 'border-t-[3px] border-ink-950 bg-surface text-ink-900 shadow-pop',
               className,
             )}
           >
-            <div className="flex items-start justify-between gap-4">
-              <h2 id={titleId} className="text-xl font-extrabold">
+            <div aria-hidden className={cn('mx-auto mt-2 h-1 w-10 rounded-full sm:hidden', night ? 'bg-night-line' : 'bg-line')} />
+            <div className="flex items-start justify-between gap-4 px-5 pt-3 sm:px-6 sm:pt-5">
+              <h2 id={titleId} className="type-headline min-w-0 pt-2 text-headline">
                 {title}
               </h2>
               {dismissible && (
                 <button
                   type="button"
                   onClick={onClose}
-                  className="-mt-1 -mr-2 grid size-9 shrink-0 place-items-center rounded-lg text-ink-500 hover:bg-ink-100 hover:text-ink-900"
+                  className={cn(
+                    '-mr-2 grid size-11 shrink-0 place-items-center rounded-sm',
+                    night ? 'text-night-muted hover:bg-night-800 hover:text-night-text' : 'text-ink-500 hover:bg-paper-sunk hover:text-ink-900',
+                  )}
                   aria-label="Close"
                 >
                   <X className="size-5" />
                 </button>
               )}
             </div>
-            {description && (
-              <div id={descriptionId} className="mt-2 text-ink-600">
-                {description}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 sm:px-6 sm:pb-6">
+              {description && (
+                <div id={descriptionId} className={cn('mt-1 text-body', night ? 'text-night-muted' : 'text-ink-700')}>
+                  {description}
+                </div>
+              )}
+              {children && <div className="mt-5">{children}</div>}
+            </div>
+            {footer && (
+              <div
+                className={cn(
+                  'pb-safe flex shrink-0 flex-col-reverse gap-2 border-t px-5 py-4 sm:flex-row sm:justify-end sm:px-6',
+                  night ? 'border-night-rule bg-night-900' : 'border-line bg-surface',
+                )}
+              >
+                {footer}
               </div>
             )}
-            {children && <div className="mt-5">{children}</div>}
-            {footer && <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">{footer}</div>}
           </m.div>
         </div>
       )}
@@ -131,8 +172,11 @@ type ConfirmDialogProps = {
   description?: ReactNode;
   confirmLabel: string;
   cancelLabel?: string;
+  /** Variant of the confirm button. `danger` is the only place the filled danger button appears. */
   tone?: ButtonProps['variant'];
   busy?: boolean;
+  /** Surface of the dialog itself. */
+  surface?: 'paper' | 'night';
 };
 
 export function ConfirmDialog({
@@ -145,7 +189,9 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   tone = 'primary',
   busy = false,
+  surface = 'paper',
 }: ConfirmDialogProps) {
+  const night = surface === 'night';
   return (
     <Dialog
       open={open}
@@ -153,9 +199,10 @@ export function ConfirmDialog({
       dismissible={!busy}
       title={title}
       description={description}
+      tone={surface}
       footer={
         <>
-          <Button variant="secondary" onClick={onCancel} disabled={busy}>
+          <Button variant={night ? 'night-ghost' : 'secondary'} onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </Button>
           <Button variant={tone} onClick={onConfirm} loading={busy} data-autofocus>
