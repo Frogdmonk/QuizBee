@@ -1,0 +1,328 @@
+# Project Context: Rally (repo: QuizBee)
+
+Handoff notes for anyone continuing work on this codebase. They cover what exists, why it is built this way, how
+to run it, the rules the code follows, and what comes next. Read this first, then
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
+
+---
+
+## 1. What this is
+
+A real-time multiplayer classroom quiz platform, similar in spirit to Kahoot but with its own branding and
+design.
+
+* **Teachers** sign up, build quizzes, and (from Phase 3 on) host live games.
+* **Students** join from their phones with a 6-digit PIN or QR code. They pick a nickname and avatar and never
+  create an account.
+* **Projector view** (`/presenter/:sessionId`) shows questions, countdowns, answer distribution and an animated
+  top-10 leaderboard.
+
+The target is up to 100 students in one live session, running entirely on free tiers (Supabase Free and
+Cloudflare Pages) with no paid APIs.
+
+* **Product name in the UI:** "Rally". It is set in [src/lib/brand.ts](src/lib/brand.ts), the HTML title, the
+  logo and the docs.
+* **Repo name:** QuizBee (<https://github.com/Frogdmonk/QuizBee>). Renaming the product is undecided; if it
+  happens, start with `brand.ts`.
+
+The original product brief is long. Its key demands: server-authoritative scoring, never exposing correct
+answers to students early, smooth animations on low-end Android phones, RLS on everything, and no fake data or
+non-functional buttons.
+
+---
+
+## 2. Current status (as of 2026-11-07)
+
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Foundation, design system, Supabase clients, teacher auth (register, login, logout, forgot and reset password, profile), protected routes | ✅ Done, commit `99ae282` |
+| 2a | Quiz builder and library: create, edit, duplicate, publish, archive, delete; 3 question types; images; live preview; full-screen preview; dashboard stats | ✅ Done, commit `79dedb8` |
+| 2b | Quiz sharing between teachers (share links, preview, "Add to My Library" copy, revoke), "Shared with Me" page | ⏭️ **Next** |
+| 3 | Live sessions: PIN and QR, anonymous student join, nickname rules, 12+ SVG avatars, waiting room, lock/unlock, remove, Realtime authorisation, projector lobby | Planned |
+| 4 | Game engine: start, open question, submit answer, close and score, pause/resume, next, end, auto-advance, clock sync, reconnection, game screens | Planned |
+| 5 | Animated leaderboard, emoji reactions, confetti, podium, final results, session history (`/teacher/analytics` = "Quiz History") | Planned |
+| 6 | k6 load tests (100 players), Playwright e2e, performance tuning, production deploy, documented free-tier findings | Planned |
+
+**Last verified:** `npm run lint`, `npx tsc -b`, `npm test` (97 tests: 50 database + 47 unit) and
+`npm run build` all pass.
+
+### Things to check before you start
+
+* **Is the Phase 2a migration applied to the hosted Supabase project?** It must be applied by hand (see §5). If
+  `/teacher/quizzes` says "Could not load your quizzes", it isn't.
+* Saving and uploading in the quiz editor have only been tested in automated DB tests and a headless browser
+  with fake config, **not yet end-to-end against the real Supabase project.**
+* The hosted project still has **anonymous sign-ins OFF** and **"Confirm email" ON** (see §8).
+
+---
+
+## 3. Tech stack (strict, from the brief)
+
+* React 19, Vite 8 (Rolldown), TypeScript 5.9 (deliberately **not** TS 7; lint tooling doesn't support it yet)
+* Tailwind CSS 4 (CSS-first config in [src/styles/index.css](src/styles/index.css), no `tailwind.config.js`)
+* Motion 14 (`motion/react`), Lucide icons, React Router 8 (data router), React Hook Form + Zod 4
+* Supabase: Postgres, Auth, Realtime and Storage. **No Edge Functions** (deliberate, see §6).
+* Hosting on Cloudflare Pages; GitHub for source.
+* Tests: Vitest 5 + Testing Library (jsdom), and **PGlite** (Postgres compiled to WASM) for database tests.
+* Fonts self-hosted via `@fontsource-variable` (Figtree for body, Bricolage Grotesque for display).
+
+Do not add Redis, Firebase, a separate WebSocket server, or paid services. Free open-source libraries are fine;
+justify new dependencies.
+
+---
+
+## 4. Running it locally
+
+Requirements: Node 20.19+ or 22.12+ (developed on Node 24 / npm 11, Windows 11).
+
+```bash
+npm install
+# create .env.local (git-ignored) with:
+#   VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+#   VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+#   VITE_PUBLIC_SITE_URL=            (optional; defaults to the browser origin)
+npm run dev          # http://localhost:5173 (strict port)
+```
+
+Ask the project owner for the `.env.local` values, or create your own free Supabase project (see
+[docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)). **Never put values in `.env.example`.** It is committed.
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` / `build` / `preview` | dev server / production build to `dist/` / serve the build |
+| `npm test` | all tests (`test:unit`, `test:db` run one project) |
+| `npm run typecheck` / `lint` | static checks |
+
+If the env vars are missing or invalid, the app shows a "Setup needed" screen instead of crashing. It also
+refuses to start if a secret or `service_role` key is put in the publishable variable.
+
+---
+
+## 5. Database and migrations
+
+Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
+
+1. `20261106120000_phase1_foundation.sql`: secure default privileges, the `private` schema,
+   `teacher_profiles`, the sign-up trigger, and `ensure_teacher_profile()`.
+2. `20261107090000_phase2_quizzes.sql`: `quizzes`, `quiz_questions`, `question_options`, the `quiz-media`
+   storage bucket and its policies, and the RPCs `save_quiz`, `set_quiz_status` and `duplicate_quiz`.
+
+**Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
+`supabase start` doesn't work locally. Either:
+
+* paste each file into **Supabase Dashboard → SQL Editor** in filename order, or
+* `npx supabase login`, then `npx supabase link --project-ref <ref>`, then `npx supabase db push`.
+
+**Never edit an applied migration.** Add a new timestamped file instead. Keep
+[src/types/database.ts](src/types/database.ts) in sync by hand. It is hand-written; `supabase gen types` is
+possible once the CLI is linked.
+
+### Database conventions (follow these)
+
+* **Secure by default.** Phase 1 revokes Supabase's default grants to `anon` and `authenticated` on new tables,
+  sequences and functions in `public`, and revokes `EXECUTE` from `PUBLIC` globally. **Every new table and
+  function needs explicit `grant`s,** or the app gets error `42501`. Tests assert this.
+* **RLS is on for every table.** Policies use `(select auth.uid())`, wrapped in a subselect for performance.
+* **Clients only `SELECT` (and sometimes `DELETE`).** All writes go through `SECURITY DEFINER` RPCs with
+  `set search_path = ''` and fully qualified names, so validation, counters and atomicity live in one place.
+  Example: the owner cannot `UPDATE quizzes` directly; they must call `save_quiz`.
+* **Internal helpers live in the `private` schema,** which the Data API doesn't expose. Examples:
+  `private.is_teacher()`, `private.is_anonymous_session()`, `private.quiz_issues()`, `private.copy_quiz()`,
+  `private.clean_media_path()`, `private.assert_quiz_quota()`.
+* **User-facing errors:** `raise exception '<friendly text>' using errcode = 'P0001'` (or `P0002` for not
+  found). The frontend's `friendlyError()` ([src/utils/errors.ts](src/utils/errors.ts)) shows P0001/P0002
+  messages verbatim and hides unknown DB errors behind a generic message.
+* **Teachers vs students:** students are Supabase **anonymous** users (`is_anonymous` in the JWT). Teacher
+  checks must exclude them; use `private.is_teacher()`. Anonymous users never get a `teacher_profiles` row.
+* **Answer keys:** `question_options.is_correct` is teacher-only. Live games (Phase 3+) will **snapshot** quizzes
+  into session tables, keeping answer keys in a separate table with no student policy.
+
+### Phase 2a data model in brief
+
+* `quizzes`: owner, title (1–120), description (≤1000), subject (≤60), `cover_image_path`, `speed_scoring`,
+  `status` (draft, published or archived), `source_quiz_id` (copied-from), `question_count`, `published_at`.
+* `quiz_questions`: position 0–99, type (`multiple_choice`, `true_false` or `image_choice`), prompt (≤300),
+  `image_path`, `time_limit_seconds` 5–120 (default 20), points 0–2000 (default 1000), explanation (≤500).
+* `question_options`: position 0–3, label (≤120), `image_path`, `is_correct`. A partial unique index allows at
+  most one correct option per question.
+* **Save model:** `save_quiz(jsonb)` replaces all questions and options on every save, so question and option
+  IDs are not stable across saves. Nothing references them yet; sessions will snapshot.
+* **Drafts** may be incomplete. **Publishing** requires a complete quiz (`private.quiz_issues` returns `[]`).
+  A **published** quiz must stay complete when edited. Limits: 100 questions per quiz, 500 quizzes per teacher.
+* **Images:** bucket `quiz-media` is public-read with a 2 MB limit (webp, jpeg, png, gif). Teachers can only
+  upload into their own `<user-id>/` folder. Paths are validated by regex in `private.clean_media_path`.
+
+---
+
+## 6. Key architecture decisions (and why)
+
+Full reasoning is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §1, which also lists the contradictions found
+in the brief.
+
+1. **Postgres RPCs instead of Edge Functions.** Every game operation must be one atomic transaction and answer
+   within 500 ms p95. RPCs have no cold start, no extra network hop, and need no service key.
+2. **Two isolated Supabase clients** ([src/lib/supabase.ts](src/lib/supabase.ts)): `getTeacherClient()`
+   (storage key `rally.teacher.auth`, handles email links) and `getPlayerClient()` (`rally.player.auth`,
+   anonymous). A student join can never sign out a teacher on a shared computer. Both clients are created
+   lazily. The console warning "Multiple GoTrueClient instances" is expected and harmless.
+3. **Implicit auth flow** (not PKCE), so email confirmation and reset links work when opened on a different
+   device.
+4. **Realtime plan (Phase 3+):**
+   * 3 private topics per session: `session:{id}:game`, `:host` and `:lobby`.
+   * Broadcasts are sent only from RPCs via `realtime.send()`; clients get **receive-only** access through RLS
+     on `realtime.messages`.
+   * No Presence for students, because it fans out O(n²) and the free tier caps the rate.
+   * Reactions go through a rate-limited RPC and are delivered only to the host and projector.
+   * The DB is the source of truth; clients reconcile with `get_game_state()` keyed by `state_version`.
+5. **Server-authoritative timing.** Every client counts down from the same `deadline_at` with a measured clock
+   offset. Answers are validated with `clock_timestamp()`. Auto-progression uses a server `phase_ends_at` plus
+   an idempotent `advance_if_due(session, version)` that the host *or the projector* can trigger. Browsers
+   throttle hidden tabs, and the host tab is often hidden while the teacher is projecting.
+6. **Scoring.** Correct answers earn `round(points × (0.5 + 0.5 × remaining_fraction))` when speed scoring is
+   on, otherwise full points. Wrong or missing answers score 0, and late answers are rejected.
+
+---
+
+## 7. Frontend layout and conventions
+
+```text
+src/app/          App root, router.tsx (all routes, lazy), guards (RequireTeacher, GuestOnly), MotionProvider, error page
+src/layouts/      RootLayout + TeacherAuthBranch, PublicLayout, AuthLayout, TeacherLayout (sidebar / mobile drawer)
+src/pages/        route pages (default exports, lazy-loaded); upcoming-features.ts drives "not built yet" pages
+src/components/ui/        design system: Button/ButtonLink, TextField/PasswordField, FormControls (TextArea, Select,
+                          Switch, SegmentedControl, Skeleton), Dialog/ConfirmDialog, Menu, Card, Badge, Alert, Spinner, Logo
+src/components/quiz/      QuestionEditor, QuestionList, QuizDetailsEditor, PreviewPanel, QuestionPreview (reusable
+                          student-view renderer, intended for Phase 3+ game screens), ImagePicker, QuizCard, StatusBadge
+src/contexts/ + hooks/    teacher auth (TeacherAuthProvider/useTeacherAuth/useSignedInTeacher), toasts, useMyQuizzes
+src/services/             every Supabase call (auth, profile, quizzes, media). Pages never call supabase directly.
+src/lib/                  env, supabase clients, brand, redirect, media-url, quiz-rules (limits + publish rules that mirror
+                          SQL), quiz-editor-reducer (pure, unit-tested), validation/ (Zod form schemas)
+src/utils/                errors (friendlyError), image (browser resize to WebP), time (relativeTime)
+tests/unit/               Vitest (jsdom)          tests/integration/db/   PGlite migration + RLS tests (harness.ts)
+```
+
+### Rules the code follows
+
+* **Motion:** `LazyMotion strict` + `m.*` components only. **Never import `motion.*` or `Reorder`** (strict mode
+  throws). Question reordering therefore uses up/down buttons with `layout` animation. Animate only `transform`
+  and `opacity`. `MotionConfig reducedMotion="user"` plus a global reduced-motion CSS rule are in place.
+* **Bundle size:** every page is lazy. Keep **Zod out of the entry chunk**: env validation is hand-written and
+  `safeNextPath` lives in `lib/redirect.ts`, not in the Zod file. The student path must never import teacher
+  code.
+* **Fast-refresh lint:** `.tsx` files export only components. Put constants and helpers in `.ts` files (e.g.
+  `button-styles.ts`, `question-type-icons.ts`).
+* **No fake UI:** features from later phases render an explicit "Not built yet — Phase N" page
+  (`UpcomingFeaturePage` driven by the route `handle: { upcoming }`). No dead buttons.
+* **Route handles:** `handle: { wide: true }` widens TeacherLayout (used by the editor).
+* **Mobile first:** check at about 390 px width with no horizontal scroll. `SegmentedControl` supports
+  `shortLabel` for phones.
+* **Client rules mirror server rules:** when you change a limit or publish rule, update both
+  `src/lib/quiz-rules.ts` and the SQL, plus the tests on both sides.
+* **Editor state:** `useReducer(editorReducer)`. "Unsaved changes" compares `draftFingerprint(draft)` with the
+  fingerprint of the *version actually sent*, so edits made during a save stay dirty. A new quiz navigates from
+  `/create` to `/:id/edit` with the draft in `location.state` to avoid a refetch.
+* **Design tokens** live in `src/styles/index.css`: warm `paper`/`ink` neutrals, `flame` brand accent,
+  `night-*` for the game and projector canvas, `answer-a…d` (cobalt, teal, berry, amber), plus `mint` (correct)
+  and `rose` (wrong). Answers always pair colour with a letter (A–D).
+
+### Routes
+
+* **Built:** `/`, `/login`, `/register`, `/forgot-password`, `/reset-password`, `/teacher/dashboard`,
+  `/teacher/quizzes`, `/teacher/quizzes/create`, `/teacher/quizzes/:quizId/edit`,
+  `/teacher/quizzes/:quizId/preview` (full screen, outside the dashboard chrome), `/teacher/profile`.
+* **Placeholders:** `/teacher/shared`, `/teacher/sessions`, `/teacher/analytics`, and `/join`, `/join/:pin`,
+  `/game/:sessionId`, `/presenter/:sessionId` (all four render `LiveComingSoonPage`).
+
+---
+
+## 8. Supabase project settings and gotchas
+
+* **Anonymous sign-ins** must be turned **ON** before Phase 3 (currently off).
+* **Rate limits** must be raised in the dashboard: anonymous sign-ins to **1000/h** (the default of 30 per hour
+  per IP breaks a whole class behind one school IP), token refresh to 600, sign-ups and sign-ins to 300.
+  [supabase/config.toml](supabase/config.toml) mirrors these values for the local CLI.
+* **"Confirm email" is ON,** but no SMTP is configured. Supabase's built-in sender only delivers to
+  project-team addresses and a few emails an hour, so new teachers can't confirm. Either connect free SMTP
+  (Brevo or Resend) or turn confirmation off for testing. Password reset needs SMTP.
+* **URL configuration:** the Site URL and Redirect URLs must include `http://localhost:5173/**` and the
+  Cloudflare domain(s).
+* **Pausing:** free projects pause after about 7 days idle. Restore the project in the dashboard before a lesson.
+* **Main free-tier risk:** Realtime is capped at about 100 messages per second. One question broadcast to 100
+  phones is about 100 deliveries. This is unverified until the Phase 6 k6 test. **Make no "supports 100
+  students" claim before load testing.**
+
+---
+
+## 9. Testing approach
+
+* **DB tests** ([tests/integration/db/harness.ts](tests/integration/db/harness.ts)) boot PGlite with a bootstrap
+  that imitates Supabase:
+  * roles `anon`, `authenticated`, `service_role` and `supabase_auth_admin`;
+  * Supabase's default grants;
+  * `auth.users`, `auth.uid()` and `auth.jwt()`, driven by `request.jwt.claims`;
+  * a minimal `storage` schema.
+
+  The bootstrap then runs **all real migrations**. Use `as(db, { kind: 'user', id, anonymous? }, tx => …)` to
+  query as an API role, `createAuthUser()` to simulate sign-up, and `errorCode()` to assert things like
+  `'42501'`. These tests don't cover GoTrue, PostgREST HTTP, Realtime or Storage HTTP behaviour.
+* **Every new table or RPC needs DB tests** for the owner path, cross-tenant denial, anonymous-student denial,
+  the anon role, and validation errors.
+* **Manual checklists** for each phase are in [docs/TESTING.md](docs/TESTING.md).
+* **UI checks** were done with a headless browser. A useful trick is a throwaway dev server with placeholder env
+  vars on another port, plus a fake session written to `localStorage['rally.teacher.auth']` to render protected
+  pages.
+
+---
+
+## 10. What to build next: Phase 2b (sharing)
+
+Planned design (ARCHITECTURE.md §3.1):
+
+* **Table `quiz_shares`:** `id`, `quiz_id`, `created_by`, `token_hash bytea unique`, `created_at`,
+  `revoked_at`, `use_count`. The token is 32 random bytes (base64url), shown **once**; store only its SHA-256
+  (`extensions.digest` from pgcrypto).
+* **Table `quiz_share_imports`:** `share_id`, `recipient_id`, `copied_quiz_id`, `created_at`. This powers
+  "Shared with Me".
+* **RPCs:**
+  * `create_quiz_share(quiz_id)` returns the raw token.
+  * `revoke_quiz_share(share_id)`.
+  * `preview_shared_quiz(token)` (definer) returns quiz, questions and owner display name if the token is valid
+    and not revoked.
+  * `accept_quiz_share(token)` calls `private.copy_quiz(source, auth.uid(), title)` (already exists), records
+    the import, and returns the new quiz id.
+* **Frontend:**
+  * a share dialog in the library and editor (create, copy link, list active links, revoke);
+  * a public-ish route `/share/:token` (requires teacher login, keeps `next`) with a preview and an "Add to My
+    Library" button;
+  * a real `/teacher/shared` page;
+  * remove `availableInPhase` from the "Shared with Me" nav item and its entry from `upcoming-features.ts`.
+* **Image caveat:** copies keep the original owner's image paths. That's fine because the bucket is public-read
+  and the path regex doesn't check ownership. Don't add an ownership check to `clean_media_path` without
+  copying the objects.
+
+Then Phase 3 (sessions and lobby). Plans for tables, RPCs, channels and policies are in ARCHITECTURE.md
+§3.2–3.4.
+
+---
+
+## 11. Known limitations and open items
+
+* Replaced or removed images stay in storage as orphans. A cleanup job is planned.
+* `npm audit` reports a moderate advisory in ESLint's `minimatch` (dev-only, never shipped).
+* `File.md` and `Context.md` in the repo root were created by the owner; `File.md` is empty and untracked.
+* Bundle: the critical path is about 180 KB gzipped (React DOM about 71, router plus supabase-js about 67,
+  Motion core about 36), with Motion features (about 33 KB) loading after first paint. Revisit in Phase 6.
+* `/teacher/analytics` is labelled "Quiz History" (basic session history only; advanced analytics is out of
+  scope for V1).
+
+---
+
+## 12. Docs index
+
+* [README.md](README.md): quick start and scripts
+* [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): decisions, full DB design, realtime, limits, security, phases
+* [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md): project setup, auth settings, SMTP
+* [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): GitHub and Cloudflare Pages (`npm run build`, output `dist`,
+  `NODE_VERSION=22`)
+* [docs/TESTING.md](docs/TESTING.md): test coverage and manual checklists
+* [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): common errors and fixes
