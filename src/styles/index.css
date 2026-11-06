@@ -1,0 +1,125 @@
+@import 'tailwindcss';
+
+/*
+ * Rally design tokens.
+ * Teacher surfaces: warm paper + ink, one accent (flame) used sparingly.
+ * Student/projector surfaces: deep "night" canvas + four answer colours.
+ * Answer colours are paired with letter badges so they never rely on colour alone.
+ */
+@theme {
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+
+  /* Neutrals (warm) */
+  --color-paper: #f6f4ef;
+  --color-surface: #ffffff;
+  --color-ink-50: #f3f2ef;
+  --color-ink-100: #e8e6e1;
+  --color-ink-200: #d6d3cc;
+  --color-ink-300: #b5b1a8;
+  --color-ink-400: #8d8981;
+  --color-ink-500: #6b675f;
+  --color-ink-600: #514e48;
+  --color-ink-700: #3a3834;
+  --color-ink-800: #26252a;
+  --color-ink-900: #17161c;
+  --color-ink-950: #0e0d12;
+
+  /* Night canvas for game + projector */
+  --color-night-700: #2a2840;
+  --color-night-800: #1d1b2e;
+  --color-night-900: #141322;
+  --color-night-950: #0c0b16;
+
+  /* Brand accent */
+  --color-flame-50: #fff2ed;
+  --color-flame-100: #ffe1d5;
+  --color-flame-200: #ffc0a8;
+  --color-flame-300: #ff9670;
+  --color-flame-400: #f8703f;
+  --color-flame-500: #f0532b;
+  --color-flame-600: #d63d17;
+  --color-flame-700: #b02f12;
+
+  /* Supporting */
+  --color-sun-300: #ffd873;
+  --color-sun-400: #ffc23d;
+  --color-sun-500: #f0a800;
+  --color-mint-50: #e9f8f1;
+  --color-mint-400: #3cc893;
+  --color-mint-500: #22b07d;
+  --color-mint-600: #168a61;
+  --color-rose-50: #fdeeee;
+  --color-rose-400: #f06a6e;
+  --color-rose-500: #e5484d;
+  --color-rose-600: #c6363b;
+
+  /* Answer tiles (A–D) */
+  --color-answer-a: #3456e0;
+  --color-answer-b: #0e9f9a;
+  --color-answer-c: #d23e7f;
+  --color-answer-d: #e09a00;
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
+
+  --shadow-card: 0 1px 2px rgb(23 22 28 / 0.04), 0 2px 8px -2px rgb(23 22 28 / 0.06);
+  --shadow-lift: 0 2px 4px rgb(23 22 28 / 0.05), 0 12px 24px -8px rgb(23 22 28 / 0.12);
+  --shadow-press: inset 0 -3px 0 rgb(0 0 0 / 0.18);
+
+  --ease-snappy: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-paper font-sans text-ink-900 antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-flame-500);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-flame-200);
+  }
+}
+
+@layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Respect OS-level reduced-motion for CSS transitions too (Motion handles JS animations). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

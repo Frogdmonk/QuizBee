@@ -1,0 +1,6 @@
+# Store text files with LF in the repository on every OS.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.woff2 binary

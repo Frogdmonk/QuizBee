@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-ssr/
+coverage/
+*.local
+
+# environment — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# supabase local state
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+# load-test output
+tests/load/results/
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
