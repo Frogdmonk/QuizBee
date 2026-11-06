@@ -5,7 +5,7 @@ their phones with a PIN or QR code (no accounts); a projector view shows questio
 leaderboard.
 
 **Stack:** React 19 · Vite 8 · TypeScript · Tailwind CSS 4 · Motion · React Router · React Hook Form + Zod ·
-Supabase (Postgres, Auth, Realtime, Storage) · Cloudflare Pages. Free-tier only; no paid APIs.
+Supabase (Postgres, Auth, Realtime, Storage) · Cloudflare Pages or Vercel. Free-tier only; no paid APIs.
 
 > **Build status: Phases 1, 2a, 2c and 3 complete.** Foundation, teacher authentication, the quiz builder and
 > library, workspaces with quiz sharing, and live-session lobbies (PIN and QR join, avatar builder, waiting
@@ -64,7 +64,7 @@ docs/           architecture, setup, deploy, testing, troubleshooting
 
 * [Architecture and V1 plan](docs/ARCHITECTURE.md): decisions, database design, realtime, limits, security
 * [Supabase setup](docs/SUPABASE_SETUP.md)
-* [Deployment (GitHub + Cloudflare Pages)](docs/DEPLOYMENT.md)
+* [Deployment (GitHub + Cloudflare Pages or Vercel)](docs/DEPLOYMENT.md)
 * [Testing](docs/TESTING.md)
 * [Troubleshooting](docs/TROUBLESHOOTING.md)
 * [Design system ("Match Day")](docs/DESIGN.md): palette, type, motion and the layout of every screen

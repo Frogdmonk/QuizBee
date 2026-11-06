@@ -76,7 +76,8 @@ WebSocket server.
 * Tailwind CSS 4 (CSS-first config in [src/styles/index.css](src/styles/index.css), no `tailwind.config.js`)
 * Motion 14 (`motion/react`), Lucide icons, React Router 8 (data router), React Hook Form + Zod 4
 * Supabase: Postgres, Auth, Realtime and Storage. **No Edge Functions** (deliberate, see §6).
-* Hosting on Cloudflare Pages; GitHub for source.
+* Hosting on Cloudflare Pages (`public/_headers`) or Vercel (`vercel.json`); GitHub for source. Both files
+  carry the same security headers and a unit test keeps them in sync.
 * Tests: Vitest 5 + Testing Library (jsdom), and **PGlite** (Postgres compiled to WASM) for database tests.
 * Fonts self-hosted via `@fontsource-variable` (Figtree for body, Bricolage Grotesque for display).
 
@@ -480,7 +481,7 @@ Add a new migration (don't edit Phase 3): snapshot tables (`session_questions`, 
 * [README.md](README.md): quick start and scripts
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): decisions, full DB design, realtime, limits, security, phases
 * [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md): project setup, auth settings, SMTP
-* [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): GitHub and Cloudflare Pages (`npm run build`, output `dist`,
+* [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): GitHub and Cloudflare Pages or Vercel (section 7) (`npm run build`, output `dist`,
   `NODE_VERSION=22`)
 * [docs/TESTING.md](docs/TESTING.md): test coverage and manual checklists
 * [docs/DESIGN.md](docs/DESIGN.md): the "Match Day" visual design system (palette, type, motion, every screen)
