@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router';
 import { m } from 'motion/react';
-import { Archive, Copy, Eye, MoreVertical, Pencil, RotateCcw, Rocket, Trash2, Undo2 } from 'lucide-react';
+import { Archive, Copy, Eye, MoreVertical, Pencil, RotateCcw, Rocket, Trash2, Undo2, Users } from 'lucide-react';
 import { Menu, type MenuItem } from '@/components/ui/Menu';
 import { cn } from '@/lib/cn';
 import { mediaUrl } from '@/lib/media-url';
@@ -14,6 +14,7 @@ export type QuizCardActions = {
   onEdit: (quiz: QuizSummary) => void;
   onPreview: (quiz: QuizSummary) => void;
   onDuplicate: (quiz: QuizSummary) => void;
+  onShare: (quiz: QuizSummary) => void;
   onStatus: (quiz: QuizSummary, status: QuizStatus) => void;
   onDelete: (quiz: QuizSummary) => void;
 };
@@ -33,6 +34,7 @@ export const QuizCard = memo(function QuizCard({ quiz, actions }: { quiz: QuizSu
     { label: 'Edit', icon: <Pencil />, onSelect: () => actions.onEdit(quiz) },
     { label: 'Preview', icon: <Eye />, onSelect: () => actions.onPreview(quiz) },
     { label: 'Duplicate', icon: <Copy />, onSelect: () => actions.onDuplicate(quiz) },
+    { label: 'Share', icon: <Users />, onSelect: () => actions.onShare(quiz) },
     'separator',
     ...(quiz.status === 'draft'
       ? [{ label: 'Publish', icon: <Rocket />, onSelect: () => actions.onStatus(quiz, 'published') }]

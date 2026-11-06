@@ -68,7 +68,9 @@ export default function LoginPage() {
 
       <p className="mt-8 text-center text-sm text-ink-600">
         New here?{' '}
-        <Link to="/register" className="font-semibold text-ink-900 underline-offset-4 hover:underline">
+        <Link
+          to={params.get('next') ? `/register?next=${encodeURIComponent(safeNextPath(params.get('next')))}` : '/register'}
+          className="font-semibold text-ink-900 underline-offset-4 hover:underline">
           Create a teacher account
         </Link>
       </p>

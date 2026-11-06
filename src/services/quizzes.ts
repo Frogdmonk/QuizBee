@@ -35,11 +35,15 @@ function toSummary(row: SummaryRow): QuizSummary {
   };
 }
 
-/** All quizzes owned by the signed-in teacher (RLS restricts to own rows). */
-export async function listMyQuizzes(): Promise<QuizSummary[]> {
+/**
+ * All quizzes owned by the signed-in teacher. The owner filter is required:
+ * RLS also lets teachers read quizzes shared with them through a workspace.
+ */
+export async function listMyQuizzes(ownerId: string): Promise<QuizSummary[]> {
   const { data, error } = await getTeacherClient()
     .from('quizzes')
     .select(SUMMARY_COLUMNS)
+    .eq('owner_id', ownerId)
     .order('updated_at', { ascending: false })
     .limit(500);
   if (error) throw error;
@@ -56,7 +60,7 @@ export class QuizNotFoundError extends Error {
   }
 }
 
-/** Loads a full quiz (including answer keys — teacher only) as an editable draft. */
+/** Loads a full quiz (including answer keys; own or shared, teachers only) as an editable draft. */
 export async function getQuizDraft(id: string): Promise<QuizDraft> {
   const { data, error } = await getTeacherClient()
     .from('quizzes')
@@ -76,6 +80,7 @@ export async function getQuizDraft(id: string): Promise<QuizDraft> {
     coverImagePath: quiz.cover_image_path,
     speedScoring: quiz.speed_scoring,
     status: quiz.status,
+    revision: quiz.revision,
     questions: questions.map((q) => ({
       key: newKey(),
       type: q.type,
@@ -91,11 +96,20 @@ export async function getQuizDraft(id: string): Promise<QuizDraft> {
   };
 }
 
-/** Creates or fully replaces a quiz in one server transaction. Returns its id. */
+/**
+ * Creates or fully replaces a quiz in one server transaction. Returns its id.
+ * Sends the loaded revision so a save never overwrites a newer one by another editor.
+ */
 export async function saveQuiz(draft: QuizDraft): Promise<string> {
-  const { data, error } = await getTeacherClient().rpc('save_quiz', { p_quiz: toSavePayload(draft) });
+  const payload = draft.id ? { ...toSavePayload(draft), revision: draft.revision } : toSavePayload(draft);
+  const { data, error } = await getTeacherClient().rpc('save_quiz', { p_quiz: payload });
   if (error) throw error;
   return data;
+}
+
+/** True when save_quiz refused because someone else saved first. */
+export function isRevisionConflict(error: unknown): boolean {
+  return (error as { hint?: unknown } | null)?.hint === 'quiz_revision_conflict';
 }
 
 export async function setQuizStatus(id: string, status: QuizStatus): Promise<QuizStatus> {

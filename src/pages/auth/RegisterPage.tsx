@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MailCheck } from 'lucide-react';
@@ -9,9 +9,14 @@ import { Alert } from '@/components/ui/Alert';
 import { registerSchema, type RegisterValues } from '@/lib/validation/auth';
 import { signUpTeacher } from '@/services/auth';
 import { friendlyError } from '@/utils/errors';
+import { safeNextPath } from '@/lib/redirect';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // Keeps e.g. an invite link (/invite/…) across sign-up and sign-in.
+  const next = safeNextPath(params.get('next'));
+  const loginPath = params.get('next') ? `/login?next=${encodeURIComponent(next)}` : '/login';
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const {
@@ -31,7 +36,7 @@ export default function RegisterPage() {
         password: values.password,
         displayName: values.displayName,
       });
-      if (outcome.kind === 'signed_in') navigate('/teacher/dashboard', { replace: true });
+      if (outcome.kind === 'signed_in') navigate(next, { replace: true });
       else setPendingEmail(outcome.email);
     } catch (error) {
       setFormError(friendlyError(error, 'Could not create your account. Please try again.'));
@@ -50,7 +55,7 @@ export default function RegisterPage() {
           to it. Open the link to activate your account, then sign in.
         </p>
         <p className="mt-3 text-sm text-ink-500">No email after a few minutes? Check your spam folder.</p>
-        <ButtonLink to="/login" variant="secondary" size="lg" className="mt-8" fullWidth>
+        <ButtonLink to={loginPath} variant="secondary" size="lg" className="mt-8" fullWidth>
           Back to sign in
         </ButtonLink>
       </div>
@@ -99,7 +104,7 @@ export default function RegisterPage() {
 
       <p className="mt-8 text-center text-sm text-ink-600">
         Already have an account?{' '}
-        <Link to="/login" className="font-semibold text-ink-900 underline-offset-4 hover:underline">
+        <Link to={loginPath} className="font-semibold text-ink-900 underline-offset-4 hover:underline">
           Sign in
         </Link>
       </p>

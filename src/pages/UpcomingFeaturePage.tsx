@@ -8,7 +8,7 @@ import { UPCOMING, type UpcomingKey } from './upcoming-features';
 /** Reads which feature to describe from the route's `handle: { upcoming }`. */
 export default function UpcomingFeaturePage() {
   const matches = useMatches();
-  const key = (matches.at(-1)?.handle as { upcoming?: UpcomingKey } | undefined)?.upcoming ?? 'shared';
+  const key = (matches.at(-1)?.handle as { upcoming?: UpcomingKey } | undefined)?.upcoming ?? 'sessions';
   const feature = UPCOMING[key];
 
   return (

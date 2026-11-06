@@ -4,7 +4,7 @@ This document is the technical review of the Version 1 requirements: contradicti
 the final database design, the folder structure, the delivery phases, free-tier limits, security-sensitive
 operations, the plan for 100 concurrent students, and the animation performance strategy.
 
-> **Status:** Phase 1 (foundation) and Phase 2a (quiz builder and library) are implemented. Sharing (Phase 2b) and Phases 3–6 are designed here and will be built in order.
+> **Status:** Phase 1 (foundation), Phase 2a (quiz builder and library) and Phase 2c (workspaces and quiz sharing between teachers) are implemented. Share links (Phase 2b) and Phases 3–6 are designed here and will be built in order.
 > Anything described for a later phase is a design, not a claim that it exists.
 
 ---
@@ -106,13 +106,36 @@ Timestamps are `timestamptz`. IDs are `uuid` (`gen_random_uuid()`).
 | `quizzes` | `owner_id → teacher_profiles`, `title`, `description`, `subject`, `cover_image_path`, `status` (`draft/published/archived`), `source_quiz_id` (copied-from), `question_count` | title 1–120; idx `(owner_id, status, updated_at desc)` |
 | `quiz_questions` | `quiz_id`, `position`, `type` (`multiple_choice/true_false/image_choice`), `prompt`, `image_path`, `time_limit_seconds`, `points`, `speed_bonus`, `explanation` | time 5–120 (default 20); points 0–2000 (default 1000); `unique (quiz_id, position) deferrable` |
 | `question_options` | `question_id`, `position`, `label`, `image_path`, `is_correct` | 2–4 options; `unique (question_id, position) deferrable`; partial unique idx: one correct per question |
-| `quiz_shares` | `quiz_id`, `created_by`, `token_hash bytea`, `revoked_at`, `use_count` | `unique (token_hash)`; token = 32 random bytes (base64url), **only the SHA-256 hash is stored** |
-| `quiz_share_imports` | `share_id`, `recipient_id`, `copied_quiz_id` | powers *Shared with Me* |
+| `quiz_shares` *(2b, planned)* | `quiz_id`, `created_by`, `token_hash bytea`, `revoked_at`, `use_count` | `unique (token_hash)`; token = 32 random bytes (base64url), **only the SHA-256 hash is stored** |
+| `quiz_share_imports` *(2b, planned)* | `share_id`, `recipient_id`, `copied_quiz_id` | will also feed *Shared with Me* |
+| `workspaces` ✅ *(2c)* | `name` (1–60), `owner_id → teacher_profiles` | a group of teachers; owner can own ≤ 20 |
+| `workspace_members` ✅ *(2c)* | PK `(workspace_id, teacher_id)`, `role` (`owner/member`), `joined_at` | one owner per workspace (partial unique idx); ≤ 50 members; ≤ 50 memberships per teacher |
+| `workspace_invites` ✅ *(2c)* | `workspace_id`, `created_by`, `token_hash bytea`, `expires_at` (7 days), `revoked_at`, `use_count` | reusable invite links; 256-bit token, **only the SHA-256 hash is stored** (and not selectable); ≤ 10 active per workspace |
+| `quiz_grants` ✅ *(2c)* | `quiz_id`, `workspace_id`, `teacher_id` (**null = everyone in the workspace**), `access` (`view < copy < edit`), `can_publish` | partial unique idx per (quiz, workspace) for everyone and per member; `can_publish` only with `edit`; only counts while the teacher is still a member |
+| `quiz_activity` ✅ *(2c)* | `quiz_id`, `actor_id`, `action` (`edited/published/unpublished/archived/restored/copied`) | consecutive edits by one teacher within 15 min collapse into one entry |
+
+`quizzes` gained `revision` (bumped on every content save) and `updated_by` in Phase 2c.
 
 Quizzes are saved through `save_quiz(jsonb)`, one transaction that validates and replaces questions and options.
-Sharing goes through `create_quiz_share`, `revoke_quiz_share`, `preview_shared_quiz(token)` and
-`accept_quiz_share(token)`. Accepting deep-copies the quiz into the recipient's library, and the copy is fully
-independent.
+Share links (Phase 2b, planned) will go through `create_quiz_share`, `revoke_quiz_share`,
+`preview_shared_quiz(token)` and `accept_quiz_share(token)`. Accepting deep-copies the quiz into the recipient's
+library, and the copy is fully independent.
+
+**Workspaces (Phase 2c).** Teachers create workspaces and invite colleagues with a link
+(`create_workspace_invite` → `/invite/:token` → `accept_workspace_invite`). The quiz owner chooses, per workspace,
+whether the quiz is open to everyone there (view by default, or copy / edit) and/or gives chosen members their own
+level (`set_quiz_sharing`, atomic). A member's access is the highest of their grants:
+
+* **view:** open and preview (answer keys included, since they are teachers);
+* **copy:** view, plus `copy_shared_quiz` into their own library (an independent draft);
+* **edit:** copy, plus `save_quiz` on the shared quiz itself. With `can_publish`, also publish and unpublish.
+
+Only the owner can archive, restore, delete, duplicate or change sharing. Concurrent editors are protected by
+`quizzes.revision`: `save_quiz` rejects a save made against an outdated revision (hint `quiz_revision_conflict`).
+Leaving or being removed from a workspace deletes the grants that depended on that membership. Shared quizzes
+become readable through extra SELECT policies that use `private.shared_quiz_ids()` (SECURITY DEFINER, avoids RLS
+recursion), so the library query filters by `owner_id` explicitly. Member names reach other members only through
+RPCs (`get_workspace`, `get_quiz_sharing`, `list_shared_with_me`); `teacher_profiles` RLS is unchanged.
 
 ### 3.2 Live sessions (snapshotted at game start)
 
@@ -230,6 +253,7 @@ connection pool. The load test will confirm it (we make **no claim of 100-studen
 | **1 ✅** | Vite/React/TS foundation, Tailwind design system, Motion setup, Supabase clients, teacher auth (register, login, logout, reset, profile), protected routes, teacher shell, Phase 1 migration, Cloudflare config, docs | build passes; unit and DB tests pass |
 | **2a ✅** | Quiz schema + RLS + Storage bucket; library (create, edit, duplicate, publish, archive, delete); builder with live preview, reordering, image upload; full-screen preview; dashboard stats | DB tests for ownership, validation and publishing; UI flows |
 | **2b** | Sharing (links, preview, add to library, revoke); Shared with Me | DB tests for share tokens and copies |
+| **2c ✅** | Workspaces (create, rename, delete, leave, remove member), link invites (7-day, revocable), per-quiz sharing to a whole workspace and/or chosen members with view / copy / edit (+ publish permission), copy to library, concurrent-edit protection, activity log, *Shared with Me* | DB tests for invites, every access level, revocation, validation, students and anon |
 | **3** | Session schema; PIN and QR; anonymous join, nickname rules, 12+ original SVG avatars; waiting room (teacher, student, projector); lock/unlock; remove; Realtime authorisation; reconnection to lobby | join, lock and remove tests; 2-device manual test |
 | **4** | Game engine RPCs (start, open, submit, close, score, pause, resume, next, end, advance_if_due), clock sync, student, teacher and projector game screens, manual and auto progression, reconnection mid-question | scoring, deadline, duplicate and race tests in PGlite |
 | **5** | Animated leaderboard (rank changes, top-10 entry, new #1), reactions, confetti, podium, final results, session history and review | reduced-motion check; low-end device check |
@@ -284,6 +308,8 @@ connection pool. The load test will confirm it (we make **no claim of 100-studen
 | Answer submission | Membership, active status, open question, option ownership, deadline (`clock_timestamp()`), unique constraint |
 | State transitions | Host check plus `state_version` compare-and-set; row locks prevent double advancement |
 | Share links | 256-bit random tokens, SHA-256 hashes stored, revocable, accepting creates a copy |
+| Workspace invites | 256-bit random tokens shown once; SHA-256 hashes stored and not selectable; 7-day expiry; revocable; joining requires a teacher login |
+| Shared quizzes | Access only through a grant **and** current membership; writes via RPCs that re-check the level; only the owner can delete, archive or re-share; optimistic `revision` check against lost updates |
 | Presenter access | Read-only role via a hashed presenter key; no admin RPCs accept it |
 | Realtime | Private channels; receive policy by membership; no client send policy |
 | Redirects | `next` parameter restricted to same-origin paths (tested) |

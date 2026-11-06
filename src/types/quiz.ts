@@ -28,6 +28,8 @@ export type QuizDraft = {
   coverImagePath: string | null;
   speedScoring: boolean;
   status: QuizStatus;
+  /** Server revision this draft was loaded from (optimistic locking between editors). */
+  revision: number;
   questions: QuestionDraft[];
 };
 

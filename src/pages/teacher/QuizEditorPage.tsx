@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link, useBlocker, useLocation, useNavigate, useParams } from 'react-router';
-import { Archive, ArrowLeft, CheckCircle2, ChevronRight, Eye, MoreHorizontal, RotateCcw, Rocket, Save, Undo2 } from 'lucide-react';
+import { Archive, ArrowLeft, CheckCircle2, ChevronRight, Copy, Eye, History, MoreHorizontal, RotateCcw, Rocket, Save, Undo2, Users } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import { Menu } from '@/components/ui/Menu';
+import { Menu, type MenuItem } from '@/components/ui/Menu';
 import { ConfirmDialog, Dialog } from '@/components/ui/Dialog';
 import { Skeleton } from '@/components/ui/FormControls';
 import { QuestionList, type EditorSelection } from '@/components/quiz/QuestionList';
@@ -13,10 +13,16 @@ import { PreviewPanel } from '@/components/quiz/PreviewPanel';
 import { StatusBadge } from '@/components/quiz/StatusBadge';
 import { editorReducer, initEditor } from '@/lib/quiz-editor-reducer';
 import { draftFingerprint, emptyQuiz, newKey, quizIssues, saveBlockers } from '@/lib/quiz-rules';
-import { getQuizDraft, QuizNotFoundError, saveQuiz, setQuizStatus } from '@/services/quizzes';
+import { getQuizDraft, isRevisionConflict, QuizNotFoundError, saveQuiz, setQuizStatus } from '@/services/quizzes';
+import { copySharedQuiz, getQuizPermissions } from '@/services/sharing';
+import { ShareQuizDialog } from '@/components/sharing/ShareQuizDialog';
+import { QuizActivityDialog } from '@/components/sharing/QuizActivityDialog';
+import { AccessBadge } from '@/components/sharing/AccessBadge';
+import { relativeTime } from '@/utils/time';
 import { useToast } from '@/hooks/useToast';
 import { friendlyError } from '@/utils/errors';
 import type { QuestionType, QuizDraft, QuizStatus } from '@/types/quiz';
+import type { QuizPermissions } from '@/types/workspace';
 import { cn } from '@/lib/cn';
 
 type Handoff = { draft?: QuizDraft; selected?: EditorSelection } | null;
@@ -43,24 +49,32 @@ export default function QuizEditorPage() {
   const [statusBusy, setStatusBusy] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  // null = the signed-in teacher's own new or just-created quiz.
+  const [perms, setPerms] = useState<QuizPermissions | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [conflictOpen, setConflictOpen] = useState(false);
   const allowNavigation = useRef(false);
 
   const { draft } = state;
 
   // Load an existing quiz.
   useEffect(() => {
-    if (!quizId || fromHandoff) return;
+    // A just-created quiz arrives via navigation state; it is only fetched again on an explicit reload.
+    if (!quizId || (fromHandoff && loadNonce === 0)) return;
     let cancelled = false;
-    getQuizDraft(quizId)
-      .then((loaded) => {
+    Promise.all([getQuizDraft(quizId), getQuizPermissions(quizId)])
+      .then(([loaded, permissions]) => {
         if (cancelled) return;
+        setPerms(permissions);
         dispatch({ type: 'load', draft: loaded, saved: true });
         setSelected(loaded.questions[0]?.key ?? 'details');
         setLoadState('ready');
       })
       .catch((error) => {
         if (cancelled) return;
-        setLoadState(error instanceof QuizNotFoundError ? 'notfound' : 'error');
+        const notFound = error instanceof QuizNotFoundError || (error as { code?: string } | null)?.code === 'P0002';
+        setLoadState(notFound ? 'notfound' : 'error');
       });
     return () => {
       cancelled = true;
@@ -115,7 +129,8 @@ export default function QuizEditorPage() {
         }
         return id;
       } catch (error) {
-        toast({ tone: 'error', title: 'Could not save', description: friendlyError(error, 'Please try again.') });
+        if (isRevisionConflict(error)) setConflictOpen(true);
+        else toast({ tone: 'error', title: 'Could not save', description: friendlyError(error, 'Please try again.') });
         return null;
       } finally {
         setSaving(false);
@@ -214,7 +229,7 @@ export default function QuizEditorPage() {
         <h1 className="text-2xl font-extrabold">{loadState === 'notfound' ? 'Quiz not found' : 'Could not load this quiz'}</h1>
         <p className="mt-2 text-ink-600">
           {loadState === 'notfound'
-            ? 'It may have been deleted, or it belongs to another teacher.'
+            ? 'It may have been deleted, or it is not shared with you.'
             : 'Check your connection and try again.'}
         </p>
         <div className="mt-6 flex justify-center gap-3">
@@ -236,8 +251,21 @@ export default function QuizEditorPage() {
     );
   }
 
+  const role = perms?.role ?? 'owner';
+  const isOwner = role === 'owner';
+  const canPublish = isOwner || Boolean(perms?.canPublish);
+  const canArchive = isOwner;
+  const backPath = isOwner ? '/teacher/quizzes' : '/teacher/shared';
+
+  if (perms && (perms.role === 'view' || perms.role === 'copy')) {
+    return <NoEditAccess quizId={draft.id ?? ''} title={draft.title} perms={perms} />;
+  }
+
   const selectedQuestion = selectedIndex >= 0 ? draft.questions[selectedIndex] : undefined;
   const busy = saving || statusBusy;
+
+  const showUnpublish = canPublish && draft.status === 'published';
+  const showArchive = canArchive && draft.status !== 'archived';
 
   return (
     <div className="space-y-6">
@@ -245,9 +273,9 @@ export default function QuizEditorPage() {
       <div className="sticky top-14 z-20 -mx-4 border-b border-ink-100 bg-paper/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-10 lg:-mt-10 lg:px-10 lg:pt-5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Link
-            to="/teacher/quizzes"
+            to={backPath}
             className="grid size-10 shrink-0 place-items-center rounded-xl text-ink-600 hover:bg-ink-100 hover:text-ink-900"
-            aria-label="Back to My Quizzes"
+            aria-label={isOwner ? 'Back to My Quizzes' : 'Back to Shared with Me'}
           >
             <ArrowLeft className="size-5" />
           </Link>
@@ -272,25 +300,35 @@ export default function QuizEditorPage() {
             >
               Save
             </Button>
-            {draft.status === 'draft' && (
+            {isOwner && draft.id && (
+              <Button variant="ghost" leftIcon={<Users className="size-4" />} onClick={() => setShareOpen(true)} disabled={busy}>
+                <span className="hidden sm:inline">Share</span>
+              </Button>
+            )}
+            {canPublish && draft.status === 'draft' && (
               <Button variant="primary" leftIcon={<Rocket className="size-4" />} onClick={() => void changeStatus('published')} loading={statusBusy} disabled={saving}>
                 Publish
               </Button>
             )}
-            {draft.status === 'archived' && (
+            {canArchive && draft.status === 'archived' && (
               <Button variant="dark" leftIcon={<RotateCcw className="size-4" />} onClick={() => void changeStatus('draft')} loading={statusBusy}>
                 Restore
               </Button>
             )}
-            {draft.id && draft.status !== 'archived' && (
+            {draft.id && (
               <Menu
                 label="More quiz actions"
                 trigger={<MoreHorizontal className="size-5" />}
                 items={[
-                  ...(draft.status === 'published'
+                  ...(showUnpublish
                     ? [{ label: 'Move back to drafts', icon: <Undo2 />, onSelect: () => void changeStatus('draft') }]
                     : []),
-                  { label: 'Archive quiz', icon: <Archive />, onSelect: () => void changeStatus('archived') },
+                  ...(showArchive
+                    ? [{ label: 'Archive quiz', icon: <Archive />, onSelect: () => void changeStatus('archived') }]
+                    : []),
+                  ...(showUnpublish || showArchive ? (['separator'] as MenuItem[]) : []),
+                  ...(isOwner ? [{ label: 'Share', icon: <Users />, onSelect: () => setShareOpen(true) }] : []),
+                  { label: 'Activity', icon: <History />, onSelect: () => setActivityOpen(true) },
                 ]}
               />
             )}
@@ -298,6 +336,18 @@ export default function QuizEditorPage() {
         </div>
       </div>
 
+      {!isOwner && perms && (
+        <Alert tone="info" title={`Shared with you by ${perms.ownerName}`}>
+          <div className="space-y-1.5">
+            <AccessBadge access="edit" />
+            <p>
+              Changes you save update this quiz for everyone it is shared with, and {perms.ownerName} can see who edited it.
+              {perms.canPublish ? ' You can also publish and unpublish it.' : ''}
+              {perms.updatedByName ? ` Last edited by ${perms.updatedByName} ${relativeTime(perms.updatedAt)}.` : ''}
+            </p>
+          </div>
+        </Alert>
+      )}
       {draft.status === 'archived' && (
         <Alert tone="info" title="This quiz is archived">
           It is hidden from your active library and cannot be hosted. Restore it to use it again.
@@ -411,6 +461,27 @@ export default function QuizEditorPage() {
       />
 
       <ConfirmDialog
+        open={conflictOpen}
+        title="Someone else saved this quiz"
+        description="Another teacher saved changes while you were editing, so your version was not saved. Reload to get the latest version. Your unsaved changes on this screen will be lost, so copy anything you need first."
+        confirmLabel="Reload latest version"
+        cancelLabel="Not yet"
+        onCancel={() => setConflictOpen(false)}
+        onConfirm={() => {
+          setConflictOpen(false);
+          setLoadState('loading');
+          setLoadNonce((n) => n + 1);
+        }}
+      />
+
+      {draft.id && (
+        <>
+          <ShareQuizDialog open={shareOpen} quizId={draft.id} quizTitle={draft.title} onClose={() => setShareOpen(false)} />
+          <QuizActivityDialog open={activityOpen} quizId={draft.id} onClose={() => setActivityOpen(false)} />
+        </>
+      )}
+
+      <ConfirmDialog
         open={blocker.state === 'blocked'}
         title="Leave without saving?"
         description="You have unsaved changes to this quiz. They will be lost if you leave."
@@ -420,6 +491,51 @@ export default function QuizEditorPage() {
         onCancel={() => blocker.reset?.()}
         onConfirm={() => blocker.proceed?.()}
       />
+    </div>
+  );
+}
+
+/** Shown when a teacher opens the editor for a quiz they may only view or copy. */
+function NoEditAccess({ quizId, title, perms }: { quizId: string; title: string; perms: QuizPermissions }) {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [copying, setCopying] = useState(false);
+
+  const copy = async () => {
+    setCopying(true);
+    try {
+      const id = await copySharedQuiz(quizId);
+      toast({ tone: 'success', title: 'Added to My Quizzes', description: 'Your copy is a draft you can change freely.' });
+      navigate(`/teacher/quizzes/${id}/edit`);
+    } catch (error) {
+      toast({ tone: 'error', title: 'Could not copy', description: friendlyError(error) });
+      setCopying(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-lg py-10 text-center">
+      <div className="flex justify-center">{perms.role !== 'owner' && <AccessBadge access={perms.role} />}</div>
+      <h1 className="mt-4 text-2xl font-extrabold">{title || 'Shared quiz'}</h1>
+      <p className="mt-2 text-ink-600">
+        {perms.ownerName} shared this quiz with you to{' '}
+        {perms.role === 'copy'
+          ? 'view and copy. Copy it to your library to make your own changes.'
+          : 'view. Ask them for copy or edit access to change it.'}
+      </p>
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <ButtonLink to={`/teacher/quizzes/${quizId}/preview`} leftIcon={<Eye className="size-4" />}>
+          Preview
+        </ButtonLink>
+        {perms.role === 'copy' && (
+          <Button variant="secondary" leftIcon={<Copy className="size-4" />} loading={copying} onClick={() => void copy()}>
+            Copy to My Quizzes
+          </Button>
+        )}
+        <ButtonLink to="/teacher/shared" variant="ghost">
+          Back to Shared with Me
+        </ButtonLink>
+      </div>
     </div>
   );
 }

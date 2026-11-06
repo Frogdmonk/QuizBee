@@ -70,11 +70,23 @@ export const router = createBrowserRouter([
                 handle: { wide: true },
                 lazy: page(() => import('@/pages/teacher/QuizEditorPage')),
               },
-              { path: 'shared', ...upcoming('shared') },
+              { path: 'shared', lazy: page(() => import('@/pages/teacher/SharedWithMePage')) },
+              { path: 'workspaces', lazy: page(() => import('@/pages/teacher/WorkspacesPage')) },
+              { path: 'workspaces/:workspaceId', lazy: page(() => import('@/pages/teacher/WorkspaceDetailPage')) },
               { path: 'sessions', ...upcoming('sessions') },
               { path: 'analytics', ...upcoming('history') },
               { path: 'profile', lazy: page(() => import('@/pages/teacher/ProfilePage')) },
             ],
+          },
+          {
+            // Workspace invite links. Signed-out teachers go through /login?next=… and come back here.
+            path: 'invite/:token',
+            element: (
+              <RequireTeacher>
+                <TeacherLayout />
+              </RequireTeacher>
+            ),
+            children: [{ index: true, lazy: page(() => import('@/pages/teacher/JoinWorkspacePage')) }],
           },
           {
             // Full-screen, outside the dashboard chrome.

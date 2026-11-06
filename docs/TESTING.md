@@ -48,6 +48,34 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | Storage | public bucket with a 2 MB image-only limit; teachers write only to their own folder; students cannot upload; no cross-teacher deletes |
 | Frontend | publish rules mirror the SQL; editor reducer (reorder, one correct answer, 2–4 answers, true/false locked, duplicate, insert position, **edits made during a save stay unsaved**); image sizing; relative time |
 
+### Phase 2c coverage (workspaces and sharing)
+
+| Area | Tests |
+|---|---|
+| Workspaces | owner membership on create; name validation; 20-workspace cap; member names visible to members only; only the owner renames, removes and deletes; owner cannot leave; no direct table writes |
+| Invite links | 43-character token returned once, only its hash stored and the hash column not selectable; owner-only creation; preview; idempotent join counted once; revoked, expired and made-up tokens rejected; 7-day expiry; 10 active links cap; students and anon refused |
+| Sharing | private by default; open to everyone with view; chosen members only; highest grant wins; view cannot edit, copy or publish; copy creates an independent draft and logs it; edit saves for everyone with `updated_by`, `revision` and the activity log; stale revision rejected (hint `quiz_revision_conflict`), missing revision still accepted; publish permission only with edit; editors never archive; settings validation; clearing makes it private; removal, leaving, workspace and quiz deletion revoke access; grantees cannot delete, duplicate or re-share; grant visibility; students and anon refused |
+| Frontend | access ordering and effective access; share-dialog draft round-trip, publish flag dropped below edit, order-independent change detection; invite URLs; name validation; revision excluded from the payload and fingerprint and advanced after save; conflict detection |
+
+## Manual checklist: Phase 2c (workspaces and sharing)
+
+Use two teacher accounts (A and B), ideally in two different browsers.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | A: Workspaces → New workspace | Lands on the workspace page as Owner |
+| 2 | A: Create invite link, copy it | Link shown once; appears under Active links |
+| 3 | B (signed out): open the link | Sign-in page; after signing in (or registering) the invite page opens |
+| 4 | B: Join workspace | Workspace page; both members listed by name |
+| 5 | A: My Quizzes → quiz menu → Share → open to everyone, View | B sees it under Shared with Me with "Can view"; opening it shows the preview, no Edit |
+| 6 | A: switch everyone to Copy | B can "Copy to My Quizzes"; the copy is a draft in B's library; A's quiz is unchanged |
+| 7 | A: give B "Can edit" (no publish) | B can edit and save; A sees "Last edited by B" and the Activity entry; B has no Publish button |
+| 8 | A: tick "Can publish and unpublish" for B | B can publish and move back to drafts, but not archive |
+| 9 | A and B edit the same quiz; A saves, then B saves | B gets "Someone else saved this quiz" with a reload option; nothing is overwritten |
+| 10 | A: revoke the link; a new teacher opens it | "Invite link not valid" |
+| 11 | A: remove B (or B: Leave) | B immediately loses the shared quizzes |
+| 12 | Phone width | Workspaces, the share dialog and Shared with Me work with no sideways scrolling |
+
 ## Manual checklist: Phase 2a (quizzes)
 
 | # | Step | Expected |

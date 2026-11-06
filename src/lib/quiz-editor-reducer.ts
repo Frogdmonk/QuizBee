@@ -125,8 +125,9 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'saved': {
       // Fingerprint the version that was actually sent, so edits made while the
       // request was in flight still count as unsaved.
+      // The server bumps the revision by one on every update (a new quiz starts at 0).
       return {
-        draft: { ...draft, id: action.id },
+        draft: { ...draft, id: action.id, revision: action.sent.id ? action.sent.revision + 1 : 0 },
         savedFingerprint: draftFingerprint({ ...action.sent, id: action.id }),
       };
     }

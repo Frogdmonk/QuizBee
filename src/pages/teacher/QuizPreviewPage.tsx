@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Pencil, X } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { QuestionPreview } from '@/components/quiz/QuestionPreview';
 import { getQuizDraft, QuizNotFoundError } from '@/services/quizzes';
+import { copySharedQuiz, getQuizPermissions } from '@/services/sharing';
+import { useToast } from '@/hooks/useToast';
+import { friendlyError } from '@/utils/errors';
 import type { QuizDraft } from '@/types/quiz';
+import type { QuizRole } from '@/types/workspace';
 import { cn } from '@/lib/cn';
 
 /**
@@ -20,16 +24,25 @@ export default function QuizPreviewPage() {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [reveal, setReveal] = useState(false);
+  const [role, setRole] = useState<QuizRole>('owner');
+  const [copying, setCopying] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
-    getQuizDraft(quizId)
-      .then((q) => {
+    Promise.all([getQuizDraft(quizId), getQuizPermissions(quizId)])
+      .then(([q, perms]) => {
         if (cancelled) return;
         setQuiz(q);
+        setRole(perms.role);
         setState('ready');
       })
-      .catch((e) => !cancelled && setState(e instanceof QuizNotFoundError ? 'notfound' : 'error'));
+      .catch((e) => {
+        if (cancelled) return;
+        const notFound = e instanceof QuizNotFoundError || (e as { code?: string } | null)?.code === 'P0002';
+        setState(notFound ? 'notfound' : 'error');
+      });
     return () => {
       cancelled = true;
     };
@@ -63,7 +76,22 @@ export default function QuizPreviewPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [go]);
 
+  const canEdit = role === 'owner' || role === 'edit';
+  const canCopy = role === 'copy' || role === 'edit';
   const editPath = `/teacher/quizzes/${quizId}/edit`;
+  const closePath = canEdit ? editPath : '/teacher/shared';
+
+  const copy = async () => {
+    setCopying(true);
+    try {
+      const id = await copySharedQuiz(quizId);
+      toast({ tone: 'success', title: 'Added to My Quizzes', description: 'Your copy is a draft you can change freely.' });
+      navigate(`/teacher/quizzes/${id}/edit`);
+    } catch (error) {
+      toast({ tone: 'error', title: 'Could not copy', description: friendlyError(error) });
+      setCopying(false);
+    }
+  };
 
   if (state !== 'ready' || !quiz) {
     return (
@@ -92,11 +120,25 @@ export default function QuizPreviewPage() {
           <h1 className="truncate font-display text-lg font-bold">{quiz.title}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <ButtonLink to={editPath} variant="ghost" size="sm" className="text-ink-200 hover:bg-white/10 hover:text-white" leftIcon={<Pencil className="size-4" />}>
-            Edit
-          </ButtonLink>
+          {canCopy && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-ink-200 hover:bg-white/10 hover:text-white"
+              leftIcon={<Copy className="size-4" />}
+              loading={copying}
+              onClick={() => void copy()}
+            >
+              <span className="hidden sm:inline">Copy to My Quizzes</span>
+            </Button>
+          )}
+          {canEdit && (
+            <ButtonLink to={editPath} variant="ghost" size="sm" className="text-ink-200 hover:bg-white/10 hover:text-white" leftIcon={<Pencil className="size-4" />}>
+              Edit
+            </ButtonLink>
+          )}
           <Link
-            to={editPath}
+            to={closePath}
             className="grid size-10 place-items-center rounded-xl text-ink-300 hover:bg-white/10 hover:text-white"
             aria-label="Close preview"
           >

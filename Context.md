@@ -37,19 +37,26 @@ non-functional buttons.
 |---|---|---|
 | 1 | Foundation, design system, Supabase clients, teacher auth (register, login, logout, forgot and reset password, profile), protected routes | ✅ Done, commit `99ae282` |
 | 2a | Quiz builder and library: create, edit, duplicate, publish, archive, delete; 3 question types; images; live preview; full-screen preview; dashboard stats | ✅ Done, commit `79dedb8` |
-| 2b | Quiz sharing between teachers (share links, preview, "Add to My Library" copy, revoke), "Shared with Me" page | ⏭️ **Next** |
+| 2b | Quiz sharing between teachers (share links, preview, "Add to My Library" copy, revoke), "Shared with Me" page. *Original plan, kept as is; see §10.* | ⏭️ **Next** (not started) |
+| 2c | Workspaces and quiz sharing between teachers: workspaces, link invites, per-quiz sharing with a whole workspace or chosen members (view / copy / edit, plus a publish permission for editors), copy to library, concurrent-edit protection, activity log, real "Shared with Me" page. *Added on the owner's request; see §10.* | ✅ Done |
 | 3 | Live sessions: PIN and QR, anonymous student join, nickname rules, 12+ SVG avatars, waiting room, lock/unlock, remove, Realtime authorisation, projector lobby | Planned |
 | 4 | Game engine: start, open question, submit answer, close and score, pause/resume, next, end, auto-advance, clock sync, reconnection, game screens | Planned |
 | 5 | Animated leaderboard, emoji reactions, confetti, podium, final results, session history (`/teacher/analytics` = "Quiz History") | Planned |
 | 6 | k6 load tests (100 players), Playwright e2e, performance tuning, production deploy, documented free-tier findings | Planned |
 
-**Last verified:** `npm run lint`, `npx tsc -b`, `npm test` (97 tests: 50 database + 47 unit) and
-`npm run build` all pass.
+**Last verified (after Phase 2c):** `npm run lint`, `npx tsc -b`, `npm test` (146 tests: 87 database + 59
+unit) and `npm run build` all pass. The new screens were also checked in headless Chrome against a mocked API at
+1280 px and 390 px (no console errors, no sideways scrolling).
 
 ### Things to check before you start
 
 * **Is the Phase 2a migration applied to the hosted Supabase project?** It must be applied by hand (see §5). If
   `/teacher/quizzes` says "Could not load your quizzes", it isn't.
+* **Is the Phase 2c migration applied?** Apply it after 2a. If `/teacher/workspaces` says "Could not load your
+  workspaces", or the editor says "Could not load this quiz" for every quiz, it isn't. (The editor now also calls
+  `get_quiz_permissions`, so the **frontend needs the 2c migration**.)
+* Workspaces and sharing have been tested in PGlite and with a mocked API only, **not yet against the real
+  Supabase project** with two real teacher accounts. Use the Phase 2c manual checklist in docs/TESTING.md.
 * Saving and uploading in the quiz editor have only been tested in automated DB tests and a headless browser
   with fake config, **not yet end-to-end against the real Supabase project.**
 * The hosted project still has **anonymous sign-ins OFF** and **"Confirm email" ON** (see §8).
@@ -106,6 +113,10 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
    `teacher_profiles`, the sign-up trigger, and `ensure_teacher_profile()`.
 2. `20261107090000_phase2_quizzes.sql`: `quizzes`, `quiz_questions`, `question_options`, the `quiz-media`
    storage bucket and its policies, and the RPCs `save_quiz`, `set_quiz_status` and `duplicate_quiz`.
+3. `20261108090000_phase2c_workspaces.sql`: `workspaces`, `workspace_members`, `workspace_invites`,
+   `quiz_grants`, `quiz_activity`; new columns `quizzes.revision` and `quizzes.updated_by`; SELECT policies for
+   shared quizzes; workspace, invite and sharing RPCs; and new versions of `save_quiz` and `set_quiz_status`
+   (same signatures) that also accept editors. Purely additive: existing quizzes stay private.
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -152,6 +163,26 @@ possible once the CLI is linked.
 * **Images:** bucket `quiz-media` is public-read with a 2 MB limit (webp, jpeg, png, gif). Teachers can only
   upload into their own `<user-id>/` folder. Paths are validated by regex in `private.clean_media_path`.
 
+### Phase 2c data model in brief (workspaces and sharing)
+
+* **Workspace** = a group of teachers (one owner, members). Invite links last 7 days, can be reused and revoked,
+  and only their SHA-256 is stored. Limits: own 20, belong to 50, 50 members, 10 active links
+  (`src/lib/workspace-rules.ts` mirrors them).
+* **`quiz_grants`:** per quiz and workspace, either a row with `teacher_id = null` ("open to everyone in the
+  workspace", view by default) or one row per chosen member. Levels are `view < copy < edit`, where **edit is the
+  highest** (edit includes copy, copy includes view). `can_publish` is only valid with edit. A member's access is
+  the highest of their grants, and only while they are still a member.
+  * **view:** preview the quiz.
+  * **copy:** `copy_shared_quiz` puts an independent draft in their own library.
+  * **edit:** `save_quiz` on the shared quiz; everyone sees the change and the owner sees who edited it
+    (`updated_by`, `quiz_activity`). With `can_publish`, editors may publish and unpublish (never archive).
+* **Only the owner** can delete, archive or restore, duplicate, or change sharing.
+* **Concurrent editors:** the client sends `revision`; `save_quiz` raises hint `quiz_revision_conflict` when it is
+  outdated, and the editor offers "Reload latest version".
+* **Important:** shared quizzes are readable through RLS, so any "my quizzes" query **must filter by
+  `owner_id`** (`listMyQuizzes(ownerId)` does).
+* Member names are exposed only through RPCs; `teacher_profiles` RLS is unchanged.
+
 ---
 
 ## 6. Key architecture decisions (and why)
@@ -193,8 +224,9 @@ src/components/ui/        design system: Button/ButtonLink, TextField/PasswordFi
                           Switch, SegmentedControl, Skeleton), Dialog/ConfirmDialog, Menu, Card, Badge, Alert, Spinner, Logo
 src/components/quiz/      QuestionEditor, QuestionList, QuizDetailsEditor, PreviewPanel, QuestionPreview (reusable
                           student-view renderer, intended for Phase 3+ game screens), ImagePicker, QuizCard, StatusBadge
+src/components/sharing/   ShareQuizDialog, QuizActivityDialog, AccessBadge (Phase 2c)
 src/contexts/ + hooks/    teacher auth (TeacherAuthProvider/useTeacherAuth/useSignedInTeacher), toasts, useMyQuizzes
-src/services/             every Supabase call (auth, profile, quizzes, media). Pages never call supabase directly.
+src/services/             every Supabase call (auth, profile, quizzes, media, workspaces, sharing). Pages never call supabase directly.
 src/lib/                  env, supabase clients, brand, redirect, media-url, quiz-rules (limits + publish rules that mirror
                           SQL), quiz-editor-reducer (pure, unit-tested), validation/ (Zod form schemas)
 src/utils/                errors (friendlyError), image (browser resize to WebP), time (relativeTime)
@@ -229,9 +261,13 @@ tests/unit/               Vitest (jsdom)          tests/integration/db/   PGlite
 
 * **Built:** `/`, `/login`, `/register`, `/forgot-password`, `/reset-password`, `/teacher/dashboard`,
   `/teacher/quizzes`, `/teacher/quizzes/create`, `/teacher/quizzes/:quizId/edit`,
-  `/teacher/quizzes/:quizId/preview` (full screen, outside the dashboard chrome), `/teacher/profile`.
-* **Placeholders:** `/teacher/shared`, `/teacher/sessions`, `/teacher/analytics`, and `/join`, `/join/:pin`,
+  `/teacher/quizzes/:quizId/preview` (full screen, outside the dashboard chrome), `/teacher/profile`,
+  `/teacher/shared`, `/teacher/workspaces`, `/teacher/workspaces/:workspaceId`, and `/invite/:token` (requires a
+  teacher login; `next` survives login and register).
+* **Placeholders:** `/teacher/sessions`, `/teacher/analytics`, and `/join`, `/join/:pin`,
   `/game/:sessionId`, `/presenter/:sessionId` (all four render `LiveComingSoonPage`).
+* **Editor and preview are permission-aware:** owner = everything; edit = editor with a "Shared with you" banner,
+  Publish only with `can_publish`; view or copy = a read-only screen with Preview (and Copy).
 
 ---
 
@@ -274,7 +310,32 @@ tests/unit/               Vitest (jsdom)          tests/integration/db/   PGlite
 
 ---
 
-## 10. What to build next: Phase 2b (sharing)
+## 10. Sharing: Phase 2c (built) and Phase 2b (next)
+
+### Phase 2c: workspaces and quiz sharing (✅ done)
+
+Built at the owner's request before the original 2b plan. Decisions the owner made:
+
+* "Group" and "workspace" are the same thing; the official name is **workspace**.
+* Invites are **links**: opening one (after signing in) and clicking "Join workspace" adds the teacher.
+* Per quiz, the owner can **open it to everyone in a workspace** (view by default, switchable to copy or edit)
+  and/or **choose members** and give each one view, copy or edit.
+* **Copy** = add the quiz to your own library and change your copy freely. **Edit** = change the shared quiz for
+  everyone, and the owner sees who edited it. **Edit is the highest level.**
+* **Editors can publish only with the owner's permission** (the "Can publish and unpublish" switch).
+* Member names are shown to other members of the workspace.
+* The original share-link plan (2b) is **kept**, not dropped.
+
+Data model and rules: §5 "Phase 2c data model". Tests: `tests/integration/db/phase2c-workspaces.test.ts` and
+`tests/unit/workspace-sharing.test.ts`. Manual checklist: docs/TESTING.md.
+
+Open points for later phases:
+
+* **Phase 3** `create_session` is planned as "owns quiz". Decide whether editors (or copy holders) may host a shared
+  quiz, or must copy it first.
+* Workspace ownership cannot be transferred yet. If the owner deletes their account, the workspace is deleted.
+
+### Phase 2b: share links (⏭️ next; original plan, unchanged)
 
 Planned design (ARCHITECTURE.md §3.1):
 
@@ -296,6 +357,10 @@ Planned design (ARCHITECTURE.md §3.1):
     Library" button;
   * a real `/teacher/shared` page;
   * remove `availableInPhase` from the "Shared with Me" nav item and its entry from `upcoming-features.ts`.
+* **Already done by Phase 2c** (reuse, don't rebuild): `/teacher/shared` is real (add link imports to it), the
+  "Shared with Me" nav item and the `upcoming-features.ts` entry are already updated, `ShareQuizDialog` exists (add
+  a "Share link" section to it), and `next` already survives login and register. `private.new_token()` and
+  `private.token_hash()` from the 2c migration can generate and hash the share tokens.
 * **Image caveat:** copies keep the original owner's image paths. That's fine because the bucket is public-read
   and the path regex doesn't check ownership. Don't add an ownership check to `clean_media_path` without
   copying the objects.

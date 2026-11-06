@@ -10,6 +10,9 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 type QuizStatusEnum = 'draft' | 'published' | 'archived';
 type QuestionTypeEnum = 'multiple_choice' | 'true_false' | 'image_choice';
+type WorkspaceRoleEnum = 'owner' | 'member';
+type QuizAccessEnum = 'view' | 'copy' | 'edit';
+type QuizActivityActionEnum = 'edited' | 'published' | 'unpublished' | 'archived' | 'restored' | 'copied';
 
 export type Database = {
   public: {
@@ -48,6 +51,8 @@ export type Database = {
           source_quiz_id: string | null;
           question_count: number;
           published_at: string | null;
+          revision: number;
+          updated_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -101,6 +106,71 @@ export type Database = {
           },
         ];
       };
+      workspaces: {
+        Row: {
+          id: string;
+          name: string;
+          owner_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      workspace_members: {
+        Row: {
+          workspace_id: string;
+          teacher_id: string;
+          role: WorkspaceRoleEnum;
+          joined_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      workspace_invites: {
+        /* token_hash exists but is not readable through the API. */
+        Row: {
+          id: string;
+          workspace_id: string;
+          created_by: string;
+          expires_at: string;
+          revoked_at: string | null;
+          use_count: number;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      quiz_grants: {
+        Row: {
+          id: string;
+          quiz_id: string;
+          workspace_id: string;
+          teacher_id: string | null;
+          access: QuizAccessEnum;
+          can_publish: boolean;
+          granted_by: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      quiz_activity: {
+        Row: {
+          id: number;
+          quiz_id: string;
+          actor_id: string | null;
+          action: QuizActivityActionEnum;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -120,10 +190,30 @@ export type Database = {
         Args: { p_quiz_id: string };
         Returns: string;
       };
+      create_workspace: { Args: { p_name: string }; Returns: string };
+      rename_workspace: { Args: { p_workspace_id: string; p_name: string }; Returns: undefined };
+      delete_workspace: { Args: { p_workspace_id: string }; Returns: undefined };
+      leave_workspace: { Args: { p_workspace_id: string }; Returns: undefined };
+      remove_workspace_member: { Args: { p_workspace_id: string; p_teacher_id: string }; Returns: undefined };
+      list_my_workspaces: { Args: Record<PropertyKey, never>; Returns: Json };
+      get_workspace: { Args: { p_workspace_id: string }; Returns: Json };
+      create_workspace_invite: { Args: { p_workspace_id: string }; Returns: Json };
+      revoke_workspace_invite: { Args: { p_invite_id: string }; Returns: undefined };
+      preview_workspace_invite: { Args: { p_token: string }; Returns: Json };
+      accept_workspace_invite: { Args: { p_token: string }; Returns: string };
+      get_quiz_sharing: { Args: { p_quiz_id: string }; Returns: Json };
+      set_quiz_sharing: { Args: { p_quiz_id: string; p_workspace_id: string; p_settings: Json }; Returns: undefined };
+      list_shared_with_me: { Args: Record<PropertyKey, never>; Returns: Json };
+      get_quiz_permissions: { Args: { p_quiz_id: string }; Returns: Json };
+      get_quiz_activity: { Args: { p_quiz_id: string }; Returns: Json };
+      copy_shared_quiz: { Args: { p_quiz_id: string }; Returns: string };
     };
     Enums: {
       quiz_status: QuizStatusEnum;
       question_type: QuestionTypeEnum;
+      workspace_role: WorkspaceRoleEnum;
+      quiz_access: QuizAccessEnum;
+      quiz_activity_action: QuizActivityActionEnum;
     };
     CompositeTypes: { [_ in never]: never };
   };

@@ -88,6 +88,7 @@ export function emptyQuiz(): QuizDraft {
     coverImagePath: null,
     speedScoring: true,
     status: 'draft',
+    revision: 0,
     questions: [newQuestion()],
   };
 }
@@ -146,7 +147,10 @@ export function saveBlockers(draft: QuizDraft): string[] {
   return out;
 }
 
-/** Canonical serialisation used both for saving and for "unsaved changes" detection. */
+/**
+ * Canonical serialisation used both for saving and for "unsaved changes" detection.
+ * `revision` is deliberately excluded: it changes on every save without the content changing.
+ */
 export function toSavePayload(draft: QuizDraft) {
   return {
     id: draft.id,

@@ -23,7 +23,8 @@ function greeting(date = new Date()): string {
 const ROADMAP = [
   { title: 'Foundation & authentication', done: true },
   { title: 'Quiz builder & library', done: true },
-  { title: 'Quiz sharing between teachers', done: false },
+  { title: 'Quiz sharing via share links', done: false },
+  { title: 'Workspaces & team quiz sharing', done: true },
   { title: 'Live sessions: PIN, QR & waiting room', done: false },
   { title: 'Game engine & scoring', done: false },
   { title: 'Leaderboards, reactions & podium', done: false },

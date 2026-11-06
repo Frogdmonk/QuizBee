@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ui/Dialog';
 import { SegmentedControl, Skeleton } from '@/components/ui/FormControls';
 import { Alert } from '@/components/ui/Alert';
 import { QuizCard, type QuizCardActions } from '@/components/quiz/QuizCard';
+import { ShareQuizDialog } from '@/components/sharing/ShareQuizDialog';
 import { useMyQuizzes } from '@/hooks/useMyQuizzes';
 import { useToast } from '@/hooks/useToast';
 import { deleteQuiz, duplicateQuiz, setQuizStatus } from '@/services/quizzes';
@@ -30,6 +31,7 @@ export default function QuizzesPage() {
   const [query, setQuery] = useState('');
   const [toDelete, setToDelete] = useState<QuizSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [toShare, setToShare] = useState<QuizSummary | null>(null);
 
   const counts = useMemo(
     () => ({
@@ -87,6 +89,7 @@ export default function QuizzesPage() {
           });
         }
       },
+      onShare: (quiz) => setToShare(quiz),
       onDelete: (quiz) => setToDelete(quiz),
     }),
     [navigate, toast, reload, patch],
@@ -179,6 +182,13 @@ export default function QuizzesPage() {
           </AnimatePresence>
         </div>
       )}
+
+      <ShareQuizDialog
+        open={toShare !== null}
+        quizId={toShare?.id ?? null}
+        quizTitle={toShare?.title ?? ''}
+        onClose={() => setToShare(null)}
+      />
 
       <ConfirmDialog
         open={toDelete !== null}

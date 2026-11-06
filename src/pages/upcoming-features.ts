@@ -3,16 +3,6 @@
  * They render an explicit "not built yet" notice instead of fake UI.
  */
 export const UPCOMING = {
-  shared: {
-    title: 'Shared with Me',
-    phase: 2,
-    summary: 'Quizzes other teachers have shared with you.',
-    items: [
-      'Secure, revocable share links',
-      'Preview a shared quiz before adding it',
-      '“Add to My Library” creates your own independent copy',
-    ],
-  },
   sessions: {
     title: 'Live Sessions',
     phase: 3,
