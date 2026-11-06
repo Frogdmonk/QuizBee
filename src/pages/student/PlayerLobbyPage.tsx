@@ -17,6 +17,7 @@ import { AvatarBuilder } from '@/components/avatar/AvatarBuilder';
 import { AvatarHero } from '@/components/avatar/AvatarHero';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useSessionChannel } from '@/hooks/useSessionChannel';
+import { PlayerGame } from '@/components/game/PlayerGame';
 import { getPlayerClient } from '@/lib/supabase';
 import { sessionTopic } from '@/lib/session-rules';
 import { NICKNAME_MAX, cleanNickname, nicknameIssue } from '@/lib/nickname-rules';
@@ -190,6 +191,15 @@ export default function PlayerLobbyPage() {
   }
 
   const { session, me } = state;
+
+  // The game has started (or just finished): show the game screens.
+  if ((session.status === 'in_progress' || session.phase === 'podium') && me.status === 'active') {
+    return (
+      <Screen>
+        <PlayerGame client={client} sessionId={sessionId} />
+      </Screen>
+    );
+  }
 
   if (session.status === 'ended' || session.status === 'cancelled') {
     return (

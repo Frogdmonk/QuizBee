@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
-import { ArrowLeft, Check, Copy, ExternalLink, LogOut, MonitorUp, QrCode as QrIcon, UserMinus, X } from 'lucide-react';
+import { ArrowLeft, Check, Copy, ExternalLink, LogOut, MonitorUp, Play, QrCode as QrIcon, UserMinus, X } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { ConfirmDialog, Dialog } from '@/components/ui/Dialog';
 import { SegmentedControl, Switch } from '@/components/ui/FormControls';
@@ -13,7 +13,8 @@ import { ScoreBug } from '@/components/ui/ScoreBug';
 import { PinDigits } from '@/components/ui/PinDigits';
 import { CountRoll } from '@/components/ui/CountRoll';
 import { BreathingLine } from '@/components/ui/BreathingLine';
-import { Placeholder } from '@/components/ui/Placeholder';
+import { HostGame } from '@/components/game/HostGame';
+import { startGame } from '@/services/game';
 import { LowerThird } from '@/components/ui/LowerThird';
 import { Avatar } from '@/components/avatar/Avatar';
 import { QrCode } from '@/components/live/QrCode';
@@ -32,7 +33,7 @@ import type { LobbyParticipant } from '@/types/session';
 export default function HostLobbyPage() {
   const { sessionId } = useParams();
   const { toast } = useToast();
-  const { lobby, setLobby, load, channel } = useLobby(getTeacherClient(), sessionId);
+  const { lobby, setLobby, load, channel, refresh } = useLobby(getTeacherClient(), sessionId);
   const [selected, setSelected] = useState<string | null>(null);
   const [toRemove, setToRemove] = useState<LobbyParticipant | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -44,6 +45,7 @@ export default function HostLobbyPage() {
   const [linking, setLinking] = useState(false);
   const [joinSheet, setJoinSheet] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
 
   if (load === 'loading') {
     return (
@@ -68,9 +70,45 @@ export default function HostLobbyPage() {
   }
   if (!lobby || !sessionId) return null;
 
-  const isOpen = lobby.status === 'lobby' || lobby.status === 'in_progress';
+  // Once the game has started, the same page becomes the game controls.
+  if (lobby.status === 'in_progress' || lobby.phase === 'podium') {
+    return (
+      <div className="space-y-6">
+        <header className="space-y-2">
+          <ButtonLink to="/teacher/sessions" variant="ghost" size="sm" leftIcon={<ArrowLeft className="size-4" />} className="-ml-3">
+            Live sessions
+          </ButtonLink>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="type-display min-w-0 text-display-lg">{lobby.quizTitle}</h1>
+            {lobby.status === 'in_progress' ? (
+              <Badge tone="signal" dot>
+                Live
+              </Badge>
+            ) : (
+              <Badge>Finished</Badge>
+            )}
+          </div>
+        </header>
+        <HostGame sessionId={sessionId} />
+      </div>
+    );
+  }
+
+  const isOpen = lobby.status === 'lobby';
   const link = joinUrl(lobby.pin);
   const selectedPlayer = lobby.participants.find((p) => p.id === selected) ?? null;
+
+  const beginGame = async () => {
+    setStarting(true);
+    try {
+      await startGame(getTeacherClient(), sessionId, lobby.stateVersion);
+      await refresh();
+    } catch (error) {
+      toast({ tone: 'error', title: 'Could not start the game', description: friendlyError(error) });
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const toggleLock = async (locked: boolean) => {
     setLocking(true);
@@ -254,6 +292,16 @@ export default function HostLobbyPage() {
 
           <div className="ml-auto flex items-center gap-2">
             <ConnectionPill status={channel} quiet surface="night" />
+            <Button
+              size="sm"
+              leftIcon={<Play className="size-4" />}
+              disabled={lobby.participantCount === 0}
+              loading={starting}
+              onClick={() => void beginGame()}
+              className="hidden md:inline-flex"
+            >
+              Start game
+            </Button>
             <Button variant="night" size="sm" className="md:hidden" leftIcon={<QrIcon className="size-4" />} onClick={() => setJoinSheet(true)}>
               Join details
             </Button>
@@ -331,7 +379,17 @@ export default function HostLobbyPage() {
             </section>
           )}
           {isOpen && (
-            <Placeholder>Starting the game, questions and scores arrive with live games. Players can join and wait now.</Placeholder>
+            <section aria-labelledby="start-heading" className="space-y-3">
+              <SectionHead id="start-heading" kicker="Start" />
+              <p className="text-body-sm text-ink-700">
+                {lobby.participantCount === 0
+                  ? 'Waiting for at least one player. Students who arrive later can still join while the game runs, unless you lock it.'
+                  : `${lobby.participantCount} ${lobby.participantCount === 1 ? 'player is' : 'players are'} ready. Questions go to every phone at the same time.`}
+              </p>
+              <Button size="lg" leftIcon={<Play className="size-5" />} disabled={lobby.participantCount === 0} loading={starting} onClick={() => void beginGame()}>
+                Start game
+              </Button>
+            </section>
           )}
           {isOpen && <section className="hidden md:block">{projectorControls}</section>}
           {isOpen && (

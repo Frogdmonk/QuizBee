@@ -67,8 +67,6 @@ export default function JoinPage() {
           return;
         } else if (result.me?.status === 'removed') {
           fail('The host removed you from this game.');
-        } else if (result.status !== 'lobby') {
-          fail('This game has already started.');
         } else if (result.isLocked) {
           fail('The host has locked this game. Ask them to unlock it.');
         } else if (result.isFull) {

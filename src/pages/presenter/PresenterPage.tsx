@@ -15,6 +15,7 @@ import { Avatar } from '@/components/avatar/Avatar';
 import { QrCode } from '@/components/live/QrCode';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useJoinTicker } from '@/components/live/useJoinTicker';
+import { PresenterGame } from '@/components/game/PresenterGame';
 import { useLobby } from '@/hooks/useLobby';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { getPlayerClient, getTeacherClient, type AppSupabaseClient } from '@/lib/supabase';
@@ -108,6 +109,14 @@ export default function PresenterPage() {
         <div className="grid flex-1 place-items-center text-night-muted">
           <Spinner className="size-10" label="Connecting to the session" />
         </div>
+      </Shell>
+    );
+  }
+
+  if ((lobby.status === 'in_progress' || lobby.phase === 'podium') && access.kind === 'ready' && sessionId) {
+    return (
+      <Shell title={lobby.quizTitle} right={<ConnectionPill status={channel} quiet surface="night" />}>
+        <PresenterGame client={access.client} sessionId={sessionId} />
       </Shell>
     );
   }

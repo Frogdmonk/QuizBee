@@ -255,8 +255,8 @@ connection pool. The load test will confirm it (we make **no claim of 100-studen
 | **2b** | Sharing (links, preview, add to library, revoke); Shared with Me | DB tests for share tokens and copies |
 | **2c ✅** | Workspaces (create, rename, delete, leave, remove member), link invites (7-day, revocable), per-quiz sharing to a whole workspace and/or chosen members with view / copy / edit (+ publish permission), copy to library, concurrent-edit protection, activity log, *Shared with Me* | DB tests for invites, every access level, revocation, validation, students and anon |
 | **3 ✅** | Session schema; PIN and QR; anonymous join, nickname rules, layered SVG avatar builder (32 presets, 66 million combinations), wrong-PIN throttle; waiting room (teacher, student, projector); lock/unlock; remove; Realtime authorisation; reconnection to lobby | join, lock and remove tests; 2-device manual test |
-| **4** | Game engine RPCs (start, open, submit, close, score, pause, resume, next, end, advance_if_due), clock sync, student, teacher and projector game screens, manual and auto progression, reconnection mid-question | scoring, deadline, duplicate and race tests in PGlite |
-| **5** | Animated leaderboard (rank changes, top-10 entry, new #1), reactions, confetti, podium, final results, session history and review | reduced-motion check; low-end device check |
+| **4 ✅** | Game engine RPCs (start, open, submit, close, score, next, end, advance_if_due; pause/resume not built yet), clock sync, student, teacher and projector game screens, manual and auto progression, reconnection mid-question | scoring, deadline, duplicate and race tests in PGlite |
+| **5 (partly)** | ✅ Animated leaderboard (rank changes, 20 themes, special events), podium, final results. Planned: reactions, confetti, session history and review | reduced-motion check; low-end device check |
 | **6** | k6 load tests (100 joins, 100 answers, reconnection storm), Playwright e2e, performance tuning, production deployment, free-tier findings | documented, measured results |
 
 ---

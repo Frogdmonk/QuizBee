@@ -261,6 +261,15 @@ export type Database = {
       join_session: { Args: { p_session_id: string; p_nickname: string; p_avatar: string }; Returns: Json };
       leave_session: { Args: { p_session_id: string }; Returns: undefined };
       get_player_state: { Args: { p_session_id: string }; Returns: Json };
+      start_game: { Args: { p_session_id: string; p_expected_version?: number | null }; Returns: number };
+      close_question: { Args: { p_session_id: string; p_expected_version?: number | null }; Returns: number };
+      show_leaderboard: { Args: { p_session_id: string; p_expected_version?: number | null }; Returns: number };
+      next_question: { Args: { p_session_id: string; p_expected_version?: number | null }; Returns: number };
+      end_game: { Args: { p_session_id: string }; Returns: number };
+      advance_if_due: { Args: { p_session_id: string }; Returns: number };
+      submit_answer: { Args: { p_session_question_id: string; p_option_id: string }; Returns: Json };
+      server_now: { Args: Record<PropertyKey, never>; Returns: string };
+      get_game_state: { Args: { p_session_id: string }; Returns: Json };
     };
     Enums: {
       quiz_status: QuizStatusEnum;

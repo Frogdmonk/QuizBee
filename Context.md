@@ -40,8 +40,8 @@ non-functional buttons.
 | 2b | Quiz sharing between teachers (share links, preview, "Add to My Library" copy, revoke), "Shared with Me" page. *Original plan, kept as is; see §10.* | Not started (can be done any time) |
 | 2c | Workspaces and quiz sharing between teachers: workspaces, link invites, per-quiz sharing with a whole workspace or chosen members (view / copy / edit, plus a publish permission for editors), copy to library, concurrent-edit protection, activity log, real "Shared with Me" page. *Added on the owner's request; see §10.* | ✅ Done |
 | 3 | Live sessions: PIN and QR, anonymous student join, nickname rules, layered SVG avatar builder (32 presets, 66 million combinations), waiting room, lock/unlock, remove, leave/rejoin, Realtime authorisation, projector lobby (same browser or projector link) | ✅ Done |
-| 4 | Game engine: start, open question, submit answer, close and score, pause/resume, next, end, auto-advance, clock sync, reconnection, game screens | Planned |
-| 5 | Animated leaderboard, emoji reactions, confetti, podium, final results, session history (`/teacher/analytics` = "Quiz History") | Planned |
+| 4 | Game engine: start, open question, submit answer, close and score, next, end, close-when-due, clock sync, reconnection, late join, game screens | ✅ Done (pause/resume not built) |
+| 5 | Animated leaderboard (20 themes, special events), podium, final results ✅. Still planned: emoji reactions, confetti, session history (`/teacher/analytics` = "Quiz History") | Partly done |
 | 6 | k6 load tests (100 players), Playwright e2e, performance tuning, production deploy, documented free-tier findings | Planned |
 
 **Last verified (after Phase 3):** `npm run lint`, `npm run typecheck`, `npm test` (203 tests: 118 database +
@@ -447,15 +447,40 @@ Planned design (ARCHITECTURE.md §3.1):
 * Tests: the harness stubs `realtime.messages`, `realtime.topic()` and `realtime.send()`; `canUseTopic()` checks
   receive and send per role.
 
-### Phase 4 (next)
+### Phase 4 + animated leaderboard (✅ built)
 
-Add a new migration (don't edit Phase 3): snapshot tables (`session_questions`, `session_question_options`,
-`session_answer_keys`), `answers`, `participant_scores`, and the RPCs `start_game`, `submit_answer`,
-`close_question`, `next_question`, `pause_game`/`resume_game`, `end_game`, `advance_if_due`, `get_game_state` and
-`server_now`. Full design in ARCHITECTURE.md §2.1–2.2 and §3.2–3.4. The status and phase columns and
-`state_version` already exist on `game_sessions`. Replace the "Phase 4" notes in `HostLobbyPage`,
-`PlayerLobbyPage` and `PresenterPage`, and decide whether late joiners may enter an `in_progress` game (today
-`join_session` refuses them).
+* **Migration** `20261110090000_phase4_game_engine.sql`: `session_questions`, `session_question_options`,
+  `session_answer_keys` (no client access at all), `answers` (unique per player and question), `participant_scores`
+  (score, correct_count, total_response_ms, streak, rank, previous_rank, last_points, scored_version). No table
+  grants: every read is `get_game_state()`.
+* **Flow:** `start_game` snapshots the published quiz and opens Q1 → `submit_answer` (points from
+  `clock_timestamp()` vs the deadline: `round(points × (0.5 + 0.5 × remaining))`, or full points when speed scoring is
+  off) → close (host `close_question`, or anyone's `advance_if_due` once the deadline passed or everyone answered) →
+  `reveal` → optional `show_leaderboard` → `next_question` … → `podium` (status `ended`). `end_game` stops early.
+  Host commands carry `state_version`; stale ones are no-ops.
+* **Ranking:** competition ranking on score (ties share a rank); display order inside a tie: more correct answers,
+  then lower total answer time, then earlier join. Removed players are unranked. Late joiners (now allowed while
+  `in_progress`, unless locked/full) get ranked from the next close.
+* **Realtime:** every transition broadcasts `state` (version, phase) on `game` + `host`; clients reload
+  `get_game_state()` and drop responses older than what they show. The host topic also gets `answer_count`.
+  `useSessionChannel` now shares one channel per (client, topic): supabase-js returns the existing channel for a
+  topic, so two components subscribing separately would collide.
+* **Leaderboard animation engine** (`src/lib/leaderboard/`, pure, unit-tested, never touches scores):
+  `config.ts` (all thresholds and the 4 s timeline), `movement.ts` (small/medium/major/legendary up,
+  minor/medium/major/epic down, same, new), `themes.ts` (20 themes: 8 up, 7 down, 5 idle), `selection.ts`
+  (eligible by movement → random, avoids each student's last 3), `events.ts` (legendary comeback, champion
+  takeover/defence, rivalry, near miss, streak, from real data only), `engine.ts` (dedupe/stale by update id,
+  80–120 ms stagger, failed-theme fallback). UI: `components/leaderboard/` (`ThemeActor` with an error boundary,
+  `Leaderboard`, `Podium`, `AnimatedNumber`) and `hooks/useLeaderboardPlayback.ts` (timeline, interruption,
+  reduced motion = final board at once).
+* **Screens:** host lobby gets **Start game** and becomes the game controls; projector shows question → reveal
+  (correct tile + answer counts + explanation) → top-10 animated leaderboard → podium; phones answer, lock in, see
+  Correct / Not this time (never red), their rank card with their own animation, and the compact leaderboard.
+
+### Next
+
+* Not built yet: pause/resume, automatic progression (the host clicks Next), emoji reactions, confetti,
+  Quiz History (`/teacher/analytics`), Playwright e2e and k6 load tests (Phase 6). No "100 students" claim until then.
 
 ---
 

@@ -69,6 +69,29 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | Realtime | the exact broadcasts per action and topic; the lobby count is throttled; the game topic never carries user ids; receive authorised per role (host: all; player: game and lobby; projector: host and game; removed players, strangers and other teachers: none); unknown topics refused; **nobody can send** |
 | Frontend | avatar codes match the DB pattern, presets valid and unique, random always valid; nickname rules mirror the SQL cases; PIN helpers; host-event reducer (dedupe, update, remove, stale versions ignored) |
 
+### Phase 4 coverage (game engine and leaderboard)
+
+| Area | Tests |
+|---|---|
+| Database (`phase4-game.test.ts`) | snapshot at start (editing the quiz mid-game changes nothing); needs a player; host only; stale versions are no-ops; correctness, distribution and explanation hidden until close; no table access for anyone; accepted / duplicate / late / closed; wrong-question options, outsiders and removed players refused; speed scoring (1000 at full time, 750 at half, 0 wrong) and flat scoring; shared ranks, previous rank, streaks; full game to podium; `advance_if_due` only when due; double close; end game; state broadcasts carry no answer key; late join ranked from the next close; locked game refuses late joins |
+| Engine (`leaderboard-engine.test.ts`) | every movement band and configurable thresholds; 20 themes (8/7/5); every tier has ≥2 themes; category and intensity respected; last 3 themes avoided; fallback when themes fail; 10th→1st legendary comeback and takeover; champion defence; near miss, rivalry, streak only from real gaps; 10 students planned with 80–120 ms stagger; 1st→10th fall; all 10 holding; engine never mutates scores; duplicate / stale / newer updates; rapid updates without repeats |
+| Component (`leaderboard-component.test.tsx`) | previous standings first then server order; interruption by a newer update; late older update ignored; no duplicate rows through rapid updates; shared ranks on equal scores; reduced motion shows the final board at once with no props; all 10 students animate together |
+
+## Manual checklist: Phase 4 (a game with 3 devices)
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Host a quiz, two phones join, click **Start game** | Phones and projector show question 1 with the same countdown |
+| 2 | One phone answers | It locks in; host and projector answer counts go up; nothing says right or wrong yet |
+| 3 | Second phone answers | The question closes by itself (everyone answered) |
+| 4 | Reveal | Projector marks the correct tile and shows counts; phones show Correct +points / Not this time |
+| 5 | Host: **Leaderboard** | Projector plays the animated top 10; phones show their rank card and the compact board |
+| 6 | Host: **Next question**, let the timer run out | The question closes at 0 even with no answers |
+| 7 | A third phone joins mid-game | It gets the current question and appears on the board after the next close |
+| 8 | Reload a phone mid-question | It comes back to the same question with its answer locked |
+| 9 | Last question → **Final results** | Podium on the projector; final rank on phones |
+| 10 | OS reduce-motion on | Leaderboard updates without character animations |
+
 ## Manual checklist: Phase 3 (live sessions, needs 2 devices)
 
 Before you start: apply the Phase 3 migration and turn **anonymous sign-ins on**.
