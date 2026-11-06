@@ -57,6 +57,38 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | Sharing | private by default; open to everyone with view; chosen members only; highest grant wins; view cannot edit, copy or publish; copy creates an independent draft and logs it; edit saves for everyone with `updated_by`, `revision` and the activity log; stale revision rejected (hint `quiz_revision_conflict`), missing revision still accepted; publish permission only with edit; editors never archive; settings validation; clearing makes it private; removal, leaving, workspace and quiz deletion revoke access; grantees cannot delete, duplicate or re-share; grant visibility; students and anon refused |
 | Frontend | access ordering and effective access; share-dialog draft round-trip, publish flag dropped below edit, order-independent change detection; invite URLs; name validation; revision excluded from the payload and fingerprint and advanced after save; conflict detection |
 
+### Phase 3 coverage (live sessions)
+
+| Area | Tests |
+|---|---|
+| `create_session` | 6-digit PIN, player limit validation (2–100), published quizzes only, owner or **edit** grantee only (view refused), 5 open sessions per host, stale lobbies (12 h) cancelled and their PIN freed, students and anon refused |
+| Joining | lookup by PIN; join is idempotent per device and can change nickname and avatar; duplicate nicknames ignore case, spacing and punctuation; 9 invalid-nickname cases (length, symbols, invisible characters, blocked words with look-alikes and repeated letters); other scripts and innocent words accepted; avatar code validation; lock and player limit (existing players can still update); teachers and anon cannot join; ended sessions; **wrong-PIN throttle** (10 per 10 minutes); leave and rejoin |
+| Host controls | remove (idempotent, cannot rejoin from the same device, nickname freed); only the host can lock, remove, close, read the lobby or create projector links; closing ends the session for everyone |
+| Table access | hosts read their own sessions and rosters but not `presenter_key_hash` or `user_id`; other teachers, students and anon read nothing; nobody writes tables directly |
+| Projector | 43-character key, wrong key refused, claim is idempotent, presenter is read-only, a new link disconnects old projectors |
+| Realtime | the exact broadcasts per action and topic; the lobby count is throttled; the game topic never carries user ids; receive authorised per role (host: all; player: game and lobby; projector: host and game; removed players, strangers and other teachers: none); unknown topics refused; **nobody can send** |
+| Frontend | avatar codes match the DB pattern, presets valid and unique, random always valid; nickname rules mirror the SQL cases; PIN helpers; host-event reducer (dedupe, update, remove, stale versions ignored) |
+
+## Manual checklist: Phase 3 (live sessions, needs 2 devices)
+
+Before you start: apply the Phase 3 migration and turn **anonymous sign-ins on**.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Live Sessions → Host a published quiz | Host lobby with PIN, QR code and "Waiting for players…" |
+| 2 | Click "Open projector view" | New tab, full-screen-ready night screen with the same PIN and QR |
+| 3 | Phone: scan the QR code | `/join/<pin>` skips straight to "Who's playing?" |
+| 4 | Pick a nickname and build an avatar (every tab), join | Phone shows "You're in!"; the player pops in on the host and projector screens within a second |
+| 5 | Second phone: same nickname with different case or spaces | "Someone in this game already uses that nickname" |
+| 6 | Phone: Change look | The new avatar appears on the host and projector screens |
+| 7 | Host: Lock lobby; third device tries to join | "The host has locked this game"; projector shows "Lobby locked"; phones in the lobby see the lock note |
+| 8 | Host: remove a player | Their phone shows "You were removed"; they cannot rejoin with the same PIN |
+| 9 | Phone: Leave, then Rejoin | Player disappears, then reappears |
+| 10 | Host: Create projector link, open it in a private window | Projector screen without signing in; creating a new link disconnects it |
+| 11 | Turn a phone's Wi-Fi off and on | Pill shows "Reconnecting…", then "Live", and the lobby state is correct |
+| 12 | Host: Close lobby | Phones and projector show "This session has ended"; the PIN no longer works |
+| 13 | Enter a wrong PIN 11 times | "Too many wrong PINs" |
+
 ## Manual checklist: Phase 2c (workspaces and sharing)
 
 Use two teacher accounts (A and B), ideally in two different browsers.

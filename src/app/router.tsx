@@ -73,7 +73,12 @@ export const router = createBrowserRouter([
               { path: 'shared', lazy: page(() => import('@/pages/teacher/SharedWithMePage')) },
               { path: 'workspaces', lazy: page(() => import('@/pages/teacher/WorkspacesPage')) },
               { path: 'workspaces/:workspaceId', lazy: page(() => import('@/pages/teacher/WorkspaceDetailPage')) },
-              { path: 'sessions', ...upcoming('sessions') },
+              { path: 'sessions', lazy: page(() => import('@/pages/teacher/SessionsPage')) },
+              {
+                path: 'sessions/:sessionId',
+                handle: { wide: true },
+                lazy: page(() => import('@/pages/teacher/HostLobbyPage')),
+              },
               { path: 'analytics', ...upcoming('history') },
               { path: 'profile', lazy: page(() => import('@/pages/teacher/ProfilePage')) },
             ],
@@ -89,6 +94,11 @@ export const router = createBrowserRouter([
             children: [{ index: true, lazy: page(() => import('@/pages/teacher/JoinWorkspacePage')) }],
           },
           {
+            // Classroom screen. Not behind RequireTeacher: another device can open it with a projector link.
+            path: 'presenter/:sessionId',
+            lazy: page(() => import('@/pages/presenter/PresenterPage')),
+          },
+          {
             // Full-screen, outside the dashboard chrome.
             path: 'teacher/quizzes/:quizId/preview',
             element: (
@@ -100,11 +110,10 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      // Student + projector branches do not load teacher auth at all.
-      { path: 'join', lazy: page(() => import('@/pages/student/LiveComingSoonPage')) },
-      { path: 'join/:pin', lazy: page(() => import('@/pages/student/LiveComingSoonPage')) },
-      { path: 'game/:sessionId', lazy: page(() => import('@/pages/student/LiveComingSoonPage')) },
-      { path: 'presenter/:sessionId', lazy: page(() => import('@/pages/student/LiveComingSoonPage')) },
+      // Student pages do not load teacher auth or teacher code at all.
+      { path: 'join', lazy: page(() => import('@/pages/student/JoinPage')) },
+      { path: 'join/:pin', lazy: page(() => import('@/pages/student/JoinPage')) },
+      { path: 'game/:sessionId', lazy: page(() => import('@/pages/student/PlayerLobbyPage')) },
       { path: '*', lazy: page(() => import('@/pages/NotFoundPage')) },
     ],
   },

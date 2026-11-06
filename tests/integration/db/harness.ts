@@ -85,7 +85,75 @@ const SUPABASE_BOOTSTRAP = /* sql */ `
     return _parts[1:array_length(_parts, 1) - 1];
   end $$;
   grant execute on function storage.foldername(text) to anon, authenticated, service_role;
+
+  -- Minimal Supabase Realtime schema. realtime.send() records the broadcast in
+  -- realtime.messages (as the real one does); realtime.topic() reads the topic
+  -- a client is joining, which Realtime sets before evaluating RLS policies.
+  create schema realtime;
+  grant usage on schema realtime to anon, authenticated, service_role;
+  create table realtime.messages (
+    id bigserial primary key,
+    topic text not null,
+    extension text not null,
+    event text,
+    payload jsonb,
+    private boolean default false,
+    inserted_at timestamptz default now()
+  );
+  alter table realtime.messages enable row level security;
+  grant select, insert on realtime.messages to anon, authenticated;
+  create function realtime.topic() returns text language sql stable as $$
+    select nullif(current_setting('realtime.topic', true), '')
+  $$;
+  grant execute on function realtime.topic() to anon, authenticated, service_role;
+  create function realtime.send(payload jsonb, event text, topic text, private boolean default true)
+  returns void language sql volatile as $$
+    insert into realtime.messages (topic, extension, event, payload, private)
+    values (topic, 'broadcast', event, payload, private)
+  $$;
 `;
+
+/**
+ * Asks the database whether `actor` may receive (or send on) a Realtime topic,
+ * the same way Realtime does: it sets the topic, then runs the RLS-checked
+ * statement as the user.
+ */
+export async function canUseTopic(
+  db: PGlite,
+  actor: Actor,
+  topic: string,
+  mode: 'receive' | 'send' = 'receive',
+): Promise<boolean> {
+  try {
+    return await as(db, actor, async (tx) => {
+      await tx.query(`select set_config('realtime.topic', $1, true)`, [topic]);
+      if (mode === 'receive') {
+        // A message for the topic must exist for the policy to have something to admit.
+        const { rows } = await tx.query<{ ok: boolean }>(
+          `select true as ok from realtime.messages where topic = $1 and extension = 'broadcast' limit 1`,
+          [topic],
+        );
+        return rows.length > 0;
+      }
+      await tx.query(
+        `insert into realtime.messages (topic, extension, event, payload, private) values ($1, 'broadcast', 'x', '{}', true)`,
+        [topic],
+      );
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
+/** Broadcasts recorded by realtime.send() for a topic, oldest first. */
+export async function broadcasts(db: PGlite, topic: string): Promise<{ event: string; payload: Record<string, unknown> }[]> {
+  const { rows } = await db.query<{ event: string; payload: Record<string, unknown> }>(
+    'select event, payload from realtime.messages where topic = $1 order by id',
+    [topic],
+  );
+  return rows;
+}
 
 export async function createTestDb(): Promise<PGlite> {
   const db = await PGlite.create({ extensions: { pgcrypto } });

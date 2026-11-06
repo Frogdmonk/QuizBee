@@ -13,7 +13,7 @@ export const TEACHER_NAV: TeacherNavItem[] = [
   { to: '/teacher/quizzes', label: 'My Quizzes', icon: BookOpenText },
   { to: '/teacher/shared', label: 'Shared with Me', icon: Share2 },
   { to: '/teacher/workspaces', label: 'Workspaces', icon: Users },
-  { to: '/teacher/sessions', label: 'Live Sessions', icon: Radio, availableInPhase: 3 },
+  { to: '/teacher/sessions', label: 'Live Sessions', icon: Radio },
   { to: '/teacher/analytics', label: 'Quiz History', icon: History, availableInPhase: 5 },
   { to: '/teacher/profile', label: 'Profile', icon: UserRound },
 ];

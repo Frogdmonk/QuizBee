@@ -13,6 +13,9 @@ type QuestionTypeEnum = 'multiple_choice' | 'true_false' | 'image_choice';
 type WorkspaceRoleEnum = 'owner' | 'member';
 type QuizAccessEnum = 'view' | 'copy' | 'edit';
 type QuizActivityActionEnum = 'edited' | 'published' | 'unpublished' | 'archived' | 'restored' | 'copied';
+type SessionStatusEnum = 'lobby' | 'in_progress' | 'ended' | 'cancelled';
+type SessionPhaseEnum = 'lobby' | 'question' | 'reveal' | 'leaderboard' | 'podium';
+type ParticipantStatusEnum = 'active' | 'left' | 'removed';
 
 export type Database = {
   public: {
@@ -171,6 +174,46 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      /** Readable by the host only; presenter_key_hash is not selectable. */
+      game_sessions: {
+        Row: {
+          id: string;
+          host_id: string;
+          quiz_id: string | null;
+          quiz_title: string;
+          question_count: number;
+          pin: string;
+          status: SessionStatusEnum;
+          phase: SessionPhaseEnum;
+          state_version: number;
+          is_locked: boolean;
+          max_participants: number;
+          participant_count: number;
+          created_at: string;
+          updated_at: string;
+          started_at: string | null;
+          ended_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      /** Readable by the session host only; user_id is not selectable. */
+      participants: {
+        Row: {
+          id: string;
+          session_id: string;
+          nickname: string;
+          avatar: string;
+          status: ParticipantStatusEnum;
+          joined_at: string;
+          last_seen_at: string;
+          removed_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -207,6 +250,17 @@ export type Database = {
       get_quiz_permissions: { Args: { p_quiz_id: string }; Returns: Json };
       get_quiz_activity: { Args: { p_quiz_id: string }; Returns: Json };
       copy_shared_quiz: { Args: { p_quiz_id: string }; Returns: string };
+      create_session: { Args: { p_quiz_id: string; p_settings?: Json }; Returns: string };
+      get_session_lobby: { Args: { p_session_id: string }; Returns: Json };
+      set_session_locked: { Args: { p_session_id: string; p_locked: boolean }; Returns: boolean };
+      remove_participant: { Args: { p_session_id: string; p_participant_id: string }; Returns: undefined };
+      cancel_session: { Args: { p_session_id: string }; Returns: undefined };
+      create_presenter_link: { Args: { p_session_id: string }; Returns: string };
+      claim_presenter: { Args: { p_session_id: string; p_key: string }; Returns: undefined };
+      lookup_session: { Args: { p_pin: string }; Returns: Json };
+      join_session: { Args: { p_session_id: string; p_nickname: string; p_avatar: string }; Returns: Json };
+      leave_session: { Args: { p_session_id: string }; Returns: undefined };
+      get_player_state: { Args: { p_session_id: string }; Returns: Json };
     };
     Enums: {
       quiz_status: QuizStatusEnum;
@@ -214,6 +268,9 @@ export type Database = {
       workspace_role: WorkspaceRoleEnum;
       quiz_access: QuizAccessEnum;
       quiz_activity_action: QuizActivityActionEnum;
+      session_status: SessionStatusEnum;
+      session_phase: SessionPhaseEnum;
+      participant_status: ParticipantStatusEnum;
     };
     CompositeTypes: { [_ in never]: never };
   };

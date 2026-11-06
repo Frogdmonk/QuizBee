@@ -62,8 +62,15 @@ Verify: **Table Editor** should list `teacher_profiles` with a shield icon showi
   * **Confirm email:** recommended **on** for production, which requires SMTP (§4.4). For a quick pilot without
     SMTP, turn it **off** so teachers can sign in right after registering.
   * **Minimum password length:** `8` (the app also requires letters and numbers).
-* **Allow anonymous sign-ins:** **on.** Students join through anonymous sessions. *(Needed from Phase 3; safe
-  to enable now.)*
+* **Allow anonymous sign-ins:** **on. Required from Phase 3.** Students and projector devices join through
+  anonymous sessions. While it is off, `/join` shows "Student joining is not enabled on the server yet".
+
+### 4.2b Realtime: **Realtime → Settings**
+
+* Live sessions use **private** channels (`session:{id}:host|game|lobby`). Who may receive is decided by the
+  RLS policy on `realtime.messages` that the Phase 3 migration creates; there is no send policy, so clients
+  can only receive. Nothing needs enabling for this to work.
+* Optional hardening: turn **off** "Allow public access" so that only private channels can be used at all.
 
 ### 4.3 Rate limits: **Authentication → Rate Limits**
 

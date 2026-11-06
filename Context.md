@@ -31,22 +31,24 @@ non-functional buttons.
 
 ---
 
-## 2. Current status (as of 2026-11-07)
+## 2. Current status (as of 2026-11-09)
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Foundation, design system, Supabase clients, teacher auth (register, login, logout, forgot and reset password, profile), protected routes | ✅ Done, commit `99ae282` |
 | 2a | Quiz builder and library: create, edit, duplicate, publish, archive, delete; 3 question types; images; live preview; full-screen preview; dashboard stats | ✅ Done, commit `79dedb8` |
-| 2b | Quiz sharing between teachers (share links, preview, "Add to My Library" copy, revoke), "Shared with Me" page. *Original plan, kept as is; see §10.* | ⏭️ **Next** (not started) |
+| 2b | Quiz sharing between teachers (share links, preview, "Add to My Library" copy, revoke), "Shared with Me" page. *Original plan, kept as is; see §10.* | Not started (can be done any time) |
 | 2c | Workspaces and quiz sharing between teachers: workspaces, link invites, per-quiz sharing with a whole workspace or chosen members (view / copy / edit, plus a publish permission for editors), copy to library, concurrent-edit protection, activity log, real "Shared with Me" page. *Added on the owner's request; see §10.* | ✅ Done |
-| 3 | Live sessions: PIN and QR, anonymous student join, nickname rules, 12+ SVG avatars, waiting room, lock/unlock, remove, Realtime authorisation, projector lobby | Planned |
+| 3 | Live sessions: PIN and QR, anonymous student join, nickname rules, layered SVG avatar builder (32 presets, 66 million combinations), waiting room, lock/unlock, remove, leave/rejoin, Realtime authorisation, projector lobby (same browser or projector link) | ✅ Done |
 | 4 | Game engine: start, open question, submit answer, close and score, pause/resume, next, end, auto-advance, clock sync, reconnection, game screens | Planned |
 | 5 | Animated leaderboard, emoji reactions, confetti, podium, final results, session history (`/teacher/analytics` = "Quiz History") | Planned |
 | 6 | k6 load tests (100 players), Playwright e2e, performance tuning, production deploy, documented free-tier findings | Planned |
 
-**Last verified (after Phase 2c):** `npm run lint`, `npx tsc -b`, `npm test` (146 tests: 87 database + 59
-unit) and `npm run build` all pass. The new screens were also checked in headless Chrome against a mocked API at
-1280 px and 390 px (no console errors, no sideways scrolling).
+**Last verified (after Phase 3):** `npm run lint`, `npm run typecheck`, `npm test` (203 tests: 118 database +
+85 unit) and `npm run build` all pass. The Phase 3 screens were checked in headless Chrome against a mocked API
+(join, avatar builder, waiting room at 390 px; host lobby at 1440 and 390 px; projector at 1440 and 1024 px):
+no app errors, no sideways scrolling. **Realtime has not yet run against the real project**: the mock had no
+WebSocket server.
 
 ### Things to check before you start
 
@@ -59,7 +61,12 @@ unit) and `npm run build` all pass. The new screens were also checked in headles
   Supabase project** with two real teacher accounts. Use the Phase 2c manual checklist in docs/TESTING.md.
 * Saving and uploading in the quiz editor have only been tested in automated DB tests and a headless browser
   with fake config, **not yet end-to-end against the real Supabase project.**
-* The hosted project still has **anonymous sign-ins OFF** and **"Confirm email" ON** (see §8).
+* **Is the Phase 3 migration applied?** Apply it after 2c. If Live Sessions says "Could not load your sessions",
+  it isn't.
+* The hosted project still has **anonymous sign-ins OFF** and **"Confirm email" ON** (see §8). **Students
+  cannot join until anonymous sign-ins are ON.**
+* Live sessions have been tested in PGlite and with a mocked API only. Run the Phase 3 manual checklist in
+  docs/TESTING.md with a laptop and two phones.
 
 ---
 
@@ -117,6 +124,9 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
    `quiz_grants`, `quiz_activity`; new columns `quizzes.revision` and `quizzes.updated_by`; SELECT policies for
    shared quizzes; workspace, invite and sharing RPCs; and new versions of `save_quiz` and `set_quiz_status`
    (same signatures) that also accept editors. Purely additive: existing quizzes stay private.
+4. `20261109090000_phase3_live_sessions.sql`: `game_sessions`, `participants`, `session_viewers`,
+   `pin_attempts`; the host, player and projector RPCs; and the **receive-only RLS policy on
+   `realtime.messages`**.
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -225,8 +235,11 @@ src/components/ui/        design system: Button/ButtonLink, TextField/PasswordFi
 src/components/quiz/      QuestionEditor, QuestionList, QuizDetailsEditor, PreviewPanel, QuestionPreview (reusable
                           student-view renderer, intended for Phase 3+ game screens), ImagePicker, QuizCard, StatusBadge
 src/components/sharing/   ShareQuizDialog, QuizActivityDialog, AccessBadge (Phase 2c)
+src/components/avatar/    Avatar (layered SVG), AvatarBuilder (presets + part tabs) (Phase 3)
+src/components/live/      QrCode, ConnectionPill, HostQuizDialog (Phase 3)
 src/contexts/ + hooks/    teacher auth (TeacherAuthProvider/useTeacherAuth/useSignedInTeacher), toasts, useMyQuizzes
-src/services/             every Supabase call (auth, profile, quizzes, media, workspaces, sharing). Pages never call supabase directly.
+src/services/             every Supabase call (auth, profile, quizzes, media, workspaces, sharing, sessions = host,
+                          player = students, live = shared lobby reads). Pages never call supabase directly.
 src/lib/                  env, supabase clients, brand, redirect, media-url, quiz-rules (limits + publish rules that mirror
                           SQL), quiz-editor-reducer (pure, unit-tested), validation/ (Zod form schemas)
 src/utils/                errors (friendlyError), image (browser resize to WebP), time (relativeTime)
@@ -263,9 +276,10 @@ tests/unit/               Vitest (jsdom)          tests/integration/db/   PGlite
   `/teacher/quizzes`, `/teacher/quizzes/create`, `/teacher/quizzes/:quizId/edit`,
   `/teacher/quizzes/:quizId/preview` (full screen, outside the dashboard chrome), `/teacher/profile`,
   `/teacher/shared`, `/teacher/workspaces`, `/teacher/workspaces/:workspaceId`, and `/invite/:token` (requires a
-  teacher login; `next` survives login and register).
-* **Placeholders:** `/teacher/sessions`, `/teacher/analytics`, and `/join`, `/join/:pin`,
-  `/game/:sessionId`, `/presenter/:sessionId` (all four render `LiveComingSoonPage`).
+  teacher login; `next` survives login and register), `/teacher/sessions`, `/teacher/sessions/:sessionId` (host
+  lobby), `/presenter/:sessionId` (inside the teacher-auth branch but not behind `RequireTeacher`), and the
+  student routes `/join`, `/join/:pin` and `/game/:sessionId` (waiting room; no teacher auth loaded).
+* **Placeholder:** `/teacher/analytics` (Quiz History, Phase 5).
 * **Editor and preview are permission-aware:** owner = everything; edit = editor with a "Shared with you" banner,
   Publish only with `can_publish`; view or copy = a read-only screen with Preview (and Copy).
 
@@ -331,8 +345,8 @@ Data model and rules: §5 "Phase 2c data model". Tests: `tests/integration/db/ph
 
 Open points for later phases:
 
-* **Phase 3** `create_session` is planned as "owns quiz". Decide whether editors (or copy holders) may host a shared
-  quiz, or must copy it first.
+* ~~Who may host a shared quiz~~ **Decided in Phase 3:** the owner and teachers with **edit** access may host a
+  published quiz; view and copy holders must copy it first.
 * Workspace ownership cannot be transferred yet. If the owner deletes their account, the workspace is deleted.
 
 ### Phase 2b: share links (⏭️ next; original plan, unchanged)
@@ -365,14 +379,72 @@ Planned design (ARCHITECTURE.md §3.1):
   and the path regex doesn't check ownership. Don't add an ownership check to `clean_media_path` without
   copying the objects.
 
-Then Phase 3 (sessions and lobby). Plans for tables, RPCs, channels and policies are in ARCHITECTURE.md
-§3.2–3.4.
+---
+
+## 10b. Live sessions: Phase 3 (✅ built) and Phase 4 (⏭️ next)
+
+### What exists
+
+* **Host flow:** Live Sessions page (open sessions, published quizzes you own or may edit, recent sessions) or
+  "Host live" in a quiz card's menu → `HostQuizDialog` (player limit 10–100) → `create_session` → host lobby
+  `/teacher/sessions/:id` with PIN, QR, copy link, lock switch, projector link, close lobby, player grid with
+  remove. There is **no Start button yet**: a card says starting comes in Phase 4.
+* **Student flow:** `/join` (PIN) or `/join/:pin` (QR) → anonymous sign-in on the **player client** →
+  `lookup_session` → nickname + `AvatarBuilder` → `join_session` → `/game/:id` waiting room (bobbing avatar, player
+  count, Change look, Leave/Rejoin, removed and ended screens). The last nickname and avatar are remembered in
+  `localStorage['rally.player.profile']`.
+* **Projector:** `/presenter/:id`. On the host's computer it uses the teacher session. On another device, the
+  host creates a projector link (`#key=…` in the URL fragment) → anonymous sign-in → `claim_presenter` → read-only
+  viewer row. A new link deletes old viewers.
+* **Avatars** ([src/lib/avatar.ts](src/lib/avatar.ts), [src/components/avatar/](src/components/avatar/)): a 9-digit
+  code, one digit per part: skin (8), hair style (10), hair colour (8), eyes (6), mouth (6), top (6), top colour
+  (10), extra (6: glasses, shades, freckles, blush, headphones), background (8), giving 66,355,200 combinations,
+  plus 32 named presets. The SQL regex `^[0-7][0-9][0-7][0-5][0-5][0-5][0-9][0-5][0-7]$` must match
+  `PART_COUNTS` (a unit test checks this). **To add options**, raise a count only up to 10 (one digit) and
+  update the SQL regex in a new migration.
+* **Nickname rules** (SQL `private.clean_nickname`, mirrored in `src/lib/nickname-rules.ts`): NFKC, whitespace
+  collapsed, 2–16 characters, no control or invisible characters, none of the listed symbols, not only
+  punctuation, and a short blocked-word list checked after look-alike folding (`5h1t`) and repeated-letter
+  collapsing. Duplicates compare a key that ignores case, spaces and `._'!?,():;-`. Any script is allowed.
+* **Rules:** lobby only for new joins; locked lobbies and full sessions refuse new players, but players already in
+  can still change their look; removed players cannot rejoin from that device; left players can; 5 open
+  sessions per host; unstarted lobbies expire after 12 h; wrong PINs are throttled at 10 per 10 minutes per user.
+
+### Realtime (how it is wired)
+
+* Topics: `session:{id}:host` (host + projectors), `session:{id}:game` (host + projectors + active players),
+  `session:{id}:lobby` (host + active players). The `realtime.messages` policy calls
+  `private.can_receive_topic(realtime.topic())`. There is **no INSERT policy**, so no client can send or use
+  Presence.
+* Events: host topic `participant_joined | participant_updated | participant_left | participant_removed |
+  session`; game topic `session | removed`; lobby topic `count` (at most every 5 s per session).
+* Client: `useSessionChannel` (subscribes after `realtime.setAuth()`, reports connecting, live or offline, and
+  calls `onSubscribed` on every (re)subscribe). `useLobby` reloads `get_session_lobby` on subscribe, when the
+  tab becomes visible, and every 20 s. Players heartbeat `get_player_state` every 10–15 s (jittered), which also
+  updates `last_seen_at` at most every 10 s.
+* Tests: the harness stubs `realtime.messages`, `realtime.topic()` and `realtime.send()`; `canUseTopic()` checks
+  receive and send per role.
+
+### Phase 4 (next)
+
+Add a new migration (don't edit Phase 3): snapshot tables (`session_questions`, `session_question_options`,
+`session_answer_keys`), `answers`, `participant_scores`, and the RPCs `start_game`, `submit_answer`,
+`close_question`, `next_question`, `pause_game`/`resume_game`, `end_game`, `advance_if_due`, `get_game_state` and
+`server_now`. Full design in ARCHITECTURE.md §2.1–2.2 and §3.2–3.4. The status and phase columns and
+`state_version` already exist on `game_sessions`. Replace the "Phase 4" notes in `HostLobbyPage`,
+`PlayerLobbyPage` and `PresenterPage`, and decide whether late joiners may enter an `in_progress` game (today
+`join_session` refuses them).
 
 ---
 
 ## 11. Known limitations and open items
 
 * Replaced or removed images stay in storage as orphans. A cleanup job is planned.
+* Phase 3 ended sessions and participant rows are kept indefinitely (Quiz History will use them). Add a
+  retention job before the database nears the free 500 MB.
+* The nickname blocked-word list is short and English-only; teachers can always remove a player.
+* A removed student could rejoin by clearing site data (a new anonymous identity). Locking the lobby stops this.
+* `uqr` (MIT, a few KB gzipped) is the only new dependency; it encodes QR codes locally.
 * `npm audit` reports a moderate advisory in ESLint's `minimatch` (dev-only, never shipped).
 * `File.md` and `Context.md` in the repo root were created by the owner; `File.md` is empty and untracked.
 * Bundle: the critical path is about 180 KB gzipped (React DOM about 71, router plus supabase-js about 67,

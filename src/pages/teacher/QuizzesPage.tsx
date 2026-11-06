@@ -8,6 +8,7 @@ import { SegmentedControl, Skeleton } from '@/components/ui/FormControls';
 import { Alert } from '@/components/ui/Alert';
 import { QuizCard, type QuizCardActions } from '@/components/quiz/QuizCard';
 import { ShareQuizDialog } from '@/components/sharing/ShareQuizDialog';
+import { HostQuizDialog } from '@/components/live/HostQuizDialog';
 import { useMyQuizzes } from '@/hooks/useMyQuizzes';
 import { useToast } from '@/hooks/useToast';
 import { deleteQuiz, duplicateQuiz, setQuizStatus } from '@/services/quizzes';
@@ -32,6 +33,7 @@ export default function QuizzesPage() {
   const [toDelete, setToDelete] = useState<QuizSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [toShare, setToShare] = useState<QuizSummary | null>(null);
+  const [toHost, setToHost] = useState<QuizSummary | null>(null);
 
   const counts = useMemo(
     () => ({
@@ -90,6 +92,7 @@ export default function QuizzesPage() {
         }
       },
       onShare: (quiz) => setToShare(quiz),
+      onHost: (quiz) => setToHost(quiz),
       onDelete: (quiz) => setToDelete(quiz),
     }),
     [navigate, toast, reload, patch],
@@ -183,6 +186,7 @@ export default function QuizzesPage() {
         </div>
       )}
 
+      <HostQuizDialog quiz={toHost} onClose={() => setToHost(null)} />
       <ShareQuizDialog
         open={toShare !== null}
         quizId={toShare?.id ?? null}
