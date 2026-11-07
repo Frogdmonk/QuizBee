@@ -1,29 +1,47 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppSupabaseClient } from '@/lib/supabase';
 import { sessionTopic } from '@/lib/session-rules';
+import { applyBroadcast, withAnswer } from '@/lib/game-sync';
+import { mediaUrl } from '@/lib/media-url';
 import { advanceIfDue, getGameState } from '@/services/game';
 import { useSessionChannel, type ChannelStatus } from '@/hooks/useSessionChannel';
+import { useServerClock } from '@/hooks/useServerClock';
 import type { GameState } from '@/types/game';
 
 const GAME_EVENTS = ['state', 'removed'] as const;
 const HOST_EVENTS = ['answer_count'] as const;
-const POLL_MS = 10_000;
+/** Safety-net polling: slow while the live channel is healthy, quick when it is not. */
+const POLL_LIVE_MS = 30_000;
+const POLL_OFFLINE_MS = 8_000;
 
 export type GameLoad = 'loading' | 'ready' | 'not_found' | 'error';
 
 /**
- * Live game state. The database is the source of truth: broadcasts only say "version N is out",
- * and this hook reloads get_game_state(). Responses older than what is on screen are dropped, so
- * out-of-order or duplicate events can never move the screen backwards.
+ * Live game state, shared by every game screen.
+ *
+ * The 'state' broadcast carries the whole shared state, so a screen updates from the message
+ * itself: no follow-up request, and 100 phones never stampede the database at the same moment.
+ * get_game_state() is only used to load initially, after a reconnect, and as a slow safety net.
+ * Anything not newer than what is on screen is dropped, so duplicate or out-of-order messages can
+ * never move the screen backwards.
+ *
+ * Mount this EARLY (in the lobby): it measures the clock offset and loads the state before the
+ * game starts, so the first question appears without any setup work.
  */
 export function useGameState(client: AppSupabaseClient | null, sessionId: string | undefined, options: { listenHost?: boolean } = {}) {
   const [state, setState] = useState<GameState | null>(null);
   const [load, setLoad] = useState<GameLoad>('loading');
   const [liveAnswerCount, setLiveAnswerCount] = useState<{ questionId: string; count: number } | null>(null);
-  const versionRef = useRef(-1);
+  const stateRef = useRef<GameState | null>(null);
   const inFlight = useRef(false);
   const again = useRef(false);
   const refreshRef = useRef<() => Promise<void>>(async () => {});
+  const offset = useServerClock(client);
+
+  const commit = useCallback((next: GameState) => {
+    stateRef.current = next;
+    setState(next);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!client || !sessionId) return;
@@ -34,10 +52,8 @@ export function useGameState(client: AppSupabaseClient | null, sessionId: string
     inFlight.current = true;
     try {
       const next = await getGameState(client, sessionId);
-      if (next.session.stateVersion >= versionRef.current) {
-        versionRef.current = next.session.stateVersion;
-        setState(next);
-      }
+      const current = stateRef.current;
+      if (!current || next.session.stateVersion >= current.session.stateVersion) commit(next);
       setLoad('ready');
     } catch (error) {
       const code = (error as { code?: string }).code;
@@ -49,22 +65,18 @@ export function useGameState(client: AppSupabaseClient | null, sessionId: string
         void refreshRef.current();
       }
     }
-  }, [client, sessionId]);
+  }, [client, sessionId, commit]);
 
   useEffect(() => {
     refreshRef.current = refresh;
   }, [refresh]);
 
   useEffect(() => {
-    const tick = () => void refresh();
-    tick();
-    const timer = window.setInterval(tick, POLL_MS);
-    const onVisible = () => document.visibilityState === 'visible' && tick();
+    const load = () => void refresh();
+    load();
+    const onVisible = () => document.visibilityState === 'visible' && load();
     document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refresh]);
 
   const channel: ChannelStatus = useSessionChannel({
@@ -72,15 +84,24 @@ export function useGameState(client: AppSupabaseClient | null, sessionId: string
     topic: client && sessionId ? sessionTopic(sessionId, 'game') : null,
     events: GAME_EVENTS,
     onEvent: (event, payload) => {
-      if (event === 'state') {
-        const version = Number((payload as { state_version?: number }).state_version);
-        if (!Number.isFinite(version) || version > versionRef.current) void refresh();
-      } else {
+      if (event !== 'state') {
         void refresh();
+        return;
       }
+      const next = applyBroadcast(stateRef.current, payload);
+      if (next === null) void refresh();
+      else if (next !== stateRef.current) commit(next);
     },
+    // Messages sent while this screen was disconnected are lost: reload once on every (re)connect.
     onSubscribed: () => void refresh(),
   });
+
+  // Safety net, with jitter so a classroom of phones never polls in lockstep.
+  useEffect(() => {
+    const base = channel === 'live' ? POLL_LIVE_MS : POLL_OFFLINE_MS;
+    const timer = window.setInterval(() => void refresh(), base + Math.random() * base * 0.25);
+    return () => window.clearInterval(timer);
+  }, [refresh, channel]);
 
   useSessionChannel({
     client: options.listenHost ? client : null,
@@ -94,21 +115,46 @@ export function useGameState(client: AppSupabaseClient | null, sessionId: string
     },
   });
 
+  // Preload the question's pictures during the lead window so nothing pops in after the start.
+  const questionId = state?.question?.id ?? null;
+  useEffect(() => {
+    const q = stateRef.current?.question;
+    if (!q || q.id !== questionId) return;
+    const paths = [q.imagePath, ...q.options.map((o) => o.imagePath)];
+    for (const path of paths) {
+      const url = mediaUrl(path);
+      if (url) new Image().src = url;
+    }
+  }, [questionId]);
+
   /** Ask the server to close the question if it is due. Safe to call repeatedly. */
   const nudge = useCallback(async () => {
     if (!client || !sessionId) return;
     try {
       const version = await advanceIfDue(client, sessionId);
-      if (version > versionRef.current) void refresh();
+      const current = stateRef.current;
+      if (!current || version > current.session.stateVersion) void refresh();
     } catch {
-      // Not due, or offline: the next poll or event catches up.
+      // Not due, or offline: the next event or poll catches up.
     }
   }, [client, sessionId, refresh]);
+
+  /** Remember the player's own accepted answer so a broadcast arriving first cannot erase it. */
+  const markAnswered = useCallback(
+    (questionIdValue: string, optionId: string) => {
+      const current = stateRef.current;
+      if (current) commit(withAnswer(current, questionIdValue, optionId));
+    },
+    [commit],
+  );
 
   const answerCount =
     state?.question && liveAnswerCount?.questionId === state.question.id
       ? Math.max(liveAnswerCount.count, state.question.answerCount)
       : (state?.question?.answerCount ?? 0);
 
-  return { state, load, channel, refresh, nudge, answerCount };
+  return { state, load, channel, refresh, nudge, answerCount, offset, markAnswered };
 }
+
+/** What every game screen receives from the page that owns the live connection. */
+export type GameController = ReturnType<typeof useGameState>;

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
-import { Lock, Maximize, Minimize, WifiOff } from 'lucide-react';
+import { Lock, Maximize, Minimize, Play, WifiOff } from 'lucide-react';
 import { LogoMark } from '@/components/ui/Logo';
 import { NightCanvas } from '@/components/ui/NightCanvas';
 import { ScoreBug } from '@/components/ui/ScoreBug';
@@ -10,12 +10,15 @@ import { CountRoll } from '@/components/ui/CountRoll';
 import { BreathingLine } from '@/components/ui/BreathingLine';
 import { LowerThird } from '@/components/ui/LowerThird';
 import { StatusBlock } from '@/components/ui/StatusBlock';
+import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Avatar } from '@/components/avatar/Avatar';
 import { QrCode } from '@/components/live/QrCode';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useJoinTicker } from '@/components/live/useJoinTicker';
 import { PresenterGame } from '@/components/game/PresenterGame';
+import { useGameState, type GameController } from '@/hooks/useGameState';
+import { useStartGame } from '@/hooks/useGameCommands';
 import { useLobby } from '@/hooks/useLobby';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { getPlayerClient, getTeacherClient, type AppSupabaseClient } from '@/lib/supabase';
@@ -84,6 +87,8 @@ export default function PresenterPage() {
 
   const { lobby, load, channel } = useLobby(access.kind === 'ready' ? access.client : null, sessionId);
   const ticker = useJoinTicker(lobby?.participants);
+  // Warm in the lobby: clock offset and game state are ready before the game starts.
+  const game = useGameState(access.kind === 'ready' ? access.client : null, sessionId, { listenHost: true });
 
   if (access.kind === 'needs_link' || access.kind === 'error' || load === 'not_found' || (load === 'error' && !lobby)) {
     const message =
@@ -116,7 +121,7 @@ export default function PresenterPage() {
   if ((lobby.status === 'in_progress' || lobby.phase === 'podium') && access.kind === 'ready' && sessionId) {
     return (
       <Shell title={lobby.quizTitle} right={<ConnectionPill status={channel} quiet surface="night" />}>
-        <PresenterGame client={access.client} sessionId={sessionId} />
+        <PresenterGame client={access.client} sessionId={sessionId} game={game} />
       </Shell>
     );
   }
@@ -165,6 +170,9 @@ export default function PresenterPage() {
             />
             <p className="text-stage-name text-night-muted">Scan to join</p>
           </div>
+          {lobby.role === 'host' && lobby.status === 'lobby' && access.kind === 'ready' && sessionId && (
+            <ProjectorStart client={access.client} sessionId={sessionId} stateVersion={lobby.stateVersion} playerCount={lobby.participantCount} game={game} />
+          )}
           <AnimatePresence>
             {lobby.isLocked && (
               <m.p
@@ -227,6 +235,31 @@ export default function PresenterPage() {
         </section>
       </div>
     </Shell>
+  );
+}
+
+/** Start button for the teacher's own projector view. A projector-link device never sees it. */
+function ProjectorStart({
+  client,
+  sessionId,
+  stateVersion,
+  playerCount,
+  game,
+}: {
+  client: AppSupabaseClient;
+  sessionId: string;
+  stateVersion: number;
+  playerCount: number;
+  game: GameController;
+}) {
+  const { starting, start } = useStartGame(client, sessionId, stateVersion, game.refresh);
+  return (
+    <div className="flex flex-wrap items-center gap-4">
+      <Button size="xl" variant="primary" leftIcon={<Play className="size-5" />} disabled={playerCount === 0} loading={starting} onClick={() => void start()}>
+        Start game
+      </Button>
+      <p className="text-stage-name text-night-muted">{playerCount === 0 ? 'Waiting for the first player' : `${playerCount} ready`}</p>
+    </div>
   );
 }
 

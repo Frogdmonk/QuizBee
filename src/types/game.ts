@@ -14,6 +14,8 @@ export type GameQuestion = {
   timeLimitSeconds: number;
   points: number;
   status: 'pending' | 'open' | 'closed';
+  /** Scheduled start (server time). Screens hold the question back until then. */
+  startsAt: string | null;
   openedAt: string | null;
   deadlineAt: string | null;
   answerCount: number;
@@ -63,4 +65,4 @@ export type GameState = {
   leaderboardVersion: number | null;
 };
 
-export type SubmitStatus = 'accepted' | 'duplicate' | 'late' | 'closed';
+export type SubmitStatus = 'accepted' | 'duplicate' | 'late' | 'early' | 'closed';

@@ -21,7 +21,7 @@ type RawEntry = {
   correct_count: number;
 };
 
-type RawState = {
+export type RawState = {
   role: GameState['role'];
   server_now: string;
   session: {
@@ -46,6 +46,7 @@ type RawState = {
     time_limit_seconds: number;
     points: number;
     status: GameQuestion['status'];
+    starts_at: string | null;
     opened_at: string | null;
     deadline_at: string | null;
     answer_count: number;
@@ -69,9 +70,13 @@ type RawState = {
     correct_count: number;
   } | null;
   leaderboard: RawEntry[];
+  /** [participant_id, score, rank, previous_rank, last_points, last_correct, streak, correct_count] */
+  ranks?: RankRow[];
   ranked_count: number;
   leaderboard_version: number | null;
 };
+
+export type RankRow = [string, number, number | null, number | null, number, boolean | null, number, number];
 
 export function toEntry(e: RawEntry): LeaderboardEntry {
   return {
@@ -114,6 +119,7 @@ export function toGameState(r: RawState): GameState {
       timeLimitSeconds: r.question.time_limit_seconds,
       points: r.question.points,
       status: r.question.status,
+      startsAt: r.question.starts_at,
       openedAt: r.question.opened_at,
       deadlineAt: r.question.deadline_at,
       answerCount: r.question.answer_count,

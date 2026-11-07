@@ -36,6 +36,23 @@ type GameState = {
   leaderboard_version: number | null;
 };
 
+type BroadcastPayload = {
+  session: { state_version: number; pin?: string };
+  question: {
+    id: string;
+    prompt: string;
+    status: string;
+    starts_at: string | null;
+    deadline_at: string | null;
+    correct_option_id: string | null;
+    options: Option[];
+    distribution: Record<string, number> | null;
+  };
+  leaderboard: Entry[];
+  ranks: unknown[][];
+  leaderboard_version: number;
+};
+
 const AVATAR = '000000000';
 let db: PGlite;
 let host: string;
@@ -94,20 +111,39 @@ async function setup(players: number, quiz: Json = QUIZ) {
 }
 
 const state = (actor: Actor, sessionId: string) => rpc<GameState>(actor, 'public.get_game_state($1)', [sessionId]);
-const start = (sessionId: string, version: number | null = null) =>
-  rpc<number>(teacher(host), 'public.start_game($1, $2)', [sessionId, version]);
+
+/** Fast-forwards the scheduled-start lead (2 s) so tests can answer straight away. */
+async function skipLead(sessionId: string) {
+  await db.query(
+    `update public.session_questions
+        set starts_at = clock_timestamp(), opened_at = clock_timestamp(),
+            deadline_at = clock_timestamp() + make_interval(secs => time_limit_seconds)
+      where session_id = $1 and status = 'open' and starts_at > clock_timestamp()`,
+    [sessionId],
+  );
+}
+
+const start = async (sessionId: string, version: number | null = null) => {
+  const v = await rpc<number>(teacher(host), 'public.start_game($1, $2)', [sessionId, version]);
+  await skipLead(sessionId);
+  return v;
+};
 const submit = (actor: Actor, questionId: string, optionId: string) =>
   rpc<{ status: string }>(actor, 'public.submit_answer($1, $2)', [questionId, optionId]);
 const closeQ = (sessionId: string, version: number | null = null) =>
   rpc<number>(teacher(host), 'public.close_question($1, $2)', [sessionId, version]);
-const next = (sessionId: string, version: number | null = null) =>
-  rpc<number>(teacher(host), 'public.next_question($1, $2)', [sessionId, version]);
+const next = async (sessionId: string, version: number | null = null) => {
+  const v = await rpc<number>(teacher(host), 'public.next_question($1, $2)', [sessionId, version]);
+  await skipLead(sessionId);
+  return v;
+};
 
 /** Moves the open question's clock so that `secondsLeft` remain (simulates time passing). */
 async function setSecondsLeft(questionId: string, secondsLeft: number) {
   await db.query(
     `update public.session_questions
-        set opened_at = clock_timestamp() - make_interval(secs => time_limit_seconds - $2),
+        set starts_at = clock_timestamp() - make_interval(secs => time_limit_seconds - $2),
+            opened_at = clock_timestamp() - make_interval(secs => time_limit_seconds - $2),
             deadline_at = clock_timestamp() + make_interval(secs => $2)
       where id = $1`,
     [questionId, secondsLeft],
@@ -346,11 +382,11 @@ describe('progression', () => {
     await submit(students[0], q.id, q.options[0].id);
     await closeQ(sessionId);
     const game = (await broadcasts(db, `session:${sessionId}:game`)).filter((e) => e.event === 'state');
-    expect(game.map((e) => e.payload.phase)).toEqual(['question', 'reveal']);
+    expect(game.map((e) => (e.payload.session as { phase: string }).phase)).toEqual(['question', 'reveal']);
     const host_ = await broadcasts(db, `session:${sessionId}:host`);
     expect(host_.some((e) => e.event === 'answer_count' && e.payload.answer_count === 1)).toBe(true);
-    // Nothing broadcast to players reveals an answer key.
-    expect(JSON.stringify(game)).not.toContain(q.options[0].id);
+    // The open-question broadcast carries no answer key.
+    expect(game[0].payload.question).toMatchObject({ status: 'open', correct_option_id: null, distribution: null, explanation: null });
   });
 });
 
@@ -376,5 +412,99 @@ describe('late joining', () => {
     expect(await errorMessage(rpc(await newStudent(), 'public.join_session($1, $2, $3)', [sessionId, 'Nope', AVATAR]))).toMatch(
       /locked/,
     );
+  });
+});
+
+describe('scheduled start (everyone unlocks together)', () => {
+  /** A game whose first question is still inside its lead window (not fast-forwarded). */
+  async function openedNotStarted() {
+    const { sessionId, students } = await setup(2);
+    await rpc(teacher(host), 'public.start_game($1, null)', [sessionId]);
+    const s = await state(students[0], sessionId);
+    return { sessionId, students, q: s.question! };
+  }
+
+  it('schedules the start ~2 s ahead and the deadline a full time limit after it', async () => {
+    const { q } = await openedNotStarted();
+    const row = (await db.query<{ lead: number; window: number }>(
+      `select extract(epoch from (starts_at - clock_timestamp())) as lead,
+              extract(epoch from (deadline_at - starts_at)) as window
+         from public.session_questions where id = $1`,
+      [q.id],
+    )).rows[0];
+    expect(Number(row.lead)).toBeGreaterThan(1);
+    expect(Number(row.lead)).toBeLessThanOrEqual(2);
+    expect(Number(row.window)).toBeCloseTo(20, 3);
+    expect(q.status).toBe('open');
+  });
+
+  it('refuses answers before the start; the same answer is accepted afterwards', async () => {
+    const { sessionId, students, q } = await openedNotStarted();
+    expect(await submit(students[0], q.id, q.options[0].id)).toEqual({ status: 'early' });
+    expect((await state(students[0], sessionId)).me?.answer_option_id).toBeNull();
+    await skipLead(sessionId);
+    expect(await submit(students[0], q.id, q.options[0].id)).toEqual({ status: 'accepted' });
+  });
+
+  it('a slow phone is not penalised: points depend on the start, not on delivery', async () => {
+    const { sessionId, students, q } = await openedNotStarted();
+    // The question "reaches" both phones at different times, but both answer 4 s after the start.
+    await db.query(
+      `update public.session_questions
+          set starts_at = clock_timestamp() - interval '4 seconds', opened_at = clock_timestamp() - interval '4 seconds',
+              deadline_at = clock_timestamp() + interval '16 seconds' where id = $1`,
+      [q.id],
+    );
+    await submit(students[0], q.id, q.options[0].id);
+    await submit(students[1], q.id, q.options[0].id);
+    await closeQ(sessionId);
+    const board = (await state(students[0], sessionId)).leaderboard;
+    expect(board[0].score).toBe(board[1].score);
+    expect(board[0].score).toBe(900); // 1000 × (0.5 + 0.5 × 16/20)
+  });
+
+  it('broadcasts the whole question on open and the reveal data on close, with no follow-up request needed', async () => {
+    const { sessionId, students } = await setup(3);
+    await start(sessionId);
+    const q = (await state(students[0], sessionId)).question!;
+    await submit(students[0], q.id, q.options[0].id);
+    await submit(students[1], q.id, q.options[1].id);
+    await closeQ(sessionId);
+
+    const events = (await broadcasts(db, `session:${sessionId}:game`)).filter((e) => e.event === 'state');
+    const [opened, closed] = events.map((e) => e.payload as BroadcastPayload);
+
+    // Opening: prompt, options, schedule: no answer key, no scores.
+    expect(opened.question).toMatchObject({ id: q.id, prompt: 'Question 1', status: 'open', correct_option_id: null });
+    expect(opened.question.options).toHaveLength(2);
+    expect(opened.question.starts_at).toBeTruthy();
+    expect(opened.question.deadline_at).toBeTruthy();
+    expect(opened.leaderboard).toEqual([]);
+    expect(opened.ranks).toEqual([]);
+    expect(JSON.stringify(opened)).not.toContain('is_correct');
+    expect(opened.session.pin).toBeUndefined();
+
+    // Closing: correct option, counts, leaderboard and a rank row for every player.
+    expect(closed.question).toMatchObject({ status: 'closed', correct_option_id: q.options[0].id });
+    expect(closed.question.distribution).toEqual({ [q.options[0].id]: 1, [q.options[1].id]: 1 });
+    expect(closed.leaderboard).toHaveLength(3);
+    expect(closed.ranks).toHaveLength(3);
+    expect(closed.ranks[0]).toHaveLength(8);
+    expect(closed.session.state_version).toBeGreaterThan(opened.session.state_version);
+  });
+
+  it('the broadcast and get_game_state agree', async () => {
+    const { sessionId, students } = await setup(2);
+    await start(sessionId);
+    const q = (await state(students[0], sessionId)).question!;
+    await submit(students[0], q.id, q.options[0].id);
+    await closeQ(sessionId);
+    const events = (await broadcasts(db, `session:${sessionId}:game`)).filter((e) => e.event === 'state');
+    const last = events[events.length - 1].payload as BroadcastPayload;
+    const fetched = await state(students[0], sessionId);
+    expect(last.session.state_version).toBe(fetched.session.state_version);
+    expect(last.question.correct_option_id).toBe(fetched.question?.correct_option_id);
+    expect(last.leaderboard.map((e: Entry) => e.participant_id)).toEqual(fetched.leaderboard.map((e) => e.participant_id));
+    expect(last.leaderboard_version).toBe(fetched.leaderboard_version);
   });
 });

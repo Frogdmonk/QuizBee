@@ -128,6 +128,10 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
 4. `20261109090000_phase3_live_sessions.sql`: `game_sessions`, `participants`, `session_viewers`,
    `pin_attempts`; the host, player and projector RPCs; and the **receive-only RLS policy on
    `realtime.messages`**.
+5. `20261110090000_phase4_game_engine.sql`: question snapshots, hidden answer keys, answers, scores and ranks, and
+   the game RPCs (start, submit, close, leaderboard, next, end, advance_if_due, get_game_state, server_now).
+6. `20261111090000_phase4b_synchronised_start.sql`: scheduled question start, full-state broadcast,
+   `submit_answer` 'early' result (see "Synchronised start" below). Replaces functions from migration 5.
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -461,10 +465,30 @@ Planned design (ARCHITECTURE.md §3.1):
 * **Ranking:** competition ranking on score (ties share a rank); display order inside a tie: more correct answers,
   then lower total answer time, then earlier join. Removed players are unranked. Late joiners (now allowed while
   `in_progress`, unless locked/full) get ranked from the next close.
-* **Realtime:** every transition broadcasts `state` (version, phase) on `game` + `host`; clients reload
-  `get_game_state()` and drop responses older than what they show. The host topic also gets `answer_count`.
-  `useSessionChannel` now shares one channel per (client, topic): supabase-js returns the existing channel for a
-  topic, so two components subscribing separately would collide.
+* **Realtime:** every transition sends ONE full-state `state` broadcast on the `game` topic (see below); the host
+  topic also gets `answer_count`. `useSessionChannel` shares one channel per (client, topic): supabase-js returns
+  the existing channel for a topic, so two components subscribing separately would collide.
+* **Synchronised start (why every screen changes together):**
+  * `open_question` sets `starts_at = now + start_lead_ms` (2 s) and `deadline_at = starts_at + time limit`.
+    Screens show "Get ready" and hold the question back until `starts_at` on the server clock
+    (`useCountdown` fires at the exact moment), so delivery speed changes nothing. `submit_answer` returns `early`
+    before the start; speed points and `response_ms` count from `starts_at`, so a slow phone is never penalised.
+  * The `state` broadcast carries the whole shared state (`private.game_payload`): the question without its answer
+    key; after a close also the correct option, answer counts, explanation, the top-10 and a compact rank row
+    `[participant_id, score, rank, previous_rank, last_points, last_correct, streak, correct_count]` per player.
+    `lib/game-sync.ts` `applyBroadcast` applies it to the screen's state, so no phone makes a follow-up request.
+    `get_game_state()` returns the same payload plus the caller's own data (reconnect, first load, slow safety net).
+  * `useGameState` is mounted in the LOBBY (phone, host and projector pages) so the clock offset (8 samples, median
+    of the fastest 3, re-checked every 30 s) and state are ready before the game starts. Polling is a 30 s safety
+    net (8 s when the channel is down), jittered. Phones only back up closing a question (3–5.5 s random delay);
+    the host and projector close it.
+  * Do not reintroduce per-phone requests on a transition. Keep the broadcast free of correctness until closed
+    (a DB test checks this).
+* **Teacher controls on the projector:** when the teacher's own signed-in browser shows `/presenter/:id`
+  (`state.role === 'host'`) the Start button (lobby) and End question / Leaderboard / Next question appear; Space
+  or → steps reveal → leaderboard → next question (never ends a running question). A projector opened with a
+  projector link (`role === 'presenter'`) stays read-only by design. Shared logic: `useGameCommands`,
+  `GameCommandButtons`.
 * **Leaderboard animation engine** (`src/lib/leaderboard/`, pure, unit-tested, never touches scores):
   `config.ts` (all thresholds and the 4 s timeline), `movement.ts` (small/medium/major/legendary up,
   minor/medium/major/epic down, same, new), `themes.ts` (20 themes: 8 up, 7 down, 5 idle), `selection.ts`

@@ -77,6 +77,23 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | Engine (`leaderboard-engine.test.ts`) | every movement band and configurable thresholds; 20 themes (8/7/5); every tier has ≥2 themes; category and intensity respected; last 3 themes avoided; fallback when themes fail; 10th→1st legendary comeback and takeover; champion defence; near miss, rivalry, streak only from real gaps; 10 students planned with 80–120 ms stagger; 1st→10th fall; all 10 holding; engine never mutates scores; duplicate / stale / newer updates; rapid updates without repeats |
 | Component (`leaderboard-component.test.tsx`) | previous standings first then server order; interruption by a newer update; late older update ignored; no duplicate rows through rapid updates; shared ranks on equal scores; reduced motion shows the final board at once with no props; all 10 students animate together |
 
+### Synchronised start coverage
+
+| Area | Tests |
+|---|---|
+| Database | start is scheduled ~2 s ahead and the deadline is a full time limit after it; answers before the start are refused (`early`) and accepted after; two players answering at the same offset from the start score identically (points do not depend on delivery); the open broadcast carries the whole question with no answer key, scores or pin; the close broadcast carries the correct option, counts, top-10 and a rank row per player; broadcast and `get_game_state` agree |
+| Sync logic (`game-sync.test.tsx`) | broadcasts apply only when newer (duplicates / late ones return the same state); the player's pick resets per question and survives the reveal; own rank and result come from the rank rows, and results show only after a close; late joiners keep their numbers; clock offset uses the median of the fastest round trips; a phone that receives the question late still unlocks at the same instant; the unlock fires at the exact moment, not the next tick; a phone with a wrong clock agrees once its offset is applied |
+| Screens (`game-screens.test.tsx`) | projector and phone show "Get ready" with no question text until the start; phone answers are unavailable then enabled; an answer is sent once and remembered; "too early" is not locked in; the teacher's projector shows the controls and Space sends one version-guarded command; a projector-link projector shows none; Space never ends a running question |
+
+## Manual checklist: synchronised start (3+ devices, one on slow mobile data)
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Open the projector (teacher browser) and 3 phones, one on poor mobile data. Press **Start game** on the projector | Everything shows "Get ready" with the same countdown number |
+| 2 | Watch all screens at the 0 | The question appears on every screen within about a fifth of a second, the slow phone included |
+| 3 | The slow phone answers 3 s after the start, a fast phone does the same | Both earn the same points |
+| 4 | Projector: Space (reveal → leaderboard → next question) | Each step happens on all screens together |
+
 ## Manual checklist: Phase 4 (a game with 3 devices)
 
 | # | Step | Expected |

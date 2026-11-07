@@ -14,6 +14,7 @@ import { PinDigits } from '@/components/ui/PinDigits';
 import { CountRoll } from '@/components/ui/CountRoll';
 import { BreathingLine } from '@/components/ui/BreathingLine';
 import { HostGame } from '@/components/game/HostGame';
+import { useGameState } from '@/hooks/useGameState';
 import { startGame } from '@/services/game';
 import { LowerThird } from '@/components/ui/LowerThird';
 import { Avatar } from '@/components/avatar/Avatar';
@@ -34,6 +35,8 @@ export default function HostLobbyPage() {
   const { sessionId } = useParams();
   const { toast } = useToast();
   const { lobby, setLobby, load, channel, refresh } = useLobby(getTeacherClient(), sessionId);
+  // Warm before the game starts (clock offset + state), then drives the game controls.
+  const game = useGameState(getTeacherClient(), sessionId, { listenHost: true });
   const [selected, setSelected] = useState<string | null>(null);
   const [toRemove, setToRemove] = useState<LobbyParticipant | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -89,7 +92,7 @@ export default function HostLobbyPage() {
             )}
           </div>
         </header>
-        <HostGame sessionId={sessionId} />
+        <HostGame sessionId={sessionId} game={game} />
       </div>
     );
   }
@@ -102,7 +105,7 @@ export default function HostLobbyPage() {
     setStarting(true);
     try {
       await startGame(getTeacherClient(), sessionId, lobby.stateVersion);
-      await refresh();
+      await Promise.all([refresh(), game.refresh()]);
     } catch (error) {
       toast({ tone: 'error', title: 'Could not start the game', description: friendlyError(error) });
     } finally {

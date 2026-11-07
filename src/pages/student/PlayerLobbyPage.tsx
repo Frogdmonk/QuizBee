@@ -18,6 +18,7 @@ import { AvatarHero } from '@/components/avatar/AvatarHero';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useSessionChannel } from '@/hooks/useSessionChannel';
 import { PlayerGame } from '@/components/game/PlayerGame';
+import { useGameState } from '@/hooks/useGameState';
 import { getPlayerClient } from '@/lib/supabase';
 import { sessionTopic } from '@/lib/session-rules';
 import { NICKNAME_MAX, cleanNickname, nicknameIssue } from '@/lib/nickname-rules';
@@ -60,6 +61,9 @@ export default function PlayerLobbyPage() {
   const [rejoinError, setRejoinError] = useState<string | null>(null);
   const [celebrate] = useState(() => firstArrival(sessionId));
   const client = getPlayerClient();
+  // Mounted in the lobby on purpose: the clock offset and game state are ready before the game
+  // starts, and the first question arrives inside the broadcast with no extra request.
+  const game = useGameState(client, sessionId);
   const inFlight = useRef(false);
   const arrived = load === 'ready' && state?.me.status === 'active';
 
@@ -193,10 +197,11 @@ export default function PlayerLobbyPage() {
   const { session, me } = state;
 
   // The game has started (or just finished): show the game screens.
-  if ((session.status === 'in_progress' || session.phase === 'podium') && me.status === 'active') {
+  const live = game.state;
+  if (live && live.me?.status === 'active' && (live.session.status === 'in_progress' || live.session.phase === 'podium')) {
     return (
       <Screen>
-        <PlayerGame client={client} sessionId={sessionId} />
+        <PlayerGame client={client} game={game} />
       </Screen>
     );
   }

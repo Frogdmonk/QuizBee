@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ExternalLink, Flag, ListOrdered, SkipForward, Square, Users } from 'lucide-react';
-import { Button, ButtonLink } from '@/components/ui/Button';
+import { ExternalLink, Flag, Users } from 'lucide-react';
+import { ButtonLink, Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/Dialog';
 import { ScoreBug } from '@/components/ui/ScoreBug';
 import { CountRoll } from '@/components/ui/CountRoll';
@@ -9,34 +9,32 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
 import { Leaderboard, Podium } from '@/components/leaderboard/Leaderboard';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
-import { useGameState } from '@/hooks/useGameState';
-import { useServerClock } from '@/hooks/useServerClock';
+import type { GameController } from '@/hooks/useGameState';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
-import { useToast } from '@/hooks/useToast';
+import { useGameCommands } from '@/hooks/useGameCommands';
 import { getTeacherClient } from '@/lib/supabase';
 import { snapshotFromState } from '@/lib/leaderboard/snapshot';
-import { closeQuestion, endGame, nextQuestion, showLeaderboard } from '@/services/game';
-import { friendlyError } from '@/utils/errors';
 import { Countdown } from './Countdown';
+import { GameCommandButtons } from './GameCommandButtons';
 import { QuestionStage } from './QuestionStage';
 
 /**
  * The teacher's controls during a game. Every command carries the state version it was issued
  * against, so a double click or a second tab can never skip a question.
  */
-export function HostGame({ sessionId }: { sessionId: string }) {
+export function HostGame({ sessionId, game }: { sessionId: string; game: GameController }) {
   const client = getTeacherClient();
-  const { toast } = useToast();
-  const { state, channel, refresh, nudge, answerCount } = useGameState(client, sessionId, { listenHost: true });
-  const offset = useServerClock(client);
-  const [busy, setBusy] = useState(false);
+  const { state, channel, nudge, answerCount, offset } = game;
+  const commands = useGameCommands(client, sessionId, game);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const question = state?.question ?? null;
   const open = state?.session.phase === 'question' && question?.status === 'open';
+  const untilStart = useCountdown(question?.startsAt ?? null, offset, open);
+  const started = untilStart <= 0;
   const remaining = useCountdown(question?.deadlineAt ?? null, offset, open);
-  const everyone = Boolean(state && open && state.session.participantCount > 0 && answerCount >= state.session.participantCount);
-  useAutoAdvance(state, remaining, everyone, nudge);
+  const everyone = Boolean(state && open && started && state.session.participantCount > 0 && answerCount >= state.session.participantCount);
+  useAutoAdvance(state, remaining, everyone, nudge, 'primary');
 
   if (!state) {
     return (
@@ -46,21 +44,8 @@ export function HostGame({ sessionId }: { sessionId: string }) {
     );
   }
 
-  const { phase, stateVersion, currentPosition, questionCount } = state.session;
-  const last = currentPosition !== null && currentPosition + 1 >= questionCount;
+  const { phase, currentPosition, questionCount } = state.session;
   const snapshot = snapshotFromState(state);
-
-  const run = async (action: () => Promise<unknown>, failTitle: string) => {
-    setBusy(true);
-    try {
-      await action();
-      await refresh();
-    } catch (error) {
-      toast({ tone: 'error', title: failTitle, description: friendlyError(error) });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -85,28 +70,19 @@ export function HostGame({ sessionId }: { sessionId: string }) {
               </span>
               <span className="text-night-muted">/ {state.session.participantCount} answered</span>
             </span>
-            {question && <Countdown remainingMs={remaining} totalSeconds={question.timeLimitSeconds} className="w-40" />}
+            {question && started && <Countdown remainingMs={remaining} totalSeconds={question.timeLimitSeconds} className="w-40" />}
+            {question && !started && (
+              <span className="text-body-sm font-semibold text-night-muted" role="status">
+                Starts in {Math.max(1, Math.ceil(untilStart / 1000))}…
+              </span>
+            )}
           </>
         )}
         {phase === 'podium' && <Badge surface="night">Game over</Badge>}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <ConnectionPill status={channel} quiet surface="night" />
-          {phase === 'question' && (
-            <Button size="sm" variant="night" leftIcon={<Square className="size-4" />} loading={busy} onClick={() => void run(() => closeQuestion(client, sessionId, stateVersion), 'Could not end the question')}>
-              End question
-            </Button>
-          )}
-          {phase === 'reveal' && (
-            <Button size="sm" variant="night" leftIcon={<ListOrdered className="size-4" />} loading={busy} onClick={() => void run(() => showLeaderboard(client, sessionId, stateVersion), 'Could not show the leaderboard')}>
-              Leaderboard
-            </Button>
-          )}
-          {(phase === 'reveal' || phase === 'leaderboard') && (
-            <Button size="sm" variant="primary" leftIcon={last ? <Flag className="size-4" /> : <SkipForward className="size-4" />} loading={busy} onClick={() => void run(() => nextQuestion(client, sessionId, stateVersion), 'Could not continue')}>
-              {last ? 'Final results' : 'Next question'}
-            </Button>
-          )}
+          <GameCommandButtons commands={commands} />
           <ButtonLink to={`/presenter/${sessionId}`} target="_blank" rel="noopener" size="sm" variant="night-ghost" leftIcon={<ExternalLink className="size-4" />} className="hidden md:inline-flex">
             Projector
           </ButtonLink>
@@ -149,9 +125,9 @@ export function HostGame({ sessionId }: { sessionId: string }) {
         description="The current question closes, scores so far stand, and everyone sees the final results."
         confirmLabel="End game"
         tone="danger"
-        busy={busy}
+        busy={commands.busy}
         onCancel={() => setConfirmEnd(false)}
-        onConfirm={() => void run(() => endGame(client, sessionId), 'Could not end the game').then(() => setConfirmEnd(false))}
+        onConfirm={() => void commands.finish().then(() => setConfirmEnd(false))}
       />
     </div>
   );

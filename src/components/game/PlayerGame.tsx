@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { Check, Flame, ImageIcon } from 'lucide-react';
 import type { AppSupabaseClient } from '@/lib/supabase';
-import { useGameState } from '@/hooks/useGameState';
-import { useServerClock } from '@/hooks/useServerClock';
+import type { GameController } from '@/hooks/useGameState';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { snapshotFromState } from '@/lib/leaderboard/snapshot';
@@ -26,6 +25,7 @@ import { Leaderboard } from '@/components/leaderboard/Leaderboard';
 import { ThemeActor } from '@/components/leaderboard/ThemeActor';
 import { AnimatedNumber } from '@/components/leaderboard/AnimatedNumber';
 import { Countdown } from './Countdown';
+import { GetReady } from './GetReady';
 import type { GameMe, GameQuestion } from '@/types/game';
 
 function ordinal(n: number): string {
@@ -35,15 +35,19 @@ function ordinal(n: number): string {
 }
 
 /** The student's phone during a game: answer, lock in, see the result and their own rank. */
-export function PlayerGame({ client, sessionId }: { client: AppSupabaseClient; sessionId: string }) {
-  const { state, refresh, nudge } = useGameState(client, sessionId);
-  const offset = useServerClock(client);
+export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: GameController }) {
+  const { state, refresh, nudge, offset, markAnswered } = game;
   const [picked, setPicked] = useState<{ questionId: string; optionId: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const question = state?.question ?? null;
   const open = state?.session.phase === 'question' && question?.status === 'open';
+  // The question is held back until its scheduled start (server clock), so every phone reveals it
+  // at the same instant whatever its connection speed.
+  const untilStart = useCountdown(question?.startsAt ?? null, offset, open);
+  const started = untilStart <= 0;
   const remaining = useCountdown(question?.deadlineAt ?? null, offset, open);
-  useAutoAdvance(state, remaining, false, nudge);
+  // Phones only back the host up (a sleeping laptop): the host and projector close questions.
+  useAutoAdvance(state, remaining, false, nudge, 'backup');
 
   if (!state || !state.me) {
     return (
@@ -65,7 +69,9 @@ export function PlayerGame({ client, sessionId }: { client: AppSupabaseClient; s
       const status = await submitAnswer(client, question.id, optionId);
       if (status === 'late') setNotice('Too late — time was up.');
       if (status === 'closed') setNotice('This question has already closed.');
-      if (status === 'late' || status === 'closed') setPicked(null);
+      if (status === 'early') setNotice('Hold on — the question has not started yet.');
+      if (status === 'accepted' || status === 'duplicate') markAnswered(question.id, optionId);
+      if (status === 'late' || status === 'closed' || status === 'early') setPicked(null);
       void refresh();
     } catch (error) {
       setPicked(null);
@@ -93,7 +99,11 @@ export function PlayerGame({ client, sessionId }: { client: AppSupabaseClient; s
       </ScoreBug>
 
       <AnimatePresence mode="wait">
-        {phase === 'question' && question ? (
+        {phase === 'question' && question && !started ? (
+          <m.div key={`ready-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col">
+            <GetReady number={question.position + 1} total={state.session.questionCount} remainingMs={untilStart} />
+          </m.div>
+        ) : phase === 'question' && question ? (
           <m.div key={`q-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col gap-4">
             <p className="type-headline text-pretty text-[1.375rem] leading-snug break-words">{question.prompt}</p>
             {question.imagePath && (
@@ -110,7 +120,7 @@ export function PlayerGame({ client, sessionId }: { client: AppSupabaseClient; s
                   <m.button
                     key={o.id}
                     type="button"
-                    disabled={locked || !open || remaining <= 0}
+                    disabled={locked || !open || !started || remaining <= 0}
                     onClick={() => void answer(o.id)}
                     aria-pressed={mine}
                     animate={locked ? (mine ? { scale: 0.97, opacity: 1 } : { scale: 1, opacity: 0.35 }) : { scale: 1, opacity: 1 }}
