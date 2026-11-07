@@ -7,6 +7,8 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { useGameCommands } from '@/hooks/useGameCommands';
 import { useReactions } from '@/hooks/useReactions';
+import { useReactionSounds, useSfxOn, useSoundtrack } from '@/hooks/useMusic';
+import { soundtrackFor } from '@/lib/audio/tracks';
 import { snapshotFromState } from '@/lib/leaderboard/snapshot';
 import { enterUp } from '@/lib/motion';
 import { ScoreBug } from '@/components/ui/ScoreBug';
@@ -44,6 +46,19 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
   const everyone = Boolean(state && open && started && state.session.participantCount > 0 && answerCount >= state.session.participantCount);
   useAutoAdvance(state, remaining, everyone, nudge, 'primary', revealing ? boardIn : Number.POSITIVE_INFINITY);
   const { reactions, bursts } = useReactions(client, sessionId, offset);
+  const lane = Boolean(state?.session.reactionsEnabled);
+
+  // Soundtrack: get-ready pulse → question groove (faster in the last 5 s) → answer sting →
+  // leaderboard drumroll and strut → podium fanfare.
+  const gettingReady = open && !started;
+  const secondsLeft = open && started ? Math.ceil(remaining / 1000) : null;
+  useSoundtrack(soundtrackFor({ phase, gettingReady }), secondsLeft !== null && secondsLeft <= 5 && secondsLeft > 0);
+  useSfxOn(gettingReady ? Math.ceil(untilStart / 1000) : null, 'tick');
+  useSfxOn(open && started ? `go:${question?.id}` : null, 'go');
+  useSfxOn(secondsLeft !== null && secondsLeft <= 5 && secondsLeft > 0 ? secondsLeft : null, secondsLeft !== null && secondsLeft <= 3 ? 'tickHigh' : 'tick');
+  useSfxOn(open && started && remaining <= 0 ? `up:${question?.id}` : null, 'timeup');
+  useReactionSounds(lane ? reactions : [], lane ? bursts : []);
+
   const isHost = state?.role === 'host';
   const primary = commands.primary;
 
@@ -75,7 +90,6 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
   const snapshot = snapshotFromState(state);
   const showHud = phase === 'question' && started;
   const position = state.session.currentPosition;
-  const lane = state.session.reactionsEnabled;
   const revealTotal = state.session.revealMs;
 
   return (

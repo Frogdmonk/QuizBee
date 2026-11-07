@@ -14,7 +14,9 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Playground } from '@/components/lobby/Playground';
 import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
-import { useReactions } from '@/hooks/useReactions';
+import { useReactions, type LiveReaction } from '@/hooks/useReactions';
+import { MusicToggle } from '@/components/audio/MusicToggle';
+import { music, useReactionSounds, useSfxOn, useSoundtrack } from '@/hooks/useMusic';
 import { QrCode } from '@/components/live/QrCode';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useJoinTicker } from '@/components/live/useJoinTicker';
@@ -134,6 +136,7 @@ export default function PresenterPage() {
 
   return (
     <Shell title={lobby.quizTitle} right={<ConnectionPill status={channel} quiet surface="night" />}>
+      <LobbySound playerCount={lobby.participantCount} reactions={reactions} />
       <div className="grid min-h-0 flex-1 gap-8 py-[3vh] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:gap-14 [@media(max-aspect-ratio:4/3)]:grid-cols-1 [@media(max-aspect-ratio:4/3)]:grid-rows-[auto_minmax(0,1fr)]">
         {/* Join panel */}
         <section
@@ -208,6 +211,7 @@ export default function PresenterPage() {
               players={lobby.participants}
               offsetMs={game.offset}
               reactions={reactions}
+              onInteraction={playBoing}
               variant="stage"
               label="Players"
               className="mt-4 min-h-0 flex-1 rounded-lg border border-night-rule bg-[radial-gradient(ellipse_at_50%_110%,rgb(255_255_255/0.06),transparent_60%)]"
@@ -230,6 +234,19 @@ export default function PresenterPage() {
     </Shell>
   );
 }
+
+/** Lobby music, a chime when someone joins, and a pop for each emote. */
+function LobbySound({ playerCount, reactions }: { playerCount: number; reactions: readonly LiveReaction[] }) {
+  useSoundtrack('lobby');
+  const [peak, setPeak] = useState(playerCount);
+  if (playerCount > peak) setPeak(playerCount);
+  useSfxOn(peak, 'join');
+  useReactionSounds(reactions);
+  return null;
+}
+
+/** Characters bumping into each other in the lobby make a soft "boing". */
+const playBoing = () => music.sfx('boing');
 
 /** Start button for the teacher's own projector view. A projector-link device never sees it. */
 function ProjectorStart({
@@ -270,6 +287,7 @@ function Shell({ children, title, right }: { children: ReactNode; title?: string
         </ScoreBug>
         <div className="flex items-center gap-2">
           {right}
+          <MusicToggle />
           <FullscreenButton />
         </div>
       </header>

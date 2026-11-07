@@ -515,6 +515,16 @@ Planned design (ARCHITECTURE.md §3.1):
   positions are sent. `components/lobby/Playground.tsx` renders it with one rAF loop writing transforms to the
   DOM (no React work per frame); reduced motion = still grid. Shown on the projector lobby and the host lobby
   (phones do not get the player list, so they show their own character + the class reaction row instead).
+* **Music and sound (projector only):** `src/lib/audio/tracks.ts` holds six original tracks as step-sequencer
+  data (lobby, get ready, question with a faster "hot" mode for the last 5 s, reveal sting, leaderboard drumroll
+  + groove, podium fanfare) and `soundtrackFor(phase)`. `src/lib/audio/engine.ts` synthesises everything with
+  Web Audio (oscillators + filtered noise, compressor + limiter): no audio files, nothing to license or
+  download. `music` is the single live player: setting (on by default, volume) in `localStorage` key
+  `rally.music`; browsers block sound until a click, so the status is `blocked` and the first click anywhere
+  starts it. Hooks in `src/hooks/useMusic.ts`: `useSoundtrack`, `useSfxOn`, `useReactionSounds`. Effects:
+  join chime, emote pop, burst sparkle, lobby bump "boing", get-ready ticks, "go", last-5-second ticks,
+  time's-up. Button: `components/audio/MusicToggle.tsx` in the projector header. Phones and the host page stay
+  silent on purpose (one sound source per room).
 * **Leaderboard animation engine** (`src/lib/leaderboard/`, pure, unit-tested, never touches scores):
   `config.ts` (all thresholds and the 4 s timeline), `movement.ts` (small/medium/major/legendary up,
   minor/medium/major/epic down, same, new), `themes.ts` (20 themes: 8 up, 7 down, 5 idle), `selection.ts`

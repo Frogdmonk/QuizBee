@@ -29,6 +29,7 @@ export function Playground({
   offsetMs,
   reactions = [],
   highlightId,
+  onInteraction,
   variant = 'stage',
   className,
   label = 'Players in the lobby',
@@ -38,6 +39,8 @@ export function Playground({
   offsetMs: number;
   reactions?: readonly LiveReaction[];
   highlightId?: string | null;
+  /** Called when two characters bump into each other and react (for sound). */
+  onInteraction?: () => void;
   variant?: Variant;
   className?: string;
   label?: string;
@@ -82,6 +85,10 @@ export function Playground({
   useEffect(() => {
     latestRef.current = latest;
   }, [latest]);
+  const onInteractionRef = useRef(onInteraction);
+  useEffect(() => {
+    onInteractionRef.current = onInteraction;
+  }, [onInteraction]);
 
   // Fit the 1000×700 world into whatever box the page gives us.
   useEffect(() => {
@@ -145,6 +152,7 @@ export function Playground({
             void n.bubble.offsetWidth; // restart the CSS animation
             n.bubble.dataset.show = reduced ? 'static' : bubbleKind;
             n.bubble.style.fontSize = `${bubbleKind === 'emote' ? r * 1.15 : r * 0.8}px`;
+            if (bubbleKind === 'interaction' && !reduced) onInteractionRef.current?.();
           } else if (reduced || n.bubble.dataset.show === 'static') {
             n.bubble.dataset.show = '';
           }

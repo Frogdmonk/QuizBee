@@ -104,6 +104,16 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | 5 | During a question, before answering | No emote tray on the phone; after answering, the tray appears and reactions float up the right lane of the projector without covering answers |
 | 6 | Three phones send 🎉 together | A burst of 🎉 with "3 players" at the top of the projector |
 | 7 | Let a question close | Reveal for about 5 s with "Leaderboard in N", then the leaderboard on every screen without pressing anything |
+| 8 | Projector speakers on; open the projector | The header shows "Click for music"; one click anywhere starts the lobby music; a chime when someone joins, a pop per emote, a soft "boing" when characters bump |
+| 9 | Play a question through | Ticks on the get-ready countdown and a "go" hit; tense music that speeds up with ticks in the last 5 s; a buzzer only if time runs out; a "ta-da" on the reveal; drumroll then groove on the leaderboard; fanfare on the podium |
+| 10 | Music button off, reload | Silent, and it stays off after the reload; the volume slider changes the level |
+
+### Music checks done by machine
+
+`tests/unit/music.test.tsx` checks every track's patterns and that each phase has music. In Chromium every
+track and effect was rendered offline and measured: no errors, no silent gaps, peaks under 0.94 even at full
+volume (limiter), and the live projector page picked the right track for lobby, get ready, question, hot
+question, reveal, leaderboard and podium. Nobody has listened to it by ear yet: step 8–9 above does that.
 
 ## Manual checklist: synchronised start (3+ devices, one on slow mobile data)
 

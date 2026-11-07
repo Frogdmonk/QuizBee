@@ -22,7 +22,13 @@ vi.mock('@/services/game', async (importOriginal) => ({
   submitAnswer: (...a: unknown[]) => submitAnswer(...a),
 }));
 
-const client = {} as AppSupabaseClient;
+// The screens subscribe to the reaction feed; a quiet channel stand-in that never delivers anything.
+const quietChannel = { on: () => quietChannel, subscribe: () => quietChannel };
+const client = {
+  realtime: { setAuth: async () => {} },
+  channel: () => quietChannel,
+  removeChannel: async () => 'ok',
+} as unknown as AppSupabaseClient;
 const wrap = ({ children }: { children: ReactNode }) => <ToastProvider>{children}</ToastProvider>;
 
 beforeEach(() => {
