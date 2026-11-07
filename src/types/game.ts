@@ -18,6 +18,9 @@ export type GameQuestion = {
   startsAt: string | null;
   openedAt: string | null;
   deadlineAt: string | null;
+  /** When the question closed, and when the reveal hands over to the leaderboard (server time). */
+  closedAt: string | null;
+  boardAt: string | null;
   answerCount: number;
   options: GameOption[];
   /** Only after the question closes. */
@@ -56,6 +59,10 @@ export type GameState = {
     isLocked: boolean;
     participantCount: number;
     speedScoring: boolean;
+    /** Students may send emotes (teacher switch). */
+    reactionsEnabled: boolean;
+    /** How long the answer reveal stays up before the leaderboard. */
+    revealMs: number;
   };
   question: GameQuestion | null;
   me: GameMe | null;

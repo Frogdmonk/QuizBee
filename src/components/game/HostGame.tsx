@@ -18,6 +18,7 @@ import { snapshotFromState } from '@/lib/leaderboard/snapshot';
 import { Countdown } from './Countdown';
 import { GameCommandButtons } from './GameCommandButtons';
 import { QuestionStage } from './QuestionStage';
+import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
 
 /**
  * The teacher's controls during a game. Every command carries the state version it was issued
@@ -25,7 +26,7 @@ import { QuestionStage } from './QuestionStage';
  */
 export function HostGame({ sessionId, game }: { sessionId: string; game: GameController }) {
   const client = getTeacherClient();
-  const { state, channel, nudge, answerCount, offset } = game;
+  const { state, channel, nudge, answerCount, offset, refresh } = game;
   const commands = useGameCommands(client, sessionId, game);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const question = state?.question ?? null;
@@ -34,7 +35,9 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
   const started = untilStart <= 0;
   const remaining = useCountdown(question?.deadlineAt ?? null, offset, open);
   const everyone = Boolean(state && open && started && state.session.participantCount > 0 && answerCount >= state.session.participantCount);
-  useAutoAdvance(state, remaining, everyone, nudge, 'primary');
+  const revealing = state?.session.phase === 'reveal' && Boolean(question?.boardAt);
+  const boardIn = useCountdown(question?.boardAt ?? null, offset, revealing);
+  useAutoAdvance(state, remaining, everyone, nudge, 'primary', revealing ? boardIn : Number.POSITIVE_INFINITY);
 
   if (!state) {
     return (
@@ -78,10 +81,16 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
             )}
           </>
         )}
+        {revealing && (
+          <span className="text-body-sm font-semibold text-night-muted" role="status">
+            Leaderboard in {Math.max(1, Math.ceil(boardIn / 1000))}…
+          </span>
+        )}
         {phase === 'podium' && <Badge surface="night">Game over</Badge>}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <ConnectionPill status={channel} quiet surface="night" />
+          {phase !== 'podium' && <ReactionsToggle client={client} sessionId={sessionId} enabled={state.session.reactionsEnabled} onChanged={refresh} />}
           <GameCommandButtons commands={commands} />
           <ButtonLink to={`/presenter/${sessionId}`} target="_blank" rel="noopener" size="sm" variant="night-ghost" leftIcon={<ExternalLink className="size-4" />} className="hidden md:inline-flex">
             Projector

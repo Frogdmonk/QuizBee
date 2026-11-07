@@ -17,13 +17,28 @@ type AvatarProps = {
   title?: string;
   /** `own`: the 3px night-text ring marking the player's own avatar. */
   ring?: 'own';
+  /** A passing expression (lobby reactions). Overrides the eyes and mouth from the code. */
+  mood?: AvatarMood | null;
+};
+
+export type AvatarMood = 'happy' | 'laugh' | 'surprised' | 'angry' | 'dizzy' | 'sad' | 'confused';
+
+/** [eyes, mouth] from the regular part lists; 'dizzy' and 'sad' draw their own on top. */
+const MOOD_FACE: Record<AvatarMood, [number, number]> = {
+  happy: [1, 0],
+  laugh: [1, 1],
+  surprised: [2, 2],
+  angry: [0, 5],
+  dizzy: [-1, 4],
+  sad: [4, -1],
+  confused: [3, 3],
 };
 
 /**
  * Original layered character drawn as inline SVG (120×120). Pure and memoised:
  * a projector renders up to 100 of these.
  */
-export const Avatar = memo(function Avatar({ code, className, title, ring }: AvatarProps) {
+export const Avatar = memo(function Avatar({ code, className, title, ring, mood }: AvatarProps) {
   const p = decodeAvatar(code);
   const uid = useId().replace(/:/g, '');
   const clip = `av-clip-${uid}`;
@@ -32,6 +47,7 @@ export const Avatar = memo(function Avatar({ code, className, title, ring }: Ava
   const hair = HAIR_COLORS[p.hairColor];
   const shirt = SHIRT_COLORS[p.shirtColor];
   const lightShirt = p.shirtColor === 8;
+  const [eyes, mouth] = mood ? MOOD_FACE[mood] : [p.eyes, p.mouth];
 
   return (
     <svg
@@ -61,8 +77,15 @@ export const Avatar = memo(function Avatar({ code, className, title, ring }: Ava
         {/* head */}
         <ellipse cx="60" cy="54" rx="25" ry="27" fill={skin} />
         <Extra extra={p.extra} phase="under" skinShade={skinShade} />
-        <Eyes eyes={p.eyes} />
-        <Mouth mouth={p.mouth} />
+        {eyes >= 0 ? <Eyes eyes={eyes} /> : <DizzyEyes />}
+        {mouth >= 0 ? <Mouth mouth={mouth} /> : <path d="M52 71 Q60 64 68 71" stroke={INK} strokeWidth={2.6} strokeLinecap="round" fill="none" />}
+        {mood === 'angry' && (
+          <g stroke={INK} strokeWidth={3} strokeLinecap="round">
+            <path d="M43 46 L55 50" />
+            <path d="M77 46 L65 50" />
+          </g>
+        )}
+        {mood === 'sad' && <path d="M73 60 q2 4 0 6 q-2 -2 0 -6 Z" fill="#6fb6ff" />}
         <HairFront style={p.hairStyle} color={hair} />
         <Extra extra={p.extra} phase="over" skinShade={skinShade} />
       </g>
@@ -142,6 +165,15 @@ function HairFront({ style, color }: { style: number; color: string }) {
     default:
       return null;
   }
+}
+
+function DizzyEyes() {
+  return (
+    <g stroke={INK} strokeWidth={2.4} strokeLinecap="round">
+      <path d="M46 51 L54 59 M54 51 L46 59" />
+      <path d="M66 51 L74 59 M74 51 L66 59" />
+    </g>
+  );
 }
 
 function Eyes({ eyes }: { eyes: number }) {

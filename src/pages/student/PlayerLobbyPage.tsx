@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { m } from 'motion/react';
+import { AnimatePresence, m } from 'motion/react';
 import { Lock, LogOut, Palette, WifiOff } from 'lucide-react';
 import { LogoMark } from '@/components/ui/Logo';
 import { Button, ButtonLink } from '@/components/ui/Button';
@@ -19,6 +19,9 @@ import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useSessionChannel } from '@/hooks/useSessionChannel';
 import { PlayerGame } from '@/components/game/PlayerGame';
 import { useGameState } from '@/hooks/useGameState';
+import { useReactions } from '@/hooks/useReactions';
+import { EmotePanel } from '@/components/reactions/EmotePanel';
+import { ClassReactions } from '@/components/reactions/ClassReactions';
 import { getPlayerClient } from '@/lib/supabase';
 import { sessionTopic } from '@/lib/session-rules';
 import { NICKNAME_MAX, cleanNickname, nicknameIssue } from '@/lib/nickname-rules';
@@ -64,6 +67,7 @@ export default function PlayerLobbyPage() {
   // Mounted in the lobby on purpose: the clock offset and game state are ready before the game
   // starts, and the first question arrives inside the broadcast with no extra request.
   const game = useGameState(client, sessionId);
+  const { reactions } = useReactions(client, sessionId, game.offset);
   const inFlight = useRef(false);
   const arrived = load === 'ready' && state?.me.status === 'active';
 
@@ -276,6 +280,9 @@ export default function PlayerLobbyPage() {
     );
   }
 
+  const mine = [...reactions].reverse().find((r) => r.participantId === me.id) ?? null;
+  const reactionsOn = game.state?.session.reactionsEnabled ?? true;
+
   const leave = async () => {
     setLeaving(true);
     try {
@@ -301,7 +308,7 @@ export default function PlayerLobbyPage() {
         </ScoreBug>
       }
     >
-      <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
         <m.div
           initial={celebrate ? { y: 24, opacity: 0 } : false}
           animate={{ y: 0, opacity: 1 }}
@@ -311,7 +318,24 @@ export default function PlayerLobbyPage() {
             animate={{ y: [0, -6, 0] }}
             transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 1.8, ease: 'easeInOut', delay: celebrate ? 1.6 : 0.4 }}
           >
-            <Avatar code={me.avatar} ring="own" className="size-44 sm:size-60" title={`${me.nickname}'s avatar`} />
+            <span className="relative block">
+              <Avatar code={me.avatar} mood={mine?.emote.mood ?? null} ring="own" className="size-36 sm:size-52" title={`${me.nickname}'s avatar`} />
+              <AnimatePresence>
+                {mine && (
+                  <m.span
+                    key={mine.id}
+                    aria-hidden
+                    initial={{ opacity: 0, scale: 0.4, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: -6 }}
+                    exit={{ opacity: 0, y: -30 }}
+                    transition={spring.pop}
+                    className="absolute -top-2 -right-4 text-[3rem] leading-none drop-shadow-[0_3px_0_rgb(0_0_0/0.3)]"
+                  >
+                    {mine.emote.glyph}
+                  </m.span>
+                )}
+              </AnimatePresence>
+            </span>
           </m.div>
         </m.div>
 
@@ -339,10 +363,11 @@ export default function PlayerLobbyPage() {
           </LowerThird>
         </m.div>
 
-        <p className="mt-6 text-body text-night-muted">
-          {session.status === 'in_progress' ? 'Get ready — the game is starting.' : 'Look for your name on the big screen.'}
+        <p className="mt-5 text-body text-night-muted">
+          {session.status === 'in_progress' ? 'Get ready — the game is starting.' : 'Find your character on the big screen and say hi.'}
         </p>
-        <BreathingLine className="mt-4" />
+        <ClassReactions reactions={reactions} meId={me.id} className="mt-3" />
+        <EmotePanel client={client} sessionId={sessionId} enabled={reactionsOn} className="mt-4 w-full max-w-sm text-left" />
         {session.isLocked && (
           <p className="mt-5 inline-flex items-center gap-2 text-body-sm text-night-muted">
             <Lock className="size-4" /> The lobby is locked. You’re still in.

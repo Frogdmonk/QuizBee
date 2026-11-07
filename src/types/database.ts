@@ -267,6 +267,8 @@ export type Database = {
       next_question: { Args: { p_session_id: string; p_expected_version?: number | null }; Returns: number };
       end_game: { Args: { p_session_id: string }; Returns: number };
       advance_if_due: { Args: { p_session_id: string }; Returns: number };
+      send_reaction: { Args: { p_session_id: string; p_emote: string }; Returns: Json };
+      set_reactions_enabled: { Args: { p_session_id: string; p_enabled: boolean }; Returns: number };
       submit_answer: { Args: { p_session_question_id: string; p_option_id: string }; Returns: Json };
       server_now: { Args: Record<PropertyKey, never>; Returns: string };
       get_game_state: { Args: { p_session_id: string }; Returns: Json };

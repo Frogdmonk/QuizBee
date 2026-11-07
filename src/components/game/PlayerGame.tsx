@@ -5,6 +5,9 @@ import type { AppSupabaseClient } from '@/lib/supabase';
 import type { GameController } from '@/hooks/useGameState';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
+import { useReactions, type LiveReaction } from '@/hooks/useReactions';
+import { EmotePanel } from '@/components/reactions/EmotePanel';
+import { ClassReactions } from '@/components/reactions/ClassReactions';
 import { snapshotFromState } from '@/lib/leaderboard/snapshot';
 import { classifyMovement } from '@/lib/leaderboard/movement';
 import { DEFAULT_LEADERBOARD_CONFIG } from '@/lib/leaderboard/config';
@@ -35,6 +38,18 @@ function ordinal(n: number): string {
 }
 
 /** The student's phone during a game: answer, lock in, see the result and their own rank. */
+/** Emotes for a phone during the game: never shown while the player still has to answer. */
+function GameEmotes({ client, game, reactions, meId }: { client: AppSupabaseClient; game: GameController; reactions: LiveReaction[]; meId: string }) {
+  const state = game.state;
+  if (!state) return null;
+  return (
+    <div className="mt-auto space-y-2 pt-2">
+      <ClassReactions reactions={reactions} meId={meId} />
+      <EmotePanel client={client} sessionId={state.session.id} enabled={state.session.reactionsEnabled} />
+    </div>
+  );
+}
+
 export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: GameController }) {
   const { state, refresh, nudge, offset, markAnswered } = game;
   const [picked, setPicked] = useState<{ questionId: string; optionId: string } | null>(null);
@@ -47,7 +62,10 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
   const started = untilStart <= 0;
   const remaining = useCountdown(question?.deadlineAt ?? null, offset, open);
   // Phones only back the host up (a sleeping laptop): the host and projector close questions.
-  useAutoAdvance(state, remaining, false, nudge, 'backup');
+  const revealing = state?.session.phase === 'reveal' && Boolean(question?.boardAt);
+  const boardIn = useCountdown(question?.boardAt ?? null, offset, revealing);
+  useAutoAdvance(state, remaining, false, nudge, 'backup', revealing ? boardIn : Number.POSITIVE_INFINITY);
+  const { reactions } = useReactions(client, state?.session.id, offset);
 
   if (!state || !state.me) {
     return (
@@ -155,6 +173,7 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
                 <LowerThird surface="night" tab="bg-volt-400" className="w-full">
                   <Check className="size-4" aria-hidden /> Locked in · waiting for the others
                 </LowerThird>
+                {me.answerOptionId && <GameEmotes client={client} game={game} reactions={reactions} meId={me.participantId} />}
               </m.div>
             ) : (
               remaining <= 0 && (
@@ -167,17 +186,25 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
         ) : phase === 'reveal' && question ? (
           <m.div key={`r-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col gap-5">
             <RevealCard me={me} question={question} />
+            {revealing && (
+              <p className="text-caption font-semibold tracking-[0.06em] text-night-muted uppercase" role="status">
+                Leaderboard in {Math.max(1, Math.ceil(boardIn / 1000))}
+              </p>
+            )}
+            <GameEmotes client={client} game={game} reactions={reactions} meId={me.participantId} />
           </m.div>
         ) : phase === 'leaderboard' ? (
           <m.div key="board" variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col gap-5">
             <RankCard me={me} total={state.rankedCount} />
             <Leaderboard snapshot={snapshotFromState(state)} variant="compact" highlightId={me.participantId} />
+            <GameEmotes client={client} game={game} reactions={reactions} meId={me.participantId} />
           </m.div>
         ) : phase === 'podium' ? (
           <m.div key="final" variants={enterUp} initial="hidden" animate="show" className="flex flex-1 flex-col gap-5">
             <p className="type-kicker">Final results</p>
             <RankCard me={me} total={state.rankedCount} final />
             <Leaderboard snapshot={snapshotFromState(state)} variant="compact" highlightId={me.participantId} />
+            <GameEmotes client={client} game={game} reactions={reactions} meId={me.participantId} />
           </m.div>
         ) : null}
       </AnimatePresence>

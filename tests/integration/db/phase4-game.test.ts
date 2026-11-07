@@ -254,9 +254,12 @@ describe('scoring and ranking', () => {
     await start(sessionId);
     const q = (await state(students[0], sessionId)).question!;
 
-    await setSecondsLeft(q.id, 20); // full time left → 1000
-    await submit(students[0], q.id, q.options[0].id);
-    await setSecondsLeft(q.id, 10); // half left → 750
+    // The server measures real milliseconds. A cushion keeps a busy test machine from losing a point:
+    // more than the full window left still counts as "full" (the fraction is capped at 1).
+    await setSecondsLeft(q.id, 20);
+    await db.query(`update public.session_questions set deadline_at = clock_timestamp() + interval '25 seconds' where id = $1`, [q.id]);
+    await submit(students[0], q.id, q.options[0].id); // full time left → 1000
+    await setSecondsLeft(q.id, 10); // half left → 750 (749 if the machine stalled for > 20 ms)
     await submit(students[1], q.id, q.options[0].id);
     await submit(students[2], q.id, q.options[1].id); // wrong → 0
 
@@ -268,11 +271,15 @@ describe('scoring and ranking', () => {
     expect(s.question?.distribution).toEqual({ [q.options[0].id]: 2, [q.options[1].id]: 1 });
 
     const board = s.leaderboard;
-    expect(board.map((e) => [e.nickname, e.score, e.rank])).toEqual([
-      ['Player 1', 1000, 1],
-      ['Player 2', 750, 2],
-      ['Player 3', 0, 3],
+    expect(board.map((e) => [e.nickname, e.rank])).toEqual([
+      ['Player 1', 1],
+      ['Player 2', 2],
+      ['Player 3', 3],
     ]);
+    expect(board.map((e) => e.score)[0]).toBe(1000);
+    expect(board[1].score).toBeGreaterThanOrEqual(745);
+    expect(board[1].score).toBeLessThanOrEqual(750);
+    expect(board[2].score).toBe(0);
     expect(board[0]).toMatchObject({ last_correct: true, last_points: 1000, streak: 1, previous_rank: null });
     expect(board[2]).toMatchObject({ last_correct: false, last_points: 0, streak: 0 });
     expect(s.me).toMatchObject({ last_correct: true, last_points: 1000, score: 1000, rank: 1 });

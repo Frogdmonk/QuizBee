@@ -45,10 +45,10 @@ function game(opts: { role?: GameState['role']; phase?: GameState['session']['ph
   const state: GameState = {
     role,
     serverNow: new Date().toISOString(),
-    session: { id: 's1', quizTitle: 'Planets', pin: role === 'player' ? null : '482913', status: 'in_progress', phase, stateVersion: version, questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 2, speedScoring: true },
+    session: { id: 's1', quizTitle: 'Planets', pin: role === 'player' ? null : '482913', status: 'in_progress', phase, stateVersion: version, questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 2, speedScoring: true, reactionsEnabled: true, revealMs: 5000 },
     question: {
       id: 'q1', position: 0, type: 'multiple_choice', prompt: 'Which planet is largest?', imagePath: null, timeLimitSeconds: 20, points: 1000,
-      status: closed ? 'closed' : 'open', startsAt, openedAt: startsAt, deadlineAt: new Date(Date.now() + startsInMs + 20000).toISOString(), answerCount: 0,
+      status: closed ? 'closed' : 'open', startsAt, openedAt: startsAt, deadlineAt: new Date(Date.now() + startsInMs + 20000).toISOString(), closedAt: null, boardAt: null, answerCount: 0,
       options: [{ id: 'a', position: 0, label: 'Jupiter', imagePath: null }, { id: 'b', position: 1, label: 'Saturn', imagePath: null }],
       correctOptionId: closed ? 'a' : null, explanation: null, distribution: closed ? { a: 2, b: 0 } : null,
     },

@@ -12,7 +12,9 @@ import { LowerThird } from '@/components/ui/LowerThird';
 import { StatusBlock } from '@/components/ui/StatusBlock';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
-import { Avatar } from '@/components/avatar/Avatar';
+import { Playground } from '@/components/lobby/Playground';
+import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
+import { useReactions } from '@/hooks/useReactions';
 import { QrCode } from '@/components/live/QrCode';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
 import { useJoinTicker } from '@/components/live/useJoinTicker';
@@ -23,8 +25,7 @@ import { useLobby } from '@/hooks/useLobby';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
 import { getPlayerClient, getTeacherClient, type AppSupabaseClient } from '@/lib/supabase';
 import { joinHost, joinUrl } from '@/lib/session-rules';
-import { dur, ease, popIn, slideFromLeft } from '@/lib/motion';
-import { cn } from '@/lib/cn';
+import { dur, ease, slideFromLeft } from '@/lib/motion';
 import { claimPresenter } from '@/services/live';
 import { ensurePlayerSession } from '@/services/player';
 import { friendlyError } from '@/utils/errors';
@@ -34,16 +35,6 @@ type Access = { kind: 'pending' } | { kind: 'ready'; client: AppSupabaseClient }
 function readKeyFromHash(): string | null {
   const match = /(?:^#|&)key=([^&]+)/.exec(window.location.hash);
   return match ? decodeURIComponent(match[1]) : null;
-}
-
-/** Avatar size steps by the real player count so 100 players still fit without scrolling. */
-function crowdTier(count: number) {
-  // 4:3 projectors give the crowd less height, so step down one size earlier.
-  if (typeof window !== 'undefined' && window.matchMedia?.('(max-aspect-ratio: 4/3)').matches) count = Math.max(count * 2, 16);
-  if (count < 16) return { avatar: 'size-28', cols: 'grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))]' };
-  if (count < 32) return { avatar: 'size-[5.5rem]', cols: 'grid-cols-[repeat(auto-fill,minmax(7rem,1fr))]' };
-  if (count < 60) return { avatar: 'size-[4.25rem]', cols: 'grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))]' };
-  return { avatar: 'size-[3.25rem]', cols: 'grid-cols-[repeat(auto-fill,minmax(4.75rem,1fr))]' };
 }
 
 /**
@@ -89,6 +80,7 @@ export default function PresenterPage() {
   const ticker = useJoinTicker(lobby?.participants);
   // Warm in the lobby: clock offset and game state are ready before the game starts.
   const game = useGameState(access.kind === 'ready' ? access.client : null, sessionId, { listenHost: true });
+  const { reactions } = useReactions(access.kind === 'ready' ? access.client : null, sessionId, game.offset);
 
   if (access.kind === 'needs_link' || access.kind === 'error' || load === 'not_found' || (load === 'error' && !lobby)) {
     const message =
@@ -138,7 +130,6 @@ export default function PresenterPage() {
     );
   }
 
-  const tier = crowdTier(lobby.participantCount);
   const empty = lobby.participants.length === 0;
 
   return (
@@ -173,6 +164,12 @@ export default function PresenterPage() {
           {lobby.role === 'host' && lobby.status === 'lobby' && access.kind === 'ready' && sessionId && (
             <ProjectorStart client={access.client} sessionId={sessionId} stateVersion={lobby.stateVersion} playerCount={lobby.participantCount} game={game} />
           )}
+          {lobby.role === 'host' && access.kind === 'ready' && sessionId && game.state && (
+            <div className="flex flex-wrap items-center gap-3">
+              <ReactionsToggle client={access.client} sessionId={sessionId} enabled={game.state.session.reactionsEnabled} onChanged={game.refresh} />
+              <span className="text-caption text-night-muted">Players can send emotes from their phones while they wait.</span>
+            </div>
+          )}
           <AnimatePresence>
             {lobby.isLocked && (
               <m.p
@@ -206,16 +203,15 @@ export default function PresenterPage() {
               <p className="mt-3 text-stage-name text-night-muted">The PIN is on the left. Your avatar appears here when you join.</p>
             </div>
           ) : (
-            <ul className={cn('mt-6 grid min-h-0 flex-1 content-start gap-x-3 gap-y-4 overflow-hidden', tier.cols)}>
-              <AnimatePresence initial={false}>
-                {lobby.participants.map((p) => (
-                  <m.li key={p.id} variants={popIn} initial="hidden" animate="show" exit="exit" className="flex min-w-0 flex-col items-center gap-2 text-center">
-                    <Avatar code={p.avatar} className={cn('rounded-full', tier.avatar)} />
-                    <span className="w-full truncate text-stage-name">{p.nickname}</span>
-                  </m.li>
-                ))}
-              </AnimatePresence>
-            </ul>
+            <Playground
+              seed={lobby.id}
+              players={lobby.participants}
+              offsetMs={game.offset}
+              reactions={reactions}
+              variant="stage"
+              label="Players"
+              className="mt-4 min-h-0 flex-1 rounded-lg border border-night-rule bg-[radial-gradient(ellipse_at_50%_110%,rgb(255_255_255/0.06),transparent_60%)]"
+            />
           )}
 
           <div aria-live="polite" className="pointer-events-none absolute bottom-0 left-0">
@@ -229,9 +225,6 @@ export default function PresenterPage() {
               )}
             </AnimatePresence>
           </div>
-          {lobby.status === 'in_progress' && (
-            <p className="mt-4 text-stage-name text-night-muted">The game screens for the projector arrive with live games.</p>
-          )}
         </section>
       </div>
     </Shell>

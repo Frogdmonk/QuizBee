@@ -21,7 +21,8 @@ const RANK_CHIP: Record<number, string> = {
 };
 
 const SIZES: Record<Variant, { row: string; avatar: string; name: string; score: string; chip: string; gap: string }> = {
-  stage: { row: 'min-h-[clamp(2.75rem,6.2vh,5rem)] px-4', avatar: 'size-[clamp(2.25rem,5vh,3.75rem)]', name: 'text-[clamp(1rem,2.4vh,1.6rem)]', score: 'text-[clamp(1.25rem,3vh,2.2rem)]', chip: 'size-[clamp(2rem,4.4vh,3rem)] text-[clamp(1rem,2.4vh,1.5rem)]', gap: 'gap-[clamp(0.2rem,0.6vh,0.5rem)]' },
+  // Ten rows, the event banner and the teacher's controls must fit a 16:9 or 4:3 projector without scrolling.
+  stage: { row: 'min-h-[clamp(2.5rem,5.1vh,4.5rem)] px-4', avatar: 'size-[clamp(2rem,4.2vh,3.4rem)]', name: 'text-[clamp(1rem,2.3vh,1.6rem)]', score: 'text-[clamp(1.2rem,2.8vh,2.1rem)]', chip: 'size-[clamp(1.8rem,3.8vh,2.8rem)] text-[clamp(1rem,2.2vh,1.45rem)]', gap: 'gap-[clamp(0.2rem,0.5vh,0.45rem)]' },
   panel: { row: 'min-h-14 px-3', avatar: 'size-11', name: 'text-body', score: 'text-score-md', chip: 'size-9 text-[1rem]', gap: 'gap-1.5' },
   compact: { row: 'min-h-12 px-2.5', avatar: 'size-9', name: 'text-body-sm', score: 'text-score-sm', chip: 'size-8 text-[0.95rem]', gap: 'gap-1' },
 };

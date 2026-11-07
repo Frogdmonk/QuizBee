@@ -440,3 +440,90 @@
     opacity: 1;
   }
 }
+
+/*
+ * ── Lobby playground & reactions ─────────────────────────────────────────────
+ * Positions are written straight to `transform` every frame (see Playground.tsx);
+ * these keyframes only animate the character itself, chosen by data-act.
+ */
+.pg-walker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+.pg-pop {
+  animation: pg-enter 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.pg-pop[data-leaving='true'] {
+  animation: pg-leave 0.45s ease-in forwards;
+}
+.pg-body {
+  transform-origin: 50% 85%;
+  transition: rotate 0.25s ease;
+}
+.pg-shadow {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: -6%;
+  height: 12%;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.35);
+  filter: blur(2px);
+}
+.pg-body[data-act='walk'] { animation: pg-walk 0.46s ease-in-out infinite alternate; }
+.pg-body[data-act='run'] { animation: pg-walk 0.26s ease-in-out infinite alternate; }
+.pg-body[data-act='look'] { animation: pg-look 1.8s ease-in-out both; }
+.pg-body[data-act='wave'] { animation: pg-wave 0.5s ease-in-out 3 alternate; }
+.pg-body[data-act='jump'],
+.pg-body[data-act='highfive'] { animation: pg-jump 0.6s cubic-bezier(0.3, 0, 0.4, 1) 2; }
+.pg-body[data-act='dance'] { animation: pg-dance 0.5s ease-in-out infinite alternate; }
+.pg-body[data-act='stretch'] { animation: pg-stretch 1.6s ease-in-out both; }
+.pg-body[data-act='bump'] { animation: pg-bump 0.45s ease-out both; }
+.pg-body[data-act='angry'],
+.pg-body[data-act='shake'] { animation: pg-shake 0.12s linear 8; }
+.pg-body[data-act='angry'] { filter: drop-shadow(0 0 10px rgb(255 80 60 / 0.75)); }
+.pg-body[data-act='spin'] { animation: pg-spin 0.7s ease-in-out 2; }
+.pg-body[data-act='laugh'] { animation: pg-laugh 0.18s ease-in-out 7 alternate; }
+.pg-body[data-act='surprised'],
+.pg-body[data-act='pop'] { animation: pg-surprised 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.pg-body[data-act='celebrate'] { animation: pg-celebrate 0.7s ease-in-out 3; }
+
+.pg-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  translate: -50% 0;
+  opacity: 0;
+  pointer-events: none;
+  line-height: 1;
+  filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.25));
+}
+.pg-bubble[data-show='interaction'] { animation: pg-bubble 1.3s ease-out forwards; }
+.pg-bubble[data-show='emote'] { animation: pg-emote 2.4s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+
+.rx-float { animation: rx-float var(--rx-life, 4s) cubic-bezier(0.25, 0.8, 0.35, 1) both; }
+.rx-burst { animation: rx-burst 2.2s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; }
+.rx-label { animation: rx-label 2.2s ease-out forwards; }
+@keyframes rx-label { 0% { opacity: 0; scale: 0.6; } 12% { opacity: 1; scale: 1.08; } 20% { scale: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+
+@keyframes pg-enter { 0% { scale: 0; opacity: 0; } 100% { scale: 1; opacity: 1; } }
+@keyframes pg-leave { to { scale: 0; opacity: 0; } }
+@keyframes pg-walk { from { translate: 0 0; } to { translate: 0 -9%; } }
+@keyframes pg-look { 0%, 100% { rotate: 0deg; } 30% { rotate: -10deg; } 65% { rotate: 10deg; } }
+@keyframes pg-wave { from { rotate: -8deg; } to { rotate: 8deg; } }
+@keyframes pg-jump { 0%, 100% { translate: 0 0; scale: 1 1; } 15% { scale: 1.08 0.9; } 50% { translate: 0 -45%; scale: 0.95 1.06; } 85% { scale: 1.06 0.94; } }
+@keyframes pg-dance { 0% { rotate: -12deg; translate: -6% 0; } 100% { rotate: 12deg; translate: 6% -6%; } }
+@keyframes pg-stretch { 0%, 100% { scale: 1 1; } 40%, 60% { scale: 0.9 1.15; } }
+@keyframes pg-bump { 0% { scale: 1.2 0.82; } 60% { scale: 0.95 1.05; } 100% { scale: 1 1; } }
+@keyframes pg-shake { 0%, 100% { translate: 0 0; } 25% { translate: -5% 0; } 75% { translate: 5% 0; } }
+@keyframes pg-spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes pg-laugh { from { translate: 0 0; rotate: -3deg; } to { translate: 0 -5%; rotate: 3deg; } }
+@keyframes pg-surprised { 0% { scale: 1; } 35% { scale: 1.22; translate: 0 -12%; } 100% { scale: 1; translate: 0 0; } }
+@keyframes pg-celebrate { 0%, 100% { translate: 0 0; rotate: 0deg; } 40% { translate: 0 -40%; rotate: -14deg; } 70% { translate: 0 -20%; rotate: 14deg; } }
+@keyframes pg-bubble { 0% { opacity: 0; translate: -50% 20%; scale: 0.4; } 15% { opacity: 1; translate: -50% -10%; scale: 1.15; } 80% { opacity: 1; translate: -50% -25%; scale: 1; } 100% { opacity: 0; translate: -50% -45%; } }
+@keyframes pg-emote { 0% { opacity: 0; translate: -50% 30%; scale: 0.3; } 12% { opacity: 1; translate: -50% -15%; scale: 1.3; } 25% { scale: 1; } 80% { opacity: 1; translate: -50% -60%; } 100% { opacity: 0; translate: -50% -90%; } }
+@keyframes rx-float { 0% { opacity: 0; translate: 0 40px; scale: 0.6; } 8% { opacity: 1; translate: 0 0; scale: 1.08; } 14% { scale: 1; } 80% { opacity: 1; } 100% { opacity: 0; translate: var(--rx-drift, 0px) -55vh; } }
+@keyframes rx-burst { 0% { opacity: 0; scale: 0.2; translate: 0 0; } 20% { opacity: 1; scale: 1.25; } 100% { opacity: 0; scale: 0.9; translate: var(--rx-x, 0px) var(--rx-y, -30vh); rotate: var(--rx-rot, 0deg); } }
+.pg-bubble[data-show='static'] { opacity: 1; translate: -50% -20%; }

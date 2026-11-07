@@ -85,6 +85,26 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | Sync logic (`game-sync.test.tsx`) | broadcasts apply only when newer (duplicates / late ones return the same state); the player's pick resets per question and survives the reveal; own rank and result come from the rank rows, and results show only after a close; late joiners keep their numbers; clock offset uses the median of the fastest round trips; a phone that receives the question late still unlocks at the same instant; the unlock fires at the exact moment, not the next tick; a phone with a wrong clock agrees once its offset is applied |
 | Screens (`game-screens.test.tsx`) | projector and phone show "Get ready" with no question text until the start; phone answers are unavailable then enabled; an answer is sent once and remembered; "too early" is not locked in; the teacher's projector shows the controls and Space sends one version-guarded command; a projector-link projector shows none; Space never ends a running question |
 
+### Phase 5 coverage (leaderboard after every question, reactions, playground)
+
+| Area | Tests |
+|---|---|
+| Database (`phase5-reactions.test.ts`) | the reveal carries `board_at` = close + 5 s; `advance_if_due` moves a finished reveal to the leaderboard and not before, only once, also after the last question; outsiders cannot nudge; lobby reactions broadcast with name and avatar; unlisted reactions are refused; during a question only after answering; reveal allowed; 5 per 8 s with a retry time; the teacher switch works and is broadcast; players cannot change it; removed players cannot react; nobody can read the rate-limit table |
+| Playground (`playground-sim.test.ts`) | two screens agree exactly whenever they opened and whatever order they list players; different sessions differ; characters stay in bounds and never overlap; they never all walk in lockstep; collisions trigger several reaction kinds with faces and bubbles; repeated collisions usually mean anger; size scales with the crowd; reduced-motion layout; 100 players under 8 ms per frame |
+| Reactions (`reactions.test.tsx`) | valid reactions map to emotes; unknown, malformed and delayed events are dropped; client list equals the server list; the projector lane shows the newest 14 with names |
+
+## Manual checklist: Phase 5 (projector + 3 phones)
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Open the projector (teacher browser) and 3 phones; join | Characters walk around the projector lobby, bump, react; the same scene on the host page |
+| 2 | Tap emotes on a phone in the lobby | The character acts it out with the emoji above it on the projector and host page; other phones show it in the small row |
+| 3 | Tap 6 emotes quickly | The 6th says "Wait Ns"; nothing more appears |
+| 4 | Turn reactions off on the projector or host page | Phones show "Reactions are turned off"; nothing appears on the projector |
+| 5 | During a question, before answering | No emote tray on the phone; after answering, the tray appears and reactions float up the right lane of the projector without covering answers |
+| 6 | Three phones send 🎉 together | A burst of 🎉 with "3 players" at the top of the projector |
+| 7 | Let a question close | Reveal for about 5 s with "Leaderboard in N", then the leaderboard on every screen without pressing anything |
+
 ## Manual checklist: synchronised start (3+ devices, one on slow mobile data)
 
 | # | Step | Expected |

@@ -15,6 +15,9 @@ import { CountRoll } from '@/components/ui/CountRoll';
 import { BreathingLine } from '@/components/ui/BreathingLine';
 import { HostGame } from '@/components/game/HostGame';
 import { useGameState } from '@/hooks/useGameState';
+import { useReactions } from '@/hooks/useReactions';
+import { Playground } from '@/components/lobby/Playground';
+import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
 import { startGame } from '@/services/game';
 import { LowerThird } from '@/components/ui/LowerThird';
 import { Avatar } from '@/components/avatar/Avatar';
@@ -37,6 +40,7 @@ export default function HostLobbyPage() {
   const { lobby, setLobby, load, channel, refresh } = useLobby(getTeacherClient(), sessionId);
   // Warm before the game starts (clock offset + state), then drives the game controls.
   const game = useGameState(getTeacherClient(), sessionId, { listenHost: true });
+  const { reactions } = useReactions(getTeacherClient(), sessionId, game.offset);
   const [selected, setSelected] = useState<string | null>(null);
   const [toRemove, setToRemove] = useState<LobbyParticipant | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -330,6 +334,19 @@ export default function HostLobbyPage() {
             kicker="Players"
             action={<span className="type-score text-score-md">{lobby.participantCount}</span>}
           />
+          {isOpen && lobby.participants.length > 0 && (
+            <div className="ground-night mt-3 overflow-hidden rounded-md bg-night-950">
+              <Playground
+                seed={lobby.id}
+                players={lobby.participants}
+                offsetMs={game.offset}
+                reactions={reactions}
+                variant="panel"
+                label="Live lobby"
+                className="aspect-[10/7] max-h-[26rem] w-full"
+              />
+            </div>
+          )}
           {lobby.participants.length === 0 ? (
             <div className="py-16">
               <BreathingLine tone="paper" />
@@ -392,6 +409,12 @@ export default function HostLobbyPage() {
               <Button size="lg" leftIcon={<Play className="size-5" />} disabled={lobby.participantCount === 0} loading={starting} onClick={() => void beginGame()}>
                 Start game
               </Button>
+              {game.state && sessionId && (
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <ReactionsToggle client={getTeacherClient()} sessionId={sessionId} enabled={game.state.session.reactionsEnabled} onChanged={game.refresh} variant="secondary" />
+                  <span className="text-caption text-ink-500">Emotes from phones show on the projector.</span>
+                </div>
+              )}
             </section>
           )}
           {isOpen && <section className="hidden md:block">{projectorControls}</section>}

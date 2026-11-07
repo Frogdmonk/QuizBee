@@ -36,6 +36,8 @@ export type RawState = {
     is_locked: boolean;
     participant_count: number;
     speed_scoring: boolean;
+    reactions_enabled?: boolean;
+    reveal_ms?: number;
   };
   question: {
     id: string;
@@ -49,6 +51,8 @@ export type RawState = {
     starts_at: string | null;
     opened_at: string | null;
     deadline_at: string | null;
+    closed_at?: string | null;
+    board_at?: string | null;
     answer_count: number;
     options: { id: string; position: number; label: string; image_path: string | null }[];
     correct_option_id: string | null;
@@ -109,6 +113,9 @@ export function toGameState(r: RawState): GameState {
       isLocked: r.session.is_locked,
       participantCount: r.session.participant_count,
       speedScoring: r.session.speed_scoring,
+      // Older servers (before Phase 5) send neither: reactions on, 5 s reveal.
+      reactionsEnabled: r.session.reactions_enabled ?? true,
+      revealMs: r.session.reveal_ms ?? 5000,
     },
     question: r.question && {
       id: r.question.id,
@@ -122,6 +129,8 @@ export function toGameState(r: RawState): GameState {
       startsAt: r.question.starts_at,
       openedAt: r.question.opened_at,
       deadlineAt: r.question.deadline_at,
+      closedAt: r.question.closed_at ?? null,
+      boardAt: r.question.board_at ?? null,
       answerCount: r.question.answer_count,
       options: r.question.options.map((o) => ({ id: o.id, position: o.position, label: o.label, imagePath: o.image_path })),
       correctOptionId: r.question.correct_option_id,

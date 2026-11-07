@@ -132,6 +132,9 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
    the game RPCs (start, submit, close, leaderboard, next, end, advance_if_due, get_game_state, server_now).
 6. `20261111090000_phase4b_synchronised_start.sql`: scheduled question start, full-state broadcast,
    `submit_answer` 'early' result (see "Synchronised start" below). Replaces functions from migration 5.
+7. `20261112090000_phase5_reactions_autoboard.sql`: leaderboard after every question (`reveal_ms`, `board_at`,
+   `advance_if_due` moves reveal → leaderboard), student reactions (`send_reaction`, `set_reactions_enabled`,
+   `reaction_limits`, `private.emote_keys`). Replaces `game_payload` and `advance_if_due`.
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -489,6 +492,29 @@ Planned design (ARCHITECTURE.md §3.1):
   or → steps reveal → leaderboard → next question (never ends a running question). A projector opened with a
   projector link (`role === 'presenter'`) stays read-only by design. Shared logic: `useGameCommands`,
   `GameCommandButtons`.
+* **Leaderboard after every question (Phase 5):** a closed question shows the reveal for `reveal_ms` (5 s), then
+  the server moves to the leaderboard when nudged (`board_at` in the payload; host + projector nudge at once,
+  phones are a jittered backup via `useAutoAdvance(..., boardInMs)`). Teachers can still show it sooner; "Next
+  question" stays a teacher action. Every screen shows "Leaderboard in N".
+* **Projector layout (Phase 5):** compact HUD (Q n/N, answered, `TimerRing`), centred prompt, answer tiles that
+  fill the height (`QuestionStage size="stage"`), reveal counts under each tile, leaderboard sized so 10 rows +
+  banner + controls fit 16:9 and 4:3. The right edge is a reserved reaction lane (`--rx-lane`); game content is
+  padded so reactions never cover it.
+* **Reactions (Phase 5):** fixed list in `src/lib/emotes.ts` = `private.emote_keys()` (a unit test checks they
+  match). `send_reaction` checks: active player; lobby, or answered the current question, or reveal /
+  leaderboard / podium; teacher switch; max 5 per 8 s (`reaction_limits`, RLS on, no grants). It broadcasts
+  `reaction` `{id, pid, n, a, e, at}` on the game topic. `useReactions` dedupes by id, skips events older than
+  6 s, batches renders (80 ms), expires after 4 s and detects bursts (same emote from 3+ players in 2.5 s).
+  Projector: `ReactionLayer` (lane + bursts); phones: `EmotePanel` (only in the lobby and after a confirmed
+  answer) + `ClassReactions`; lobby characters act out emotes. Teacher switch: `ReactionsToggle` (host page,
+  projector, lobby).
+* **Lobby playground (Phase 5):** `src/lib/playground/sim.ts` is a pure function of (session id, player ids,
+  server time): per-character walking slots, idle moves, collisions on a 100 ms grid (new only after 1.5 s apart),
+  reactions picked by a hash (bump / wave / high-five / dance / funny spin+laugh / giggle / angry when a pair
+  keeps colliding), soft personal-space push. Every screen computes the same scene with the shared clock; no
+  positions are sent. `components/lobby/Playground.tsx` renders it with one rAF loop writing transforms to the
+  DOM (no React work per frame); reduced motion = still grid. Shown on the projector lobby and the host lobby
+  (phones do not get the player list, so they show their own character + the class reaction row instead).
 * **Leaderboard animation engine** (`src/lib/leaderboard/`, pure, unit-tested, never touches scores):
   `config.ts` (all thresholds and the 4 s timeline), `movement.ts` (small/medium/major/legendary up,
   minor/medium/major/epic down, same, new), `themes.ts` (20 themes: 8 up, 7 down, 5 idle), `selection.ts`

@@ -60,7 +60,7 @@ function baseState(role: GameState['role'] = 'player'): GameState {
   return {
     role, serverNow: '2026-11-11T10:00:00.000Z',
     session: { id: 's1', quizTitle: 'Planets', pin: role === 'player' ? null : '482913', status: 'in_progress', phase: 'question', stateVersion: 5,
-      questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 3, speedScoring: true },
+      questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 3, speedScoring: true, reactionsEnabled: true, revealMs: 5000 },
     question: null,
     me: role === 'player'
       ? { participantId: ME, nickname: 'Me', avatar: '000000000', status: 'active', answerOptionId: null, lastCorrect: null, lastPoints: null,
