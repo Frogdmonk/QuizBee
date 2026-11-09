@@ -93,6 +93,131 @@ are covered by the manual checklist below now, and by Playwright and k6 against 
 | Playground (`playground-sim.test.ts`) | two screens agree exactly whenever they opened and whatever order they list players; different sessions differ; characters stay in bounds and never overlap; they never all walk in lockstep; collisions trigger several reaction kinds with faces and bubbles; repeated collisions usually mean anger; size scales with the crowd; reduced-motion layout; 100 players under 8 ms per frame |
 | Reactions (`reactions.test.tsx`) | valid reactions map to emotes; unknown, malformed and delayed events are dropped; client list equals the server list; the projector lane shows the newest 14 with names |
 
+### Boss battle phase 1 coverage
+
+| Area | Tests |
+|---|---|
+| Database (`battle-phase1.test.ts`) | every new session has a battle (on, automatic HP, damage 3); the start fixes HP to the class size; teacher HP/damage/off settings, validated, broadcast, host only, lobby only; damage = correct × base, HP falls, attackers in answer order; one result per question however often it is closed or nudged; joins/leaves during a question don't change the denominator (a late joiner's correct answer still hits); removed players don't attack; HP stops at 0 and later questions still resolve; battle off = nothing recorded, scoring unchanged; 100 players answering one after another → exactly one result, 270 damage, payload under 20 KB |
+| Logic and screens (`battle.test.tsx`) | the formation fits 1–100 students without overlap; attack timing is identical on every screen, varies per student and per question, caps projectiles at 40 while counting every hit; stage and hit thresholds; the lobby HP estimate equals the server formula; payload parsing; only a started battle is active and only the current question's attack plays; the arena shows monster, health and every student without names; the phone card says whether my answer hit |
+
+Machine check in Chromium (mocked server, not real devices): 30 students: 27 attack, 3 cheer, the monster
+flinches during the hits and staggers at the end, HP lands on the server's figure; 100 students: 60 fps median
+on a desktop during the attack (not measured on a low-end projector PC); no horizontal overflow at 1440×900,
+1024×768 and 390×844.
+
+### Boss battle phase 2 coverage (modes)
+
+| Area | Tests |
+|---|---|
+| Database (`battle-phase2.test.ts`) | first question Normal, announced, starts ~5 s ahead, target as a head count; reveal 7 s; mode follows HP at open (70 % → Rage), announced only on change, Enraged at 30 %; Rage 6/10 stops it (no heal), 5/10 misses it (hits count, +5 % HP); 30 students: 18 is exactly the target; heal capped at max HP, none when the hits reach 0, no special attack once defeated or with nobody eligible; battle timers off by default, on = Rage 10 s with the deadline following; presets, custom thresholds, validation |
+| Logic and screens (`battle.test.tsx`) | custom thresholds; payload parsing of config / current / outcome; the question's rules, HUD note and timer; reveal "stopped" banner with HP only falling; reveal "missed": hits first, then the class braces, then the heal; phone wording; the announcement text |
+
+Machine check in Chromium (mocked server): announcement, Rage question with the charging note, "stopped"
+reveal (stunned monster), counter-attack sequence (400 → 364 → shock wave → 396), phone announcement /
+question / outcome, advanced settings validation; no horizontal overflow.
+
+### Boss battle phase 3 coverage (weapons and voting)
+
+| Area | Tests |
+|---|---|
+| Database (`battle-phase3.test.ts`) | 9/10 unlocks a vote of 3 (never the Healing Wand), 8/10 does not; the game waits for the vote; never on the last question, not within the 2-question cooldown, only once per question; one vote per student, early / duplicate / not-eligible / not-offered refused, tallies on the host topic only; most votes wins when time is up, the weapon is equipped and the leaderboard follows; everyone voted closes at once; tie → runoff → teacher, host commands blocked meanwhile; no votes → teacher; cancel; players cannot decide; each weapon's passive and special (Thunder, Frost, Inferno, Crystal incl. charges, Shadow in Rage), cooldown and charges; weapon settings validated, lobby only |
+| Logic and screens (`battle-weapons.test.tsx`) | payload parsing; the vote belongs to the current question; when the special can be used; weapon projectiles; projector vote screen (message, counts, countdown, no controls on a projector link); teacher tie-break and cancel; phone: one tap, then only the choice; reload shows the server's record; runoff offers the tied weapons; teacher / result wording; avatars hold the weapon; effect and unlock banners |
+
+Machine check in Chromium (mocked server): unlock banner after the attack, vote screen with the teacher's
+controls, read-only projector without them, tie for the teacher, equipped screen (30 avatars get the weapon),
+Thunderclap reveal, phone vote / voted / equipped, teacher vote panel and special button; no overflow.
+
+### Learning progression coverage (battle plan phase 4)
+
+| Area | Tests |
+|---|---|
+| Database (`learning.test.ts`) | saving levels, objectives, kinds, misconception notes and recovery questions; duplicates keep them; bad metadata refused; unfinished recovery blocks publishing; snapshot: recovery held back at 1000+, level starts; reveal names the most common mix-up with counts (no names) and the mastery result; below 75 % "next" plays the recovery question after an 8 s review, then continues; 75 % passes; no recovery written moves on; the teacher's skip (players can't); weak objectives at the final challenge; learning report at the podium; a recovery question plays once; mastery off; settings validated, lobby only; recovery questions attack but never unlock a weapon |
+| Logic and screens (`learning.test.tsx`, `quiz-editor.test.ts`) | recovery completeness; save payload; suggested timer and "add a recovery question" in the editor; payload parsing with old-server defaults; review screen; mix-up note only when meaningful; mastery banner wording and the skip button; final-challenge weak objectives; the learning report |
+
+Machine check in Chromium (mocked server): review before a recovery question (projector, phone), final-challenge
+announcement, reveal with the mix-up, leaderboard with the mastery check and the teacher's skip button, teacher
+podium report, lobby learning settings, the editor's Learning section (suggested timer, misconception fields,
+recovery question); no overflow.
+
+### Power-ups and team energy coverage (battle plan phase 5)
+
+| Area | Tests |
+|---|---|
+| Database (`powerups.test.ts`) | energy for mastery / defending / participation with reasons, capped at 100; team abilities need energy, teacher only; Team Shield blocks the heal, Group Lightning 8 %; Knowledge Reveal hides a wrong answer once; Final Rally only in the final challenge; the draft before the first final question (3 different offers, 15 s, one pick, "already"), auto-pick at close, no second draft, quiz without levels; Thunder Strike, Comeback Charge (needs an earlier miss), Revival Crystal (one change, half points), X-Ray hint (no answer, only for me), Time Warp (+5 s, max 10, not wasted), Weakness Scanner, Guardian Shield, Team Heal; Healing Wand passive and Renewal |
+| Logic and screens (`powerups.test.tsx`) | parsing; ability rules mirror; draft pick; Revival waits for an answer; X-Ray hint; energy meter; team ability buttons; removed answer label; reveal team line |
+
+Machine check in Chromium (mocked server): projector draft, final question with energy, Time Warp, weakness and
+a removed answer, teacher's ability buttons, reveal with Final Rally / Lightning / strikes / energy; phone
+draft, X-Ray hint with the removed answer disabled, held power-up; host abilities; no overflow.
+
+## Manual checklist: power-ups and team energy (projector + 3 phones)
+
+Run `20261117090000_powerups_energy.sql` after the learning migration. Use a quiz with a final-challenge question.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Play a question where everyone answers and 2 of 3 are right | The reveal says "+N team energy (mastery, defended, everyone joined in)"; the energy bar fills |
+| 2 | Host: Team Shield during a question, then let the class miss the target | "… blocked by a shield!", no healing |
+| 3 | Reach the final challenge | Projector: "Choose your power-up!"; phones: three choices; one phone doesn't choose → it gets its first option |
+| 4 | Phone with X-Ray: Use | A hint about the objective (not the answer) on that phone only |
+| 5 | Phone with Time Warp: Use | Everyone's timer gains 5 s |
+| 6 | Phone with Revival: answer, Use, answer again | The second answer counts, for half points; a third tap does nothing |
+| 7 | Host: Knowledge Reveal | One wrong answer greys out on every screen |
+
+## Manual checklist: learning progression (projector + 3 phones)
+
+Run `20261116090000_learning_progression.sql` after the battle migrations.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Edit a quiz: give questions levels 1, 2, 3 and Final; objectives; misconception notes; a recovery question on Q1; set a kind and press "Use N s" | Saves; publishing refuses an unfinished recovery question |
+| 2 | Start; Q1 | "Level 1 · Foundations" before Q1 (on the projector and phones) |
+| 3 | Only 1 of 3 phones answers Q1 correctly | Reveal: "Common mix-up: …" with the note; leaderboard: "Mastery check: 33% (75% needed). A recovery question … comes next" |
+| 4 | Next | "Let's fix this together": the most common pick, its note, the right answer, then the recovery question (header "Recovery · Q1") |
+| 5 | Next after the recovery question | Q2 (not Q1 again) |
+| 6 | Fail a question with a recovery question; on the host page press "Skip the recovery question"; Next | The next core question comes |
+| 7 | Reach the final challenge after missing an objective | "Final challenge · Everything together" names that objective |
+| 8 | End | The host page shows "What the class learned" per objective |
+
+## Manual checklist: boss battle phase 3 (projector + 3 phones)
+
+Run `20261115090000_battle_phase3_weapons.sql` after the phase 2 migration. With 3 players, 90 % means all 3.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | All 3 phones answer a question correctly | After the attack: "100% correct: weapon unlocked!", then the vote screen on the projector and phones |
+| 2 | Phones vote 2 for one weapon, 1 for another | Live counts on the projector and host page; the vote closes at once when all 3 voted; "… equipped!", every avatar gets the weapon; leaderboard ~4.5 s later |
+| 3 | Next unlock (after the cooldown): two phones vote different weapons, the third doesn't vote | A runoff between the two; if it ties again, "Your teacher chooses"; pick one on the host page |
+| 4 | Tap a weapon twice / reload a phone during the vote | Only one vote counts; after the reload the phone shows "You voted …" |
+| 5 | Host: press the weapon's special during a question | The button shows "armed"; the reveal names the effect (e.g. "Thunderclap! Every hit doubled"); a charge is used and the button says when it is ready again |
+| 6 | Host: Cancel vote | "No new weapon this time", the game moves on |
+
+## Manual checklist: boss battle phase 2 (projector + 3 phones)
+
+Run `20261114090000_battle_phase2_modes.sql` after the phase 1 migration.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Host lobby: Battle intensity Standard, Battle timers on; set HP to 60, damage 10 | The description lists 50/60/70 % and 3/5/8 % |
+| 2 | Start | Projector and phones: "Gloomjaw appears!" with the rule for 3 phones (2 of 3 needed), a 5 s count, then the question |
+| 3 | 1 of 3 answers correctly | Reveal: the hit, then "Tail Swipe!", the class braces, the monster heals; phones say the same |
+| 4 | Next question (HP now ≤ 70 %) | "Gloomjaw is in a RAGE!", 10 seconds per question; the HUD says "Riddle Roar charging · 2 of 3 correct needed" |
+| 5 | All 3 answer correctly | "Riddle Roar stopped!", stunned monster, no healing |
+| 6 | Reload a phone during a Rage question | Same mode, note and timer come back |
+
+## Manual checklist: boss battle phase 1 (projector + 3 phones)
+
+Run the migration `20261113090000_battle_phase1_arena.sql` first.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | Host lobby → "Boss battle" | On by default, Automatic HP with an estimate, damage 3; switching or saving updates without reload |
+| 2 | Start, then play a question where 2 of 3 phones answer correctly | Projector reveal: the right answer on top, the arena below; 2 avatars attack, 1 cheers; HP drops by 6 |
+| 3 | Look at the phones during that reveal | Correct phones: "Your attack hit Gloomjaw! −3"; the other: "Your class hit Gloomjaw…"; same HP on all |
+| 4 | Reload the projector during a reveal | The same HP and result come back |
+| 5 | Set HP to 50 and damage to 10, play until HP reaches 0 | The monster is defeated (grey, X eye), victory fanfare; the remaining questions still play; the podium says "Gloomjaw is defeated!" |
+| 6 | Switch the battle off in the lobby | The game is exactly the old quiz |
+
 ## Manual checklist: Phase 5 (projector + 3 phones)
 
 | # | Step | Expected |

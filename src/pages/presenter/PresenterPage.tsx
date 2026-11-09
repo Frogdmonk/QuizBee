@@ -115,7 +115,7 @@ export default function PresenterPage() {
   if ((lobby.status === 'in_progress' || lobby.phase === 'podium') && access.kind === 'ready' && sessionId) {
     return (
       <Shell title={lobby.quizTitle} right={<ConnectionPill status={channel} quiet surface="night" />}>
-        <PresenterGame client={access.client} sessionId={sessionId} game={game} />
+        <PresenterGame client={access.client} sessionId={sessionId} game={game} players={lobby.participants} />
       </Shell>
     );
   }

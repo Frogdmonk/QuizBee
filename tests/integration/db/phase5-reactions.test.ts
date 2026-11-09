@@ -52,6 +52,8 @@ async function setup(players: number) {
   const quizId = await rpc<string>(teacher(host), 'public.save_quiz($1::jsonb)', [JSON.stringify(QUIZ)]);
   await rpc(teacher(host), `public.set_quiz_status($1, 'published')`, [quizId]);
   const sessionId = await rpc<string>(teacher(host), `public.create_session($1, '{}'::jsonb)`, [quizId]);
+  // These tests cover the classic quiz flow; the boss battle (on by default) has its own tests.
+  await db.query('update public.session_battles set enabled = false where session_id = $1', [sessionId]);
   const students: Actor[] = [];
   for (let i = 0; i < players; i++) {
     const s: Actor = { kind: 'user', id: await createAuthUser(db, { anonymous: true }), anonymous: true };

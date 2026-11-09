@@ -30,6 +30,14 @@ import { AnimatedNumber } from '@/components/leaderboard/AnimatedNumber';
 import { Countdown } from './Countdown';
 import { GetReady } from './GetReady';
 import type { GameMe, GameQuestion } from '@/types/game';
+import { activeBattle, chargingNote, currentRules, modeTimer, revealAttack } from '@/lib/battle/state';
+import { BattleAnnounce } from '@/components/battle/BattleAnnounce';
+import { PhoneWeaponVote } from '@/components/battle/PhoneWeaponVote';
+import { PhoneDraft, PhonePowerup } from '@/components/battle/Powerups';
+import { useWeaponVote } from '@/hooks/useWeaponVote';
+import { LevelAnnounce, MisconceptionNote, ReviewScreen } from '@/components/learning/LearningScreens';
+import { PhoneBattleCard } from '@/components/battle/PhoneBattleCard';
+import { BattleResult } from '@/components/battle/BattleResult';
 
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -66,6 +74,7 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
   const boardIn = useCountdown(question?.boardAt ?? null, offset, revealing);
   useAutoAdvance(state, remaining, false, nudge, 'backup', revealing ? boardIn : Number.POSITIVE_INFINITY);
   const { reactions } = useReactions(client, state?.session.id, offset);
+  const weaponVote = useWeaponVote(state, offset, nudge, 'backup');
 
   if (!state || !state.me) {
     return (
@@ -77,10 +86,19 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
 
   const me = state.me;
   const phase = state.session.phase;
-  const myPick = question && (me.answerOptionId ?? (picked?.questionId === question.id ? picked.optionId : null));
+  const battle = activeBattle(state);
+  const attack = revealAttack(state);
+  const rules = currentRules(state);
+  const pickedHere = picked?.questionId === question?.id ? picked : null;
+  const myPick = question && (pickedHere?.optionId ?? me.answerOptionId ?? null);
+  const powerup = me.powerup;
+  // A Revival Crystal armed for this question allows one changed answer.
+  const revival = Boolean(question && powerup?.state === 'armed' && powerup.chosen === 'revival' && powerup.armedQuestionId === question.id);
+  const draftHere = Boolean(question && battle?.current?.draft && battle.current.questionId === question.id);
+  const hidden = battle?.current && question && battle.current.questionId === question.id ? battle.current.hiddenOptionId : null;
 
   const answer = async (optionId: string) => {
-    if (!question || myPick) return;
+    if (!question || (myPick && !revival) || optionId === myPick) return;
     setPicked({ questionId: question.id, optionId });
     setNotice(null);
     try {
@@ -102,7 +120,7 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
       <ScoreBug tab="bg-signal-400" className="w-full">
         {state.session.currentPosition !== null && phase !== 'podium' && (
           <span className="type-score text-score-sm">
-            Q {state.session.currentPosition + 1}/{state.session.questionCount}
+            {question?.role === 'recovery' ? `Recovery · Q${question.corePosition + 1}` : `Q ${state.session.currentPosition + 1}/${state.session.questionCount}`}
           </span>
         )}
         <span className="ml-auto flex items-center gap-3">
@@ -117,12 +135,38 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
       </ScoreBug>
 
       <AnimatePresence mode="wait">
-        {phase === 'question' && question && !started ? (
+        {phase === 'question' && question && !started && draftHere && powerup ? (
+          <m.div key={`draft-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col">
+            <PhoneDraft client={client} sessionId={state.session.id} powerup={powerup} onChanged={() => void refresh()} />
+          </m.div>
+        ) : phase === 'question' && question && !started && question.role === 'recovery' && question.review ? (
+          <m.div key={`review-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col">
+            <ReviewScreen question={question} remainingMs={untilStart} size="phone" />
+          </m.div>
+        ) : phase === 'question' && question && !started && question.levelStart && question.level && !(battle && rules?.announce) ? (
+          <m.div key={`level-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col">
+            <LevelAnnounce level={question.level} weakObjectives={state.learning?.weakObjectives ?? []} remainingMs={untilStart} size="phone" />
+          </m.div>
+        ) : phase === 'question' && question && !started && battle && rules?.announce ? (
+          <m.div key={`announce-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col">
+            <BattleAnnounce
+              battle={battle}
+              current={rules}
+              eligible={question.eligibleCount}
+              timerSeconds={modeTimer(battle, rules.mode)}
+              remainingMs={untilStart}
+              size="phone"
+            />
+          </m.div>
+        ) : phase === 'question' && question && !started ? (
           <m.div key={`ready-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col">
             <GetReady number={question.position + 1} total={state.session.questionCount} remainingMs={untilStart} />
           </m.div>
         ) : phase === 'question' && question ? (
           <m.div key={`q-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col gap-4">
+            {battle && chargingNote(rules, question.eligibleCount) && (
+              <p className="-mb-2 text-caption font-semibold text-rose-400">{chargingNote(rules, question.eligibleCount)}</p>
+            )}
             <p className="type-headline text-pretty text-[1.375rem] leading-snug break-words">{question.prompt}</p>
             {question.imagePath && (
               <img src={mediaUrl(question.imagePath) ?? undefined} alt="" className="max-h-40 w-full rounded-md bg-night-900 object-contain" />
@@ -132,16 +176,18 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
             <div className={cn('grid gap-2', question.type === 'image_choice' && 'grid-cols-2')} role="group" aria-label="Answers">
               {question.options.map((o, i) => {
                 const mine = myPick === o.id;
-                const locked = Boolean(myPick);
+                const locked = Boolean(myPick) && !revival;
+                const removed = hidden === o.id;
                 const style = answerStyle(i);
                 return (
                   <m.button
                     key={o.id}
                     type="button"
-                    disabled={locked || !open || !started || remaining <= 0}
+                    disabled={locked || removed || !open || !started || remaining <= 0}
+                    aria-label={removed ? `${o.label || `Answer ${style.letter}`} (removed by Knowledge Reveal)` : undefined}
                     onClick={() => void answer(o.id)}
                     aria-pressed={mine}
-                    animate={locked ? (mine ? { scale: 0.97, opacity: 1 } : { scale: 1, opacity: 0.35 }) : { scale: 1, opacity: 1 }}
+                    animate={removed ? { scale: 0.96, opacity: 0.15 } : locked ? (mine ? { scale: 0.97, opacity: 1 } : { scale: 1, opacity: 0.35 }) : { scale: 1, opacity: 1 }}
                     whileTap={locked ? undefined : { scale: 0.96 }}
                     transition={spring.press}
                     className="block w-full text-left disabled:cursor-default"
@@ -168,6 +214,19 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
                 {notice}
               </p>
             )}
+            {powerup?.state === 'offered' && draftHere && (
+              <PhoneDraft client={client} sessionId={state.session.id} powerup={powerup} onChanged={() => void refresh()} />
+            )}
+            {powerup && powerup.state !== 'offered' && started && open && (
+              <PhonePowerup
+                client={client}
+                sessionId={state.session.id}
+                powerup={powerup}
+                question={question}
+                answered={Boolean(myPick)}
+                onChanged={() => void refresh()}
+              />
+            )}
             {myPick ? (
               <m.div variants={popIn} initial="hidden" animate="show" className="mt-auto">
                 <LowerThird surface="night" tab="bg-volt-400" className="w-full">
@@ -185,7 +244,27 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
           </m.div>
         ) : phase === 'reveal' && question ? (
           <m.div key={`r-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col gap-5">
-            <RevealCard me={me} question={question} />
+            {weaponVote.vote && weaponVote.stage && weaponVote.stage !== 'pending' ? (
+              <PhoneWeaponVote
+                client={client}
+                vote={weaponVote.vote}
+                stage={weaponVote.stage}
+                closesInMs={weaponVote.closesIn}
+                myChoice={me.vote && me.vote.voteId === weaponVote.vote.id && me.vote.round === weaponVote.vote.round ? me.vote.choice : null}
+                onVoted={() => void refresh()}
+              />
+            ) : (
+              <>
+                <RevealCard me={me} question={question} compact={Boolean(attack)} />
+                <MisconceptionNote misconception={question.misconception} size="phone" />
+                {battle && attack && (
+                  <PhoneBattleCard attack={attack} monster={battle.monster} maxHp={battle.maxHp} baseDamage={attack.perHit ?? battle.baseDamage} me={me} />
+                )}
+                {weaponVote.vote && weaponVote.stage === 'pending' && (
+                  <PhoneWeaponVote client={client} vote={weaponVote.vote} stage="pending" closesInMs={weaponVote.closesIn} myChoice={null} onVoted={() => void refresh()} />
+                )}
+              </>
+            )}
             {revealing && (
               <p className="text-caption font-semibold tracking-[0.06em] text-night-muted uppercase" role="status">
                 Leaderboard in {Math.max(1, Math.ceil(boardIn / 1000))}
@@ -202,6 +281,7 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
         ) : phase === 'podium' ? (
           <m.div key="final" variants={enterUp} initial="hidden" animate="show" className="flex flex-1 flex-col gap-5">
             <p className="type-kicker">Final results</p>
+            {battle && <BattleResult monster={battle.monster} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} size="phone" />}
             <RankCard me={me} total={state.rankedCount} final />
             <Leaderboard snapshot={snapshotFromState(state)} variant="compact" highlightId={me.participantId} />
             <GameEmotes client={client} game={game} reactions={reactions} meId={me.participantId} />
@@ -212,14 +292,19 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
   );
 }
 
-function RevealCard({ me, question }: { me: GameMe; question: GameQuestion }) {
+function RevealCard({ me, question, compact = false }: { me: GameMe; question: GameQuestion; compact?: boolean }) {
   const correctIndex = question.options.findIndex((o) => o.id === question.correctOptionId);
   const letter = correctIndex >= 0 ? answerStyle(correctIndex).letter : '';
   if (me.lastCorrect) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <m.span variants={popIn} initial="hidden" animate="show" className="grid size-24 place-items-center rounded-full bg-success-400 text-night-950">
-          <Check className="size-12" strokeWidth={3} aria-hidden />
+      <div className={cn('flex flex-col items-center justify-center text-center', compact ? 'gap-2' : 'flex-1 gap-4')}>
+        <m.span
+          variants={popIn}
+          initial="hidden"
+          animate="show"
+          className={cn('grid place-items-center rounded-full bg-success-400 text-night-950', compact ? 'size-16' : 'size-24')}
+        >
+          <Check className={compact ? 'size-8' : 'size-12'} strokeWidth={3} aria-hidden />
         </m.span>
         <p className="type-display text-display-lg">Correct!</p>
         <p className="type-score text-score-xl text-success-400">
@@ -229,7 +314,7 @@ function RevealCard({ me, question }: { me: GameMe; question: GameQuestion }) {
     );
   }
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+    <div className={cn('flex flex-col items-center justify-center text-center', compact ? 'gap-2' : 'flex-1 gap-4')}>
       <p className="type-display text-display-lg">{me.answerOptionId ? 'Not this time' : 'No answer this time'}</p>
       {letter && <p className="text-body text-night-muted">{letter} was correct.</p>}
       <p className="text-body-sm text-night-muted">Next question coming up — every question is a fresh chance.</p>

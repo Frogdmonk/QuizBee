@@ -60,11 +60,13 @@ function baseState(role: GameState['role'] = 'player'): GameState {
   return {
     role, serverNow: '2026-11-11T10:00:00.000Z',
     session: { id: 's1', quizTitle: 'Planets', pin: role === 'player' ? null : '482913', status: 'in_progress', phase: 'question', stateVersion: 5,
-      questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 3, speedScoring: true, reactionsEnabled: true, revealMs: 5000 },
+      questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 3, speedScoring: true, reactionsEnabled: true, revealMs: 5000, masteryEnabled: true, masteryPct: 75, reviewMs: 8000 },
     question: null,
+    battle: null,
+    learning: null,
     me: role === 'player'
       ? { participantId: ME, nickname: 'Me', avatar: '000000000', status: 'active', answerOptionId: null, lastCorrect: null, lastPoints: null,
-          score: 100, rank: 2, previousRank: 3, streak: 1, correctCount: 1 }
+          score: 100, rank: 2, previousRank: 3, streak: 1, correctCount: 1, vote: null, powerup: null }
       : null,
     leaderboard: [], rankedCount: 3, leaderboardVersion: 4,
   };
@@ -196,7 +198,7 @@ describe('scheduled start', () => {
 function controller(overrides: Partial<GameState['session']> & { role?: GameState['role'] } = {}): GameController {
   const base = baseState('host');
   const state: GameState = { ...base, role: overrides.role ?? 'host', session: { ...base.session, ...overrides } };
-  return { state, load: 'ready', channel: 'live', refresh: vi.fn(async () => {}), nudge: vi.fn(async () => {}), answerCount: 0, offset: 0, markAnswered: vi.fn() };
+  return { state, load: 'ready', channel: 'live', refresh: vi.fn(async () => {}), nudge: vi.fn(async () => {}), answerCount: 0, offset: 0, markAnswered: vi.fn(), voteTally: null };
 }
 
 const client = {} as AppSupabaseClient;

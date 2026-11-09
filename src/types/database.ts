@@ -75,6 +75,12 @@ export type Database = {
           points: number;
           explanation: string;
           created_at: string;
+          level: number | null;
+          objective: string;
+          topic: string;
+          difficulty: 'easy' | 'medium' | 'hard' | null;
+          kind: 'recall' | 'concept' | 'application' | 'predict' | 'bug' | 'multistep' | null;
+          recovery: Json | null;
         };
         Insert: never;
         Update: never;
@@ -96,6 +102,7 @@ export type Database = {
           label: string;
           image_path: string | null;
           is_correct: boolean;
+          misconception: string;
         };
         Insert: never;
         Update: never;
@@ -269,6 +276,17 @@ export type Database = {
       advance_if_due: { Args: { p_session_id: string }; Returns: number };
       send_reaction: { Args: { p_session_id: string; p_emote: string }; Returns: Json };
       set_reactions_enabled: { Args: { p_session_id: string; p_enabled: boolean }; Returns: number };
+      set_battle_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };
+      set_weapon_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };
+      cast_weapon_vote: { Args: { p_vote_id: string; p_weapon: string }; Returns: Json };
+      decide_weapon_vote: { Args: { p_session_id: string; p_weapon: string | null }; Returns: number };
+      use_weapon_special: { Args: { p_session_id: string }; Returns: number };
+      set_recovery_skipped: { Args: { p_session_id: string; p_skipped: boolean }; Returns: number };
+      set_learning_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };
+      choose_powerup: { Args: { p_session_id: string; p_key: string }; Returns: Json };
+      use_powerup: { Args: { p_session_id: string }; Returns: Json };
+      use_team_ability: { Args: { p_session_id: string; p_ability: string }; Returns: number };
+      set_powerup_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };
       submit_answer: { Args: { p_session_question_id: string; p_option_id: string }; Returns: Json };
       server_now: { Args: Record<PropertyKey, never>; Returns: string };
       get_game_state: { Args: { p_session_id: string }; Returns: Json };

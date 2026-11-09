@@ -8,8 +8,10 @@ import { useSessionChannel, type ChannelStatus } from '@/hooks/useSessionChannel
 import { useServerClock } from '@/hooks/useServerClock';
 import type { GameState } from '@/types/game';
 
+export type VoteTally = { voteId: string; round: number; counts: Record<string, number>; total: number };
+
 const GAME_EVENTS = ['state', 'removed'] as const;
-const HOST_EVENTS = ['answer_count'] as const;
+const HOST_EVENTS = ['answer_count', 'vote_tally'] as const;
 /** Safety-net polling: slow while the live channel is healthy, quick when it is not. */
 const POLL_LIVE_MS = 30_000;
 const POLL_OFFLINE_MS = 8_000;
@@ -32,6 +34,8 @@ export function useGameState(client: AppSupabaseClient | null, sessionId: string
   const [state, setState] = useState<GameState | null>(null);
   const [load, setLoad] = useState<GameLoad>('loading');
   const [liveAnswerCount, setLiveAnswerCount] = useState<{ questionId: string; count: number } | null>(null);
+  // Live weapon-vote tallies (host and projector only).
+  const [voteTally, setVoteTally] = useState<VoteTally | null>(null);
   const stateRef = useRef<GameState | null>(null);
   const inFlight = useRef(false);
   const again = useRef(false);
@@ -107,7 +111,16 @@ export function useGameState(client: AppSupabaseClient | null, sessionId: string
     client: options.listenHost ? client : null,
     topic: options.listenHost && sessionId ? sessionTopic(sessionId, 'host') : null,
     events: HOST_EVENTS,
-    onEvent: (_event, payload) => {
+    onEvent: (event, payload) => {
+      if (event === 'vote_tally') {
+        const t = payload as { vote_id?: string; round?: number; counts?: Record<string, number>; total?: number };
+        if (t.vote_id && typeof t.round === 'number' && t.counts && typeof t.total === 'number') {
+          const tally: VoteTally = { voteId: t.vote_id, round: t.round, counts: t.counts, total: t.total };
+          // Keep the highest total: messages can arrive out of order.
+          setVoteTally((prev) => (prev && prev.voteId === tally.voteId && prev.round === tally.round && prev.total > tally.total ? prev : tally));
+        }
+        return;
+      }
       const p = payload as { session_question_id?: string; answer_count?: number };
       if (p.session_question_id && typeof p.answer_count === 'number') {
         setLiveAnswerCount({ questionId: p.session_question_id, count: p.answer_count });
@@ -153,7 +166,7 @@ export function useGameState(client: AppSupabaseClient | null, sessionId: string
       ? Math.max(liveAnswerCount.count, state.question.answerCount)
       : (state?.question?.answerCount ?? 0);
 
-  return { state, load, channel, refresh, nudge, answerCount, offset, markAnswered };
+  return { state, load, channel, refresh, nudge, answerCount, offset, markAnswered, voteTally };
 }
 
 /** What every game screen receives from the page that owns the live connection. */

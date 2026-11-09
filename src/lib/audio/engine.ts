@@ -8,12 +8,12 @@ import { TRACKS, type Instrument, type NoteEvent, type Section, type Track, type
  * `music` (bottom of the file) is the app's single live player with the user's settings.
  */
 
-export type SfxName = 'join' | 'pop' | 'burst' | 'tick' | 'tickHigh' | 'go' | 'timeup' | 'boing';
+export type SfxName = 'join' | 'pop' | 'burst' | 'tick' | 'tickHigh' | 'go' | 'timeup' | 'boing' | 'whoosh' | 'hit' | 'roar' | 'victory' | 'block' | 'heal';
 
 const mtof = (m: number) => 440 * 2 ** ((m - 69) / 12);
 const BASS_OFFSET: Record<string, number> = { r: 0, f: 7, o: 12, s: 10 };
 /** Minimum gap between two of the same sound effect, so a flood of reactions stays pleasant. */
-const SFX_GAP: Partial<Record<SfxName, number>> = { pop: 0.07, boing: 0.25, burst: 0.4, join: 0.08 };
+const SFX_GAP: Partial<Record<SfxName, number>> = { pop: 0.07, boing: 0.25, burst: 0.4, join: 0.08, hit: 0.05, roar: 1, victory: 2, block: 0.5, heal: 0.5 };
 const POP_NOTES = [72, 74, 76, 79, 81, 84];
 
 function velocity(pattern: string | undefined, i: number): number {
@@ -163,6 +163,65 @@ export class SoundEngine {
       }
       case 'burst':
         [72, 76, 79, 84, 88].forEach((n, i) => this.bell(at + i * 0.06, n, 0.5, 0.8, d));
+        break;
+      case 'whoosh': {
+        // A rising swish as the class winds up.
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = this.ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.Q.value = 2;
+        f.frequency.setValueAtTime(400, at);
+        f.frequency.exponentialRampToValueAtTime(3200, at + 0.45);
+        f.connect(this.sustain(at, 0.5, 0.25, 0.25, 0.2, d));
+        src.connect(f);
+        src.start(at, Math.random() * 0.3);
+        src.stop(at + 0.75);
+        break;
+      }
+      case 'hit': {
+        // A punchy thud with a crackle on top.
+        const o = this.osc('sine', 220, at, 0.25);
+        o.frequency.exponentialRampToValueAtTime(70, at + 0.12);
+        o.connect(this.env(at, 0.55, 0.002, 0.18, d));
+        this.noiseHit(at, 0.09, 'bandpass', 2400, 0.35, d);
+        break;
+      }
+      case 'roar': {
+        // A low growl: detuned saws through a wobbling filter.
+        const f = this.ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.Q.value = 6;
+        f.frequency.setValueAtTime(300, at);
+        f.frequency.linearRampToValueAtTime(900, at + 0.25);
+        f.frequency.linearRampToValueAtTime(250, at + 0.9);
+        f.connect(this.sustain(at, 0.32, 0.08, 0.6, 0.35, d));
+        for (const [freq, detune] of [[55, -12], [58, 9], [110, 0]] as const) {
+          const o = this.osc('sawtooth', freq, at, 1.1);
+          o.detune.value = detune;
+          o.frequency.linearRampToValueAtTime(freq * 0.8, at + 1);
+          o.connect(f);
+        }
+        break;
+      }
+      case 'block':
+        // A bright clang: the class stopped the special attack.
+        [[1318, 0], [1975, 0.01], [2637, 0.02]].forEach(([f, dt]) =>
+          this.osc('triangle', f, at + dt, 0.6).connect(this.env(at + dt, 0.22, 0.002, 0.5, d)),
+        );
+        this.noiseHit(at, 0.05, 'highpass', 5000, 0.4, d);
+        break;
+      case 'heal':
+        // A rising shimmer as the monster regenerates.
+        [64, 68, 71, 76, 80].forEach((n, i) => this.bell(at + i * 0.09, n, 0.5, 0.7, d));
+        break;
+      case 'victory':
+        this.brass(at, [60, 64, 67, 72], 0.25, 1, d);
+        this.brass(at + 0.28, [65, 69, 72, 77], 0.25, 1, d);
+        this.brass(at + 0.56, [67, 71, 74, 79], 0.2, 1, d);
+        this.brass(at + 0.8, [72, 76, 79, 84], 1.2, 1.1, d);
+        this.crash(at + 0.8, 1, d);
+        [84, 88, 91, 96].forEach((n, i) => this.bell(at + 0.85 + i * 0.08, n, 0.6, 0.9, d));
         break;
       case 'boing': {
         const o = this.osc('sine', 180, at, 0.32);
@@ -414,6 +473,11 @@ class MusicPlayer {
 
   sfx = (name: SfxName): void => {
     if (this.settings.enabled && this.engine && this.ctx?.state === 'running') this.engine.sfx(name);
+  };
+
+  /** Schedules a sound effect `delayMs` from now on the audio clock (sample-accurate, no timers). */
+  sfxIn = (name: SfxName, delayMs: number): void => {
+    if (this.settings.enabled && this.engine && this.ctx?.state === 'running') this.engine.sfx(name, this.ctx.currentTime + Math.max(0, delayMs) / 1000);
   };
 
   setEnabled = (enabled: boolean): void => {

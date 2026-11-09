@@ -18,6 +18,8 @@ import { useGameState } from '@/hooks/useGameState';
 import { useReactions } from '@/hooks/useReactions';
 import { Playground } from '@/components/lobby/Playground';
 import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
+import { BattleSettings } from '@/components/battle/BattleSettings';
+import { LearningSettings } from '@/components/learning/LearningSettings';
 import { startGame } from '@/services/game';
 import { LowerThird } from '@/components/ui/LowerThird';
 import { Avatar } from '@/components/avatar/Avatar';
@@ -415,6 +417,33 @@ export default function HostLobbyPage() {
                   <span className="text-caption text-ink-500">Emotes from phones show on the projector.</span>
                 </div>
               )}
+            </section>
+          )}
+          {isOpen && lobby.status === 'lobby' && game.state && sessionId && (
+            <section aria-labelledby="learning-heading" className="space-y-3">
+              <SectionHead id="learning-heading" kicker="Learning" />
+              <LearningSettings
+                key={`${game.state.session.masteryPct}:${game.state.session.reviewMs}`}
+                client={getTeacherClient()}
+                sessionId={sessionId}
+                enabled={game.state.session.masteryEnabled}
+                masteryPct={game.state.session.masteryPct}
+                reviewMs={game.state.session.reviewMs}
+                onChanged={game.refresh}
+              />
+            </section>
+          )}
+          {isOpen && lobby.status === 'lobby' && game.state?.battle && sessionId && (
+            <section aria-labelledby="battle-heading" className="space-y-3">
+              <SectionHead id="battle-heading" kicker="Boss battle" />
+              <BattleSettings
+                client={getTeacherClient()}
+                sessionId={sessionId}
+                battle={game.state.battle}
+                players={lobby.participantCount}
+                questions={lobby.questionCount}
+                onChanged={game.refresh}
+              />
             </section>
           )}
           {isOpen && <section className="hidden md:block">{projectorControls}</section>}

@@ -13,6 +13,7 @@ import type { QuestionDraft, QuestionType } from '@/types/quiz';
 import { ImagePicker } from './ImagePicker';
 import { answerStyle } from './answer-styles';
 import { QUESTION_TYPE_ICONS } from './question-type-icons';
+import { LearningEditor } from './LearningEditor';
 
 type Props = {
   question: QuestionDraft;
@@ -264,6 +265,8 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
           rows={2}
           onChange={(e) => dispatch({ type: 'updateQuestion', key: q.key, patch: { explanation: e.target.value } })}
         />
+
+        <LearningEditor question={q} dispatch={dispatch} />
 
         {issues.length > 0 && (
           <Alert tone="warning" title="Before publishing">

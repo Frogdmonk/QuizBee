@@ -14,7 +14,18 @@ import type { GameQuestion } from '@/types/game';
  * `stage` (projector) fills the height it is given: centred prompt, then answer tiles that grow to
  * use the screen. `panel` (host page) is the compact flowing version.
  */
-export function QuestionStage({ question, size = 'stage', className }: { question: GameQuestion; size?: 'stage' | 'panel'; className?: string }) {
+export function QuestionStage({
+  question,
+  size = 'stage',
+  hiddenOptionId = null,
+  className,
+}: {
+  question: GameQuestion;
+  size?: 'stage' | 'panel';
+  /** Knowledge Reveal removed this wrong answer (shown dimmed while the question runs). */
+  hiddenOptionId?: string | null;
+  className?: string;
+}) {
   const closed = question.status === 'closed';
   const total = closed ? Object.values(question.distribution ?? {}).reduce((a, b) => a + b, 0) : 0;
   const image = mediaUrl(question.imagePath);
@@ -45,6 +56,7 @@ export function QuestionStage({ question, size = 'stage', className }: { questio
         {question.options.map((o, i) => {
           const count = question.distribution?.[o.id] ?? 0;
           const correct = closed && o.id === question.correctOptionId;
+          const removed = !closed && o.id === hiddenOptionId;
           const style = answerStyle(i);
           const optionImage = mediaUrl(o.imagePath);
           const share = total ? count / total : 0;
@@ -52,8 +64,9 @@ export function QuestionStage({ question, size = 'stage', className }: { questio
             <m.div
               key={o.id}
               className={cn('relative flex min-h-0 min-w-0 flex-col', stage && 'h-full')}
+              aria-label={removed ? `Answer ${style.letter} removed by Knowledge Reveal` : undefined}
               initial={stage ? { opacity: 0, y: 18 } : false}
-              animate={{ opacity: 1, y: 0, scale: correct && stage ? 1.015 : 1 }}
+              animate={{ opacity: removed ? 0.2 : 1, y: 0, scale: correct && stage ? 1.015 : 1 }}
               transition={{ ...spring.pop, delay: stage && !closed ? 0.08 * i : 0 }}
             >
               {pictures ? (

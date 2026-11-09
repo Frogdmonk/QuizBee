@@ -1,4 +1,5 @@
-import { getTeacherClient } from '@/lib/supabase';
+import { getTeacherClient, type AppSupabaseClient } from '@/lib/supabase';
+import type { Json } from '@/types/database';
 import type { SessionSummary } from '@/types/session';
 
 /* Host-side session operations (teacher client). Every write is an RPC from
@@ -62,4 +63,24 @@ export async function createPresenterLink(sessionId: string): Promise<string> {
   const { data, error } = await getTeacherClient().rpc('create_presenter_link', { p_session_id: sessionId });
   if (error) throw error;
   return data;
+}
+
+/** Host: skip (or bring back) the recovery question after the current question. Returns the new state version. */
+export async function setRecoverySkipped(client: AppSupabaseClient, sessionId: string, skipped: boolean): Promise<number> {
+  const { data, error } = await client.rpc('set_recovery_skipped', { p_session_id: sessionId, p_skipped: skipped });
+  if (error) throw error;
+  return data as number;
+}
+
+export type LearningSettingsInput = { masteryEnabled?: boolean; masteryPct?: number; reviewSeconds?: number };
+
+/** Host, lobby only: the mastery check. Returns the new state version. */
+export async function setLearningSettings(client: AppSupabaseClient, sessionId: string, input: LearningSettingsInput): Promise<number> {
+  const settings: { [key: string]: Json | undefined } = {};
+  if (input.masteryEnabled !== undefined) settings.mastery_enabled = input.masteryEnabled;
+  if (input.masteryPct !== undefined) settings.mastery_pct = input.masteryPct;
+  if (input.reviewSeconds !== undefined) settings.review_seconds = input.reviewSeconds;
+  const { data, error } = await client.rpc('set_learning_settings', { p_session_id: sessionId, p_settings: settings });
+  if (error) throw error;
+  return data as number;
 }

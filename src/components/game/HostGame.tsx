@@ -19,6 +19,13 @@ import { Countdown } from './Countdown';
 import { GameCommandButtons } from './GameCommandButtons';
 import { QuestionStage } from './QuestionStage';
 import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
+import { BattleStrip } from '@/components/battle/BattleStrip';
+import { BattleResult } from '@/components/battle/BattleResult';
+import { activeBattle, chargingNote, currentRules, revealAttack } from '@/lib/battle/state';
+import { VoteHostPanel, WeaponPanel } from '@/components/battle/WeaponControls';
+import { TeamAbilities } from '@/components/battle/Powerups';
+import { useWeaponVote } from '@/hooks/useWeaponVote';
+import { LearningReport, MasteryBanner, MisconceptionNote } from '@/components/learning/LearningScreens';
 
 /**
  * The teacher's controls during a game. Every command carries the state version it was issued
@@ -26,7 +33,7 @@ import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
  */
 export function HostGame({ sessionId, game }: { sessionId: string; game: GameController }) {
   const client = getTeacherClient();
-  const { state, channel, nudge, answerCount, offset, refresh } = game;
+  const { state, channel, nudge, answerCount, offset, refresh, voteTally } = game;
   const commands = useGameCommands(client, sessionId, game);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const question = state?.question ?? null;
@@ -38,6 +45,7 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
   const revealing = state?.session.phase === 'reveal' && Boolean(question?.boardAt);
   const boardIn = useCountdown(question?.boardAt ?? null, offset, revealing);
   useAutoAdvance(state, remaining, everyone, nudge, 'primary', revealing ? boardIn : Number.POSITIVE_INFINITY);
+  const weaponVote = useWeaponVote(state, offset, nudge, 'primary');
 
   if (!state) {
     return (
@@ -49,6 +57,9 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
 
   const { phase, currentPosition, questionCount } = state.session;
   const snapshot = snapshotFromState(state);
+  const battle = activeBattle(state);
+  const attack = revealAttack(state);
+  const rules = currentRules(state);
 
   return (
     <div className="space-y-6">
@@ -87,7 +98,27 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
           </span>
         )}
         {phase === 'podium' && <Badge surface="night">Game over</Badge>}
+        {battle && (
+          <BattleStrip
+            monster={battle.monster}
+            hp={battle.hp}
+            maxHp={battle.maxHp}
+            at={battle.config}
+            note={phase === 'question' ? chargingNote(rules, question?.eligibleCount ?? null) : null}
+            size="sm"
+            className="w-72"
+          />
+        )}
+        {attack && (
+          <span className="text-body-sm text-night-muted" role="status">
+            {attack.correct}/{attack.eligible} correct ({Math.round(attack.accuracy)}%) · <span className="type-score text-rank-gold">−{attack.damage}</span>
+            {attack.defended === true && <span className="text-success-400"> · special attack stopped</span>}
+            {attack.defended === false && <span className="text-rose-400"> · counter-attack{attack.heal > 0 ? `, +${attack.heal} HP` : ''}</span>}
+          </span>
+        )}
 
+        {battle?.weapon && phase !== 'podium' && <WeaponPanel client={client} state={state} weapon={battle.weapon} onChanged={() => void refresh()} />}
+        {battle && phase !== 'podium' && <TeamAbilities client={client} state={state} battle={battle} onChanged={() => void refresh()} className="w-full" />}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <ConnectionPill status={channel} quiet surface="night" />
           {phase !== 'podium' && <ReactionsToggle client={client} sessionId={sessionId} enabled={state.session.reactionsEnabled} onChanged={refresh} />}
@@ -96,17 +127,43 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
             Projector
           </ButtonLink>
         </div>
+        {question && state.session.masteryEnabled && (phase === 'reveal' || phase === 'leaderboard') && question.mastery && !question.mastery.passed && (
+          <div className="w-full">
+            <MasteryBanner question={question} masteryPct={state.session.masteryPct} host={{ client, sessionId, onChanged: () => void refresh() }} size="panel" />
+          </div>
+        )}
+        {weaponVote.vote && weaponVote.stage && (
+          <VoteHostPanel
+            client={client}
+            sessionId={sessionId}
+            vote={weaponVote.vote}
+            stage={weaponVote.stage}
+            tally={voteTally}
+            closesInMs={weaponVote.closesIn}
+            onChanged={() => void refresh()}
+          />
+        )}
       </section>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <section aria-label="Current question" className="ground-night min-w-0 rounded-md bg-night-950 p-5 text-night-text">
           {phase === 'podium' ? (
             <>
+              {battle && <BattleResult monster={battle.monster} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} size="phone" className="mb-6" />}
               <p className="type-kicker">Final results</p>
               {state.leaderboard.length > 0 ? <Podium entries={state.leaderboard} className="mt-6" /> : <p className="mt-3 text-night-muted">No questions were scored.</p>}
+              <LearningReport learning={state.learning} tone="night" className="mt-8" />
             </>
           ) : question ? (
-            <QuestionStage question={question} size="panel" />
+            <>
+              {question.role === 'recovery' && <p className="type-kicker mb-2 text-sun-400">Recovery question · same idea as Q{question.corePosition + 1}</p>}
+              <QuestionStage
+              question={question}
+              size="panel"
+              hiddenOptionId={battle?.current?.questionId === question.id ? battle.current.hiddenOptionId : null}
+            />
+              {phase !== 'question' && <MisconceptionNote misconception={question.misconception} size="phone" className="mt-3" />}
+            </>
           ) : null}
         </section>
 

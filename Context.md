@@ -135,6 +135,34 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
 7. `20261112090000_phase5_reactions_autoboard.sql`: leaderboard after every question (`reveal_ms`, `board_at`,
    `advance_if_due` moves reveal → leaderboard), student reactions (`send_reaction`, `set_reactions_enabled`,
    `reaction_limits`, `private.emote_keys`). Replaces `game_payload` and `advance_if_due`.
+8. `20261113090000_battle_phase1_arena.sql`: boss battle phase 1. `session_battles` (settings + monster HP,
+   created for every new session by a trigger), `battle_events` (one per question, unique), the eligibility
+   snapshot `session_questions.eligible_ids` (trigger when a question opens), the attack resolution (trigger
+   when a question closes, inside the existing exactly-once close), `set_battle_settings`, and `game_payload`
+   with a `battle` object. Replaces `game_payload`.
+9. `20261114090000_battle_phase2_modes.sql`: boss battle phase 2. Normal / Rage / Enraged modes (fixed per
+   question when it opens), class targets, counter-attack healing, optional battle timers, announcements (+3 s),
+   7 s reveal for battle sessions, intensity presets and every threshold in `set_battle_settings`. Replaces
+   `snapshot_eligible`, `resolve_battle`, `start_session_battle`, `battle_json` and `set_battle_settings`.
+10. `20261115090000_battle_phase3_weapons.sql`: boss battle phase 3. `battle_weapons` (catalogue, seeded),
+    `battle_votes` / `battle_ballots`, weapon columns on `session_battles` and `battle_events`, the unlock and
+    weapon effects in `resolve_battle`, `board_due_at`, `resolve_vote`, `equip_weapon`, RPCs
+    `cast_weapon_vote`, `decide_weapon_vote`, `use_weapon_special`, `set_weapon_settings`. Replaces
+    `resolve_battle`, `battle_json`, `game_payload`, `get_game_state` (adds `me.vote`), `advance_if_due`,
+    `show_leaderboard` and `next_question` (both refuse while a vote is unresolved).
+11. `20261116090000_learning_progression.sql`: learning metadata on `quiz_questions` (`level` 1–4, `objective`,
+    `topic`, `difficulty`, `kind`, `recovery` JSON) and `question_options.misconception`; session copies
+    (`session_questions.role` / `core_position` / `level` / `level_start` / `recovery_skipped`, option
+    misconceptions); `game_sessions.mastery_enabled` / `mastery_pct` / `review_ms`. Replaces `save_quiz`,
+    `quiz_issues`, `copy_quiz`, `start_game`, `next_question`, `snapshot_eligible`, `game_payload`; new
+    `question_accuracy`, `next_position`, `top_misconception`, `weak_objectives`, `learning_report`,
+    `set_recovery_skipped`, `set_learning_settings`.
+12. `20261117090000_powerups_energy.sql`: `battle_powerups` (8, seeded), `participant_powerups`, team energy and
+    ability columns on `session_battles`, `powerup_draft` / `hidden_option_id` / `time_warp_s` on
+    `session_questions`, energy and ability columns on `battle_events`; the Healing Wand becomes available.
+    Replaces `snapshot_eligible`, `resolve_battle`, `submit_answer` (Revival Crystal), `use_weapon_special`
+    (targets via `ability_target`, Healing Wand), `battle_json`, `get_game_state` (`me.powerup`); new
+    `choose_powerup`, `use_powerup`, `use_team_ability`, `set_powerup_settings`.
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -525,6 +553,106 @@ Planned design (ARCHITECTURE.md §3.1):
   join chime, emote pop, burst sparkle, lobby bump "boing", get-ready ticks, "go", last-5-second ticks,
   time's-up. Button: `components/audio/MusicToggle.tsx` in the projector header. Phones and the host page stay
   silent on purpose (one sound source per room).
+* **Boss battle, phase 1** (plan and later phases: [docs/BOSS_BATTLE_PLAN.md](docs/BOSS_BATTLE_PLAN.md)):
+  * Server: when a question opens, the active player ids are snapshotted (`eligible_ids`); when it closes,
+    `private.resolve_battle` records one `battle_events` row: attackers = every correct, non-removed player in
+    answer order; accuracy = correct among the snapshot / snapshot size (no answer = wrong); damage = attackers
+    × `base_damage` (default 3); HP never below 0. HP is fixed at the start: the teacher's number or automatic
+    = players × questions × damage × 0.7, rounded to 10 (`private.auto_monster_hp`, mirrored in
+    `lib/battle/hp.ts` for the lobby estimate). Scoring and the leaderboard are untouched.
+  * Client: `lib/battle/` (pure: `formation` = honeycomb class block in a 1600×900 world, `choreography` =
+    per-student swing/projectile timing from a hash, max 40 projectiles, `monster` = stage by HP: >70% calm,
+    >30% rage, >0 enraged, 0 defeated; visual only until phase 2). `components/battle/`: `Monster` (SVG + CSS in
+    `styles/battle.css`), `HpBar`, `BattleArena` (projector reveal; CSS animations only, no names, students who
+    missed cheer), `BattleStrip` (HUD during questions/leaderboard and the host bar), `PhoneBattleCard`,
+    `BattleResult` (podium), `BattleSettings` (host lobby). Sounds: whoosh, hits on the audio clock, roar on a
+    big hit, victory fanfare.
+* **Boss battle, phase 2 (modes):**
+  * When a question opens (`private.snapshot_eligible`, a BEFORE trigger on `session_questions`), its mode
+    comes from HP: above `rage_at` % Normal, above `enraged_at` % Rage, otherwise Enraged (70 / 30); the target
+    % is stored on the question (`battle_mode`, `battle_target`). The first question and every change of mode
+    get `battle_announce` and start 3 s later. With battle timers on, the mode's timer replaces the question's
+    time limit (Normal keeps its own unless set).
+  * When it closes (`private.resolve_battle`): every correct answer hits first; then if correct-among-eligible
+    < ceil(eligible × target %), the special attack lands and the monster heals `heal_*` % of max HP (capped
+    at max, never once at 0). `battle_events` stores mode, target, `defended` (null = no special attack) and
+    `heal`. Standard: targets 50 / 60 / 70 %, heal 3 / 5 / 8 %; Gentle 40/50/60, 0/3/5; Fierce 60/70/80,
+    5/8/12. Battle sessions get a 7 s reveal.
+  * Client: `battle.config` and `battle.current` in the payload (`currentRules`, `chargingNote`, `modeTimer`
+    in `lib/battle/state.ts`; names in `SPECIAL_ATTACK`). Projector: `BattleAnnounce` replaces "Get ready" when
+    announced; the HUD strip shows "⚡ Riddle Roar charging · 18 of 30 correct needed"; the reveal continues
+    after the hits with "stopped" (stunned monster) or the counter-attack (shock wave, class braces, heal).
+    Phones get the same announcement, note and outcome; the host bar too. Settings: intensity, battle
+    timers, Advanced (all thresholds).
+  * Classic-flow DB tests (phase 4/5) switch the battle off in their setup, since it is on by default.
+* **Boss battle, phase 3 (weapons and voting):**
+  * Unlock (in `resolve_battle`, so exactly once): correct-among-eligible ≥ `unlock_pct` (90) % of the snapshot,
+    not on the last question, not if the monster is at 0, not within `unlock_cooldown` (2) questions of the last
+    unlock. Creates a `battle_votes` row: 3 available weapons other than the equipped one (`md5` order per
+    question), voters = active players at close, opening at `closed_at + reveal_ms` for `vote_ms` (10 s).
+  * Voting: `cast_weapon_vote` (one ballot per voter per round, PK; no changes; `early` / `closed` /
+    `not_eligible` / `duplicate`); live tallies only on the host topic (`vote_tally`). All voted → resolves at
+    once; otherwise `advance_if_due` resolves when `closes_at` passes. `resolve_vote`: a single leader wins;
+    a tie → round 2 between the tied weapons (`runoff_ms`, 5 s); a tie again or no votes → `teacher`. Never
+    random. `decide_weapon_vote` (host) picks any offered weapon or cancels (null) at any time.
+  * While a vote is open / with the teacher, `board_due_at` is null: the reveal stays, `advance_if_due` and the
+    host's leaderboard / next commands wait. After a decision the leaderboard follows 4.5 s later.
+  * Weapons (numbers in `battle_weapons`, words sent in the payload): Thunder Blade +1 per hit / Thunderclap ×2
+    hits; Inferno Staff burn 1 % max HP per question / Ignite ×5; Frost Hammer halves counter-attack heals /
+    Deep Freeze stops the special attack; Shadow Bow +2 per hit in Rage–Enraged / Weak Spot +3; Crystal Spear
+    +2 per hit in Normal / Shatter 10 % max HP (1 charge). Healing Wand is in the table but `available = false`
+    until team energy (phase 5). One weapon at a time; a new one replaces it.
+  * Specials: `use_weapon_special` (host) arms the special for the open question or, between questions, the
+    next one; uses a charge; `weapon_ready_at` enforces the cooldown. `specialStatus` in `lib/battle/state.ts`
+    mirrors the rules for the button.
+  * Client: `useWeaponVote` (stage pending / open / teacher / done / cancelled from the server clock; nudges when a
+    round is due), `WeaponVoteStage` and `WeaponEquipStage` (projector), `PhoneWeaponVote`, `VoteHostPanel` and
+    `WeaponPanel` (teacher), `WeaponIcon` (6 SVG weapons), weapon badges on arena avatars, weapon projectiles,
+    effect / unlock banners. `useGameState` exposes `voteTally`. `useGameCommands.voting` hides Space / next.
+* **Learning progression (battle plan phase 4):**
+  * Authoring: the question editor's "Learning" section (`components/quiz/LearningEditor.tsx`, `lib/learning.ts`):
+    level (1–3, 4 = final challenge), kind with a suggested timer (recall/concept 15 s, application 20 s,
+    predict 30 s, bug 35 s, multi-step 45 s; "Use N s" applies it, the teacher's time always wins), difficulty,
+    objective, topic, a misconception note per wrong answer, and an optional recovery (parallel) question with
+    text answers. All optional; publishing needs complete recovery questions (`recoveryIssues` mirrors SQL).
+  * Game: `start_game` copies it all; recovery questions become `session_questions` with `role = 'recovery'`
+    at position `1000 + core position` (pending until needed). `next_question` → `private.next_position`:
+    after a core question below `mastery_pct` (75) correct-among-eligible, with a recovery question not yet
+    played and not skipped, it opens the recovery question; otherwise the next core position (a recovery
+    question continues at core + 1). `snapshot_eligible` holds a recovery question back `review_ms` (8 s) for
+    the review, a new level (`level_start`) or battle announcement 3 s; the previous mode is found by
+    `opened_at`, so recovery positions don't confuse it. Recovery questions score and fight but never unlock a
+    weapon (not "before the last question" by position).
+  * Payload: question `role`, `core_position`, `level`, `level_start`, `objective`, `topic`, `kind`,
+    `difficulty`; after closing `misconception` (most-picked wrong answer, count, note) and for core questions
+    `mastery` (accuracy, passed, has_recovery, skipped); recovery questions carry `review` (core prompt,
+    accuracy, misconception, explanation, right answer). `learning.weak_objectives` (core questions below the
+    bar) during the game; `learning.report` per objective at the end. Counts only, never names.
+  * Screens (`components/learning/`): `ReviewScreen`, `LevelAnnounce` (final challenge lists weak objectives),
+    `MisconceptionNote` (reveal, all screens), `MasteryBanner` (projector leaderboard + host bar, with the
+    host's skip / play toggle), `LearningReport` (host podium), `LearningSettings` (host lobby).
+  * Weapon specials, team abilities and power-ups armed between questions target `private.ability_target`
+    (the next question actually played, a recovery question included), so nothing is lost to a recovery question.
+* **Power-ups and team energy (battle plan phase 5):**
+  * Energy (0–100, in `resolve_battle`): +10 mastery, +15 recovery question at the bar, +10 special attack
+    stopped, +5 if ≥ 90 % of the eligible answered, +5 weapon unlocked, +1 per 2 correct in the final challenge
+    (max 10), +5 per question with the Healing Wand (Renewal: +30 at once). Stored per event with reasons.
+  * Team abilities (teacher, `use_team_ability`): Team Shield 30 (blocks one counter-attack heal), Group
+    Lightning 40 (8 % max HP), Knowledge Reveal 25 (hides one wrong answer of the running question, never the
+    right one), Final Rally 60 (hits ×2, from the draft question on). One of each per question.
+  * The draft (`snapshot_eligible`): before the first level-4 core question (or the last of a 3+ question quiz
+    without levels), each eligible player gets 3 applicable power-ups (`md5` order per player; `xray` and
+    `comeback` only when remaining questions have objectives), and the question is held back `draft_ms` (15 s).
+    `choose_powerup` until it closes; unpicked players get their first offer at close. No second draft.
+  * Power-ups (`use_powerup`, once, during a running question from the draft on): Thunder Strike (own hit ×2),
+    Comeback Charge (own hit ×3, only after an earlier miss on the same objective), Revival Crystal (after
+    answering: one changed answer, half points, in `submit_answer`), X-Ray Vision (objective + one
+    misconception note, never the answer), Time Warp (+5 s for everyone, max +10 s), Weakness Scanner (topic
+    on screen, +1 per class hit), Guardian Shield (as Team Shield), Team Heal (+20 energy). Refusals that
+    would waste one ("save it") leave it unused.
+  * Client: `lib/battle/powerups.ts` (icons, abilities, `abilityStatus` mirror), `components/battle/Powerups.tsx`
+    (`EnergyMeter`, `PhoneDraft`, `DraftStage`, `PhonePowerup`, `TeamAbilities`), energy in the HUD strip, team
+    line in the reveal, removed answer dimmed (`QuestionStage hiddenOptionId`, phone tiles), lobby switch.
 * **Leaderboard animation engine** (`src/lib/leaderboard/`, pure, unit-tested, never touches scores):
   `config.ts` (all thresholds and the 4 s timeline), `movement.ts` (small/medium/major/legendary up,
   minor/medium/major/epic down, same, new), `themes.ts` (20 themes: 8 up, 7 down, 5 idle), `selection.ts`

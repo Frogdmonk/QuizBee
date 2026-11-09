@@ -1,7 +1,7 @@
 import { getTeacherClient } from '@/lib/supabase';
 import { newKey, toSavePayload } from '@/lib/quiz-rules';
 import type { QuestionOptionRow, QuizQuestionRow, QuizRow } from '@/types/database';
-import type { QuizDraft, QuizStatus, QuizSummary } from '@/types/quiz';
+import type { QuestionDraft, QuizDraft, QuizStatus, QuizSummary, RecoveryDraft } from '@/types/quiz';
 
 const SUMMARY_COLUMNS =
   'id, title, description, subject, cover_image_path, status, question_count, source_quiz_id, created_at, updated_at';
@@ -91,7 +91,13 @@ export async function getQuizDraft(id: string): Promise<QuizDraft> {
       explanation: q.explanation,
       options: [...q.question_options]
         .sort((a, b) => a.position - b.position)
-        .map((o) => ({ key: newKey(), label: o.label, imagePath: o.image_path, isCorrect: o.is_correct })),
+        .map((o) => ({ key: newKey(), label: o.label, imagePath: o.image_path, isCorrect: o.is_correct, misconception: o.misconception ?? '' })),
+      level: (q.level ?? null) as QuestionDraft['level'],
+      objective: q.objective ?? '',
+      topic: q.topic ?? '',
+      difficulty: q.difficulty ?? null,
+      kind: q.kind ?? null,
+      recovery: toRecoveryDraft(q.recovery),
     })),
   };
 }
@@ -128,4 +134,23 @@ export async function deleteQuiz(id: string): Promise<void> {
   const { error, count } = await getTeacherClient().from('quizzes').delete({ count: 'exact' }).eq('id', id);
   if (error) throw error;
   if (count === 0) throw new QuizNotFoundError();
+}
+
+type RawRecovery = {
+  prompt?: string;
+  explanation?: string;
+  time_limit_seconds?: number;
+  options?: { label?: string; is_correct?: boolean; misconception?: string }[];
+};
+
+/** The stored recovery question (validated JSON) as an editable draft. */
+function toRecoveryDraft(value: unknown): RecoveryDraft | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as RawRecovery;
+  return {
+    prompt: r.prompt ?? '',
+    explanation: r.explanation ?? '',
+    timeLimitSeconds: r.time_limit_seconds ?? 20,
+    options: (r.options ?? []).map((o) => ({ key: newKey(), label: o.label ?? '', isCorrect: Boolean(o.is_correct), misconception: o.misconception ?? '' })),
+  };
 }

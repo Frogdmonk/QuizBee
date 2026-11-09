@@ -39,12 +39,17 @@ export function useGameCommands(client: AppSupabaseClient, sessionId: string, ga
   const next = useCallback(() => run(() => nextQuestion(client, sessionId, version), 'Could not continue'), [run, client, sessionId, version]);
   const finish = useCallback(() => run(() => endGame(client, sessionId), 'Could not end the game'), [run, client, sessionId]);
 
+  // An unresolved weapon vote holds the game (the server refuses too); the teacher picks or cancels it.
+  const vote = state?.battle?.vote;
+  const voting = Boolean(phase === 'reveal' && vote && vote.questionId === state?.question?.id && (vote.status === 'open' || vote.status === 'teacher'));
+
   const canEnd = phase === 'question';
-  const canBoard = phase === 'reveal';
-  const canNext = phase === 'reveal' || phase === 'leaderboard';
+  const canBoard = phase === 'reveal' && !voting;
+  const canNext = (phase === 'reveal' && !voting) || phase === 'leaderboard';
 
   return {
     busy,
+    voting,
     canEnd,
     canBoard,
     canNext,

@@ -1,4 +1,4 @@
-import { useEffect, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { Trophy, Users } from 'lucide-react';
 import type { AppSupabaseClient } from '@/lib/supabase';
@@ -9,8 +9,27 @@ import { useGameCommands } from '@/hooks/useGameCommands';
 import { useReactions } from '@/hooks/useReactions';
 import { useReactionSounds, useSfxOn, useSoundtrack } from '@/hooks/useMusic';
 import { soundtrackFor } from '@/lib/audio/tracks';
+import { activeBattle, chargingNote, currentRules, modeTimer, revealAttack } from '@/lib/battle/state';
+import { BattleAnnounce } from '@/components/battle/BattleAnnounce';
+import { WeaponEquipStage, WeaponVoteStage } from '@/components/battle/WeaponVote';
+import { WeaponPanel } from '@/components/battle/WeaponControls';
+import { WeaponIcon } from '@/components/battle/WeaponIcon';
+import { DraftStage, EnergyMeter, TeamAbilities } from '@/components/battle/Powerups';
+import { useWeaponVote } from '@/hooks/useWeaponVote';
+import { LevelAnnounce, MasteryBanner, MisconceptionNote, ReviewScreen } from '@/components/learning/LearningScreens';
+import { LEVEL_SHORT } from '@/lib/learning';
+import type { QuestionLevel } from '@/types/quiz';
+import { decideWeaponVote } from '@/services/battle';
+import { useToast } from '@/hooks/useToast';
+import { friendlyError } from '@/utils/errors';
+import { BattleStrip } from '@/components/battle/BattleStrip';
+import { BattleReveal } from '@/components/battle/BattleReveal';
+import { BattleResult } from '@/components/battle/BattleResult';
+import type { ArenaPlayer } from '@/components/battle/BattleArena';
+import type { BattleState } from '@/types/game';
 import { snapshotFromState } from '@/lib/leaderboard/snapshot';
 import { enterUp } from '@/lib/motion';
+import { cn } from '@/lib/cn';
 import { ScoreBug } from '@/components/ui/ScoreBug';
 import { CountRoll } from '@/components/ui/CountRoll';
 import { BreathingLine } from '@/components/ui/BreathingLine';
@@ -32,8 +51,36 @@ import { TimerRing } from './TimerRing';
  * When the signed-in teacher is the one viewing it, the controls appear at the bottom (Space / →
  * steps reveal → leaderboard → next question). A projector opened with a projector link is read-only.
  */
-export function PresenterGame({ client, sessionId, game }: { client: AppSupabaseClient; sessionId: string; game: GameController }) {
-  const { state, nudge, answerCount, offset, refresh } = game;
+export function PresenterGame({
+  client,
+  sessionId,
+  game,
+  players = [],
+}: {
+  client: AppSupabaseClient;
+  sessionId: string;
+  game: GameController;
+  /** Everyone in the session (from the lobby roster), for the battle arena. */
+  players?: readonly ArenaPlayer[];
+}) {
+  const { state, nudge, answerCount, offset, refresh, voteTally } = game;
+  const { toast } = useToast();
+  // The weapon vote after a 90 % question (nudges the server when a round's time is up).
+  const weaponVote = useWeaponVote(state, offset, nudge, 'primary');
+  const [deciding, setDeciding] = useState(false);
+  const decide = async (weapon: string | null) => {
+    setDeciding(true);
+    try {
+      await decideWeaponVote(client, sessionId, weapon);
+      await refresh();
+    } catch (error) {
+      toast({ tone: 'error', title: 'Could not finish the vote', description: friendlyError(error) });
+    } finally {
+      setDeciding(false);
+    }
+  };
+  useSfxOn(weaponVote.stage === 'open' && weaponVote.vote ? `vote:${weaponVote.vote.id}:${weaponVote.vote.round}` : null, 'burst');
+  useSfxOn(weaponVote.stage === 'done' && weaponVote.vote ? `equip:${weaponVote.vote.id}` : null, 'victory');
   const commands = useGameCommands(client, sessionId, game);
   const question = state?.question ?? null;
   const phase = state?.session.phase;
@@ -57,6 +104,10 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
   useSfxOn(open && started ? `go:${question?.id}` : null, 'go');
   useSfxOn(secondsLeft !== null && secondsLeft <= 5 && secondsLeft > 0 ? secondsLeft : null, secondsLeft !== null && secondsLeft <= 3 ? 'tickHigh' : 'tick');
   useSfxOn(open && started && remaining <= 0 ? `up:${question?.id}` : null, 'timeup');
+  // The monster announces itself (first question) or its new mode.
+  const rules = currentRules(state);
+  const announcing = Boolean(gettingReady && rules?.announce);
+  useSfxOn(announcing ? `ann:${question?.id}` : null, rules?.mode === 'rage' || rules?.mode === 'enraged' ? 'roar' : 'burst');
   useReactionSounds(lane ? reactions : [], lane ? bursts : []);
 
   const isHost = state?.role === 'host';
@@ -90,6 +141,8 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
   const snapshot = snapshotFromState(state);
   const showHud = phase === 'question' && started;
   const position = state.session.currentPosition;
+  const battle = activeBattle(state);
+  const attack = revealAttack(state);
   const revealTotal = state.session.revealMs;
 
   return (
@@ -103,10 +156,21 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
           {position !== null && phase !== 'podium' && (
             <ScoreBug tab="bg-signal-400" className="py-2 pr-4">
               <span className="type-score text-score-md">
-                Q {position + 1}
-                <span className="text-night-muted"> / {state.session.questionCount}</span>
+                {question?.role === 'recovery' ? (
+                  <>
+                    Recovery <span className="text-night-muted">· Q{question.corePosition + 1}</span>
+                  </>
+                ) : (
+                  <>
+                    Q {position + 1}
+                    <span className="text-night-muted"> / {state.session.questionCount}</span>
+                  </>
+                )}
               </span>
             </ScoreBug>
+          )}
+          {question?.level && phase !== 'podium' && (
+            <span className="rounded-sm border border-night-rule px-3 py-1.5 text-stage-label text-night-muted uppercase">{LEVEL_SHORT[question.level as QuestionLevel]}</span>
           )}
           {showHud && (
             <ScoreBug tab="bg-night-text" className="py-2 pr-4">
@@ -128,11 +192,37 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
               <Trophy className="size-5 text-rank-gold" aria-hidden />
               <span className="text-stage-label uppercase">Leaderboard</span>
               <span className="text-stage-label text-night-muted">
-                after Q{(position ?? 0) + 1} of {state.session.questionCount}
+                after {question?.role === 'recovery' ? 'the recovery question' : `Q${(question?.corePosition ?? position ?? 0) + 1} of ${state.session.questionCount}`}
               </span>
             </ScoreBug>
           )}
+          {battle && (phase === 'question' || phase === 'leaderboard') && !announcing && (
+            <BattleStrip
+              monster={battle.monster}
+              hp={battle.hp}
+              maxHp={battle.maxHp}
+              at={battle.config}
+              action={showHud && (rules?.mode === 'rage' || rules?.mode === 'enraged') ? 'brewing' : 'idle'}
+              note={showHud ? hudNote(chargingNote(rules, question?.eligibleCount ?? null), battle, question?.id) : null}
+              energy={battle.config.powerupsEnabled ? battle.energy : null}
+              size="stage"
+              className="mx-auto w-full max-w-[34rem] min-w-0 flex-1"
+            />
+          )}
           <div className="ml-auto flex items-center gap-4">
+            {battle && battle.config.powerupsEnabled && phase === 'reveal' && <EnergyMeter energy={battle.energy} className="w-[clamp(8rem,14vw,14rem)]" />}
+            {battle?.weapon && phase !== 'podium' && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-sm border px-3 py-1.5 text-stage-label',
+                  battle.weapon.armedAt === position ? 'border-rank-gold text-rank-gold' : 'border-night-rule text-night-muted',
+                )}
+                title={battle.weapon.name}
+              >
+                <WeaponIcon weapon={battle.weapon.key} className="size-[clamp(1.5rem,3.5vh,2.5rem)]" />
+                <span className="hidden xl:inline">{battle.weapon.armedAt === position ? `${battle.weapon.specialName}!` : battle.weapon.name}</span>
+              </span>
+            )}
             {showHud && question && remaining <= 0 && (
               <span className="inline-flex items-center gap-3 text-stage-name text-night-muted">
                 Time’s up <BreathingLine className="w-20" />
@@ -143,13 +233,59 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
         </div>
 
         <AnimatePresence mode="wait">
-          {phase === 'question' && question && !started ? (
+          {phase === 'question' && question && !started && battle?.current?.draft && battle.current.questionId === question.id ? (
+            <m.div key={`draft-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
+              <DraftStage weakObjectives={state.learning?.weakObjectives ?? []} remainingMs={untilStart} />
+            </m.div>
+          ) : phase === 'question' && question && !started && question.role === 'recovery' && question.review ? (
+            <m.div key={`review-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
+              <ReviewScreen question={question} remainingMs={untilStart} />
+            </m.div>
+          ) : phase === 'question' && question && !started && battle && rules?.announce ? (
+            <m.div key={`announce-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
+              <BattleAnnounce
+                battle={battle}
+                current={rules}
+                eligible={question.eligibleCount}
+                timerSeconds={modeTimer(battle, rules.mode)}
+                remainingMs={untilStart}
+                kicker={question.levelStart && question.level ? LEVEL_SHORT[question.level as QuestionLevel] : undefined}
+              />
+            </m.div>
+          ) : phase === 'question' && question && !started && question.levelStart && question.level ? (
+            <m.div key={`level-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
+              <LevelAnnounce level={question.level} weakObjectives={state.learning?.weakObjectives ?? []} remainingMs={untilStart} />
+            </m.div>
+          ) : phase === 'question' && question && !started ? (
             <m.div key={`ready-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
               <GetReady number={question.position + 1} total={state.session.questionCount} remainingMs={untilStart} size="stage" />
             </m.div>
+          ) : phase === 'reveal' && question && battle && weaponVote.vote && (weaponVote.stage === 'open' || weaponVote.stage === 'teacher') ? (
+            <m.div key={`vote-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
+              <WeaponVoteStage
+                vote={weaponVote.vote}
+                stage={weaponVote.stage}
+                tally={voteTally}
+                closesInMs={weaponVote.closesIn}
+                host={isHost ? { busy: deciding, decide: (w) => void decide(w) } : null}
+              />
+            </m.div>
+          ) : phase === 'reveal' && question && battle && weaponVote.vote && weaponVote.stage === 'done' ? (
+            <m.div key={`equip-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
+              <WeaponEquipStage vote={weaponVote.vote} battle={battle} players={players} />
+            </m.div>
+          ) : phase === 'reveal' && question && battle ? (
+            <m.div key={`battle-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
+              <BattleReveal question={question} battle={battle} attack={attack} players={players} />
+            </m.div>
           ) : (phase === 'question' || phase === 'reveal') && question ? (
             <m.div key={`q-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
-              <QuestionStage question={question} className="flex-1" />
+              <QuestionStage
+                question={question}
+                hiddenOptionId={battle?.current?.questionId === question.id ? battle.current.hiddenOptionId : null}
+                className="flex-1"
+              />
+              {phase === 'reveal' && <MisconceptionNote misconception={question.misconception} className="mt-[1.5vh] self-center" />}
             </m.div>
           ) : phase === 'leaderboard' ? (
             <m.div key={`board-${position}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
@@ -163,9 +299,19 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
                   Top 10 of {state.rankedCount} · everyone sees their own place on their phone
                 </p>
               )}
+              {question && state.session.masteryEnabled && (
+                <div className="mx-auto mt-[1.5vh] w-full max-w-5xl">
+                  <MasteryBanner
+                    question={question}
+                    masteryPct={state.session.masteryPct}
+                    host={isHost ? { client, sessionId, onChanged: () => void refresh() } : null}
+                  />
+                </div>
+              )}
             </m.div>
           ) : phase === 'podium' ? (
             <m.div key="podium" variants={enterUp} initial="hidden" animate="show" className="flex min-h-0 flex-1 flex-col items-center">
+              {battle && <BattleResult monster={battle.monster} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} className="mb-[3vh] w-full max-w-5xl" />}
               <h2 className="type-display text-center text-stage-title">Final results</h2>
               {state.leaderboard.length > 0 ? (
                 <>
@@ -202,6 +348,8 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
                 {commands.canBoard ? 'shows the leaderboard now' : commands.last ? 'shows the final results' : 'starts the next question'}
               </span>
             )}
+            {battle && phase !== 'podium' && <TeamAbilities client={client} state={state} battle={battle} onChanged={() => void refresh()} className="mr-auto" />}
+            {battle?.weapon && phase !== 'podium' && <WeaponPanel client={client} state={state} weapon={battle.weapon} onChanged={() => void refresh()} tone="compact" />}
             {phase !== 'podium' && <ReactionsToggle client={client} sessionId={sessionId} enabled={state.session.reactionsEnabled} onChanged={refresh} />}
             <GameCommandButtons commands={commands} size="md" />
           </div>
@@ -211,4 +359,11 @@ export function PresenterGame({ client, sessionId, game }: { client: AppSupabase
       <ReactionLayer reactions={lane ? reactions : []} bursts={lane ? bursts : []} />
     </div>
   );
+}
+
+/** The question HUD line: the special attack, plus Time Warp and the Weakness Scanner when used. */
+function hudNote(charging: string | null, battle: BattleState, questionId: string | undefined): string | null {
+  const c = battle.current && battle.current.questionId === questionId ? battle.current : null;
+  const parts = [charging, c && c.timeWarpS > 0 ? `Time Warp +${c.timeWarpS} s` : null, c?.topic ? `Weakness: ${c.topic}` : null].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
 }

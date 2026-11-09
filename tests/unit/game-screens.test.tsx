@@ -51,19 +51,21 @@ function game(opts: { role?: GameState['role']; phase?: GameState['session']['ph
   const state: GameState = {
     role,
     serverNow: new Date().toISOString(),
-    session: { id: 's1', quizTitle: 'Planets', pin: role === 'player' ? null : '482913', status: 'in_progress', phase, stateVersion: version, questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 2, speedScoring: true, reactionsEnabled: true, revealMs: 5000 },
+    session: { id: 's1', quizTitle: 'Planets', pin: role === 'player' ? null : '482913', status: 'in_progress', phase, stateVersion: version, questionCount: 3, currentPosition: 0, isLocked: false, participantCount: 2, speedScoring: true, reactionsEnabled: true, revealMs: 5000, masteryEnabled: true, masteryPct: 75, reviewMs: 8000 },
     question: {
       id: 'q1', position: 0, type: 'multiple_choice', prompt: 'Which planet is largest?', imagePath: null, timeLimitSeconds: 20, points: 1000,
-      status: closed ? 'closed' : 'open', startsAt, openedAt: startsAt, deadlineAt: new Date(Date.now() + startsInMs + 20000).toISOString(), closedAt: null, boardAt: null, answerCount: 0,
+      status: closed ? 'closed' : 'open', startsAt, openedAt: startsAt, deadlineAt: new Date(Date.now() + startsInMs + 20000).toISOString(), closedAt: null, boardAt: null, answerCount: 0, eligibleCount: null, role: 'core', corePosition: 0, level: null, levelStart: false, objective: null, topic: null, kind: null, difficulty: null, misconception: null, mastery: null, review: null,
       options: [{ id: 'a', position: 0, label: 'Jupiter', imagePath: null }, { id: 'b', position: 1, label: 'Saturn', imagePath: null }],
       correctOptionId: closed ? 'a' : null, explanation: null, distribution: closed ? { a: 2, b: 0 } : null,
     },
+    battle: null,
+    learning: null,
     me: role === 'player'
-      ? { participantId: 'me', nickname: 'Me', avatar: '000000000', status: 'active', answerOptionId: null, lastCorrect: null, lastPoints: null, score: 0, rank: null, previousRank: null, streak: 0, correctCount: 0 }
+      ? { participantId: 'me', nickname: 'Me', avatar: '000000000', status: 'active', answerOptionId: null, lastCorrect: null, lastPoints: null, score: 0, rank: null, previousRank: null, streak: 0, correctCount: 0, vote: null, powerup: null }
       : null,
     leaderboard: [], rankedCount: 2, leaderboardVersion: null,
   };
-  return { state, load: 'ready', channel: 'live', refresh: vi.fn(async () => {}), nudge: vi.fn(async () => {}), answerCount: 0, offset: 0, markAnswered: vi.fn() };
+  return { state, load: 'ready', channel: 'live', refresh: vi.fn(async () => {}), nudge: vi.fn(async () => {}), answerCount: 0, offset: 0, markAnswered: vi.fn(), voteTally: null };
 }
 
 describe('projector controls', () => {

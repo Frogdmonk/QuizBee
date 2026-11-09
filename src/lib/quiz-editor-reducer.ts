@@ -8,8 +8,10 @@ export type EditorState = {
 };
 
 type DetailsPatch = Partial<Pick<QuizDraft, 'title' | 'description' | 'subject' | 'coverImagePath' | 'speedScoring'>>;
-type QuestionPatch = Partial<Pick<QuestionDraft, 'prompt' | 'imagePath' | 'timeLimitSeconds' | 'points' | 'explanation'>>;
-type OptionPatch = Partial<Pick<OptionDraft, 'label' | 'imagePath'>>;
+type QuestionPatch = Partial<
+  Pick<QuestionDraft, 'prompt' | 'imagePath' | 'timeLimitSeconds' | 'points' | 'explanation' | 'level' | 'objective' | 'topic' | 'difficulty' | 'kind' | 'recovery'>
+>;
+type OptionPatch = Partial<Pick<OptionDraft, 'label' | 'imagePath' | 'misconception'>>;
 
 export type EditorAction =
   | { type: 'load'; draft: QuizDraft; saved: boolean }
@@ -68,6 +70,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ...source,
         key: action.newKey,
         options: source.options.map((o) => ({ ...o, key: newKey() })),
+        recovery: source.recovery && { ...source.recovery, options: source.recovery.options.map((o) => ({ ...o, key: newKey() })) },
       };
       const questions = [...draft.questions];
       questions.splice(index + 1, 0, copy);

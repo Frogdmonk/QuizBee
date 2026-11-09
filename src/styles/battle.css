@@ -1,0 +1,172 @@
+/* ── Boss battle (components/battle) ───────────────────────────────────────── */
+
+/* Gloomjaw. Colours change with the battle stage. */
+.mon { --m-skin: #6d4fe0; --m-belly: #b3a6ff; --m-dark: #231650; --m-eye: #4ade80; --m-horn: #f6ecc9; }
+.mon[data-stage='rage'] { --m-skin: #e0531f; --m-belly: #ffc09c; --m-dark: #4a1406; --m-eye: #facc15; }
+.mon[data-stage='enraged'] { --m-skin: #a3123f; --m-belly: #ff8aa6; --m-dark: #3a0414; --m-eye: #fde047; }
+.mon[data-stage='defeated'] { --m-skin: #6b7280; --m-belly: #a1a7b3; --m-dark: #1f2430; --m-eye: #9ca3af; }
+.mon-svg * { transition: fill 600ms ease; }
+.mon-skin { fill: var(--m-skin); stroke: var(--m-dark); stroke-width: 6; stroke-linejoin: round; }
+.mon-belly { fill: var(--m-belly); opacity: 0.85; }
+.mon-spikes path, .mon-foot { fill: var(--m-dark); }
+.mon-horn { fill: var(--m-horn); stroke: var(--m-dark); stroke-width: 5; stroke-linejoin: round; }
+.mon-claw, .mon-teeth path { fill: #fff7e0; stroke: var(--m-dark); stroke-width: 3; stroke-linejoin: round; }
+.mon-eye-white { fill: #fffdf5; stroke: var(--m-dark); stroke-width: 6; }
+.mon-iris { fill: var(--m-eye); }
+.mon-pupil { fill: #0b0b14; }
+.mon-brow { fill: none; stroke: var(--m-dark); stroke-width: 12; stroke-linecap: round; transition: translate 400ms ease; }
+.mon[data-stage='rage'] .mon-brow, .mon[data-stage='enraged'] .mon-brow { translate: 0 18px; }
+.mon-mouth { fill: #2a0f1f; stroke: var(--m-dark); stroke-width: 5; stroke-linejoin: round; }
+.mon-x path { stroke: var(--m-dark); stroke-width: 12; stroke-linecap: round; }
+.mon-shadow { fill: rgb(0 0 0 / 0.35); }
+.mon-cracks { display: none; fill: none; stroke: #fde047; stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 0 6px #f59e0b); }
+.mon[data-stage='enraged'] .mon-cracks { display: inline; animation: mon-glow 1.2s ease-in-out infinite; }
+.mon-steam { display: none; fill: #fff; }
+.mon[data-stage='rage'] .mon-steam, .mon[data-stage='enraged'] .mon-steam { display: inline; }
+.mon-steam circle { opacity: 0; transform-box: fill-box; transform-origin: center; animation: mon-steam 1.8s ease-out infinite; }
+.mon-steam circle:nth-child(2) { animation-delay: 0.5s; }
+.mon-steam circle:nth-child(3) { animation-delay: 0.9s; }
+.mon-steam circle:nth-child(4) { animation-delay: 1.3s; }
+.mon-body { transform-box: fill-box; transform-origin: 50% 100%; animation: mon-idle 2.8s ease-in-out infinite; }
+.mon-arm { transform-box: fill-box; transform-origin: 50% 0%; animation: mon-arm 2.8s ease-in-out infinite; }
+.mon-arm-r { animation-delay: -1.4s; }
+.mon[data-stage='rage'] .mon-body { animation-duration: 1.5s; }
+.mon[data-stage='enraged'] .mon-body { animation: mon-angry 0.7s ease-in-out infinite; }
+.mon[data-action='taking'] .mon-body { animation: mon-taking 180ms linear infinite; }
+.mon[data-action='taking'] .mon-svg { filter: brightness(1.35); }
+.mon[data-action='hit'] .mon-body { animation: mon-hit 600ms ease-out 1; }
+.mon[data-action='stagger'] .mon-body { animation: mon-stagger 1000ms cubic-bezier(0.2, 0.8, 0.3, 1) 1; }
+.mon[data-action='defeat'] .mon-body { animation: mon-defeat 1.6s cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+@keyframes mon-idle { 0%, 100% { scale: 1 1; } 50% { scale: 1.03 0.97; translate: 0 6px; } }
+@keyframes mon-arm { 0%, 100% { rotate: 0deg; } 50% { rotate: 8deg; } }
+@keyframes mon-angry { 0%, 100% { translate: 0 0; scale: 1 1; } 25% { translate: -4px 2px; } 50% { scale: 1.05 0.95; translate: 3px 6px; } 75% { translate: 4px 0; } }
+@keyframes mon-taking { 0%, 100% { translate: 0 0; } 25% { translate: 10px -3px; } 75% { translate: -6px 2px; } }
+@keyframes mon-hit { 0% { translate: 0 0; rotate: 0deg; } 25% { translate: 24px 0; rotate: 5deg; } 100% { translate: 0 0; rotate: 0deg; } }
+@keyframes mon-stagger {
+  0% { translate: 0 0; rotate: 0deg; }
+  20% { translate: 70px 10px; rotate: 12deg; scale: 1.05 0.92; }
+  45% { translate: 50px 0; rotate: 8deg; }
+  70% { translate: -10px 0; rotate: -3deg; }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+@keyframes mon-defeat {
+  0% { translate: 0 0; rotate: 0deg; }
+  20% { translate: 30px -30px; rotate: 10deg; }
+  100% { translate: 60px 70px; rotate: 24deg; scale: 1 0.8; opacity: 0.75; }
+}
+@keyframes mon-glow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes mon-steam { 0% { opacity: 0; translate: 0 10px; scale: 0.6; } 30% { opacity: 0.55; } 100% { opacity: 0; translate: 0 -40px; scale: 1.5; } }
+
+/* The class. */
+.ba-hero { position: absolute; }
+.ba-hero > .ba-fig { animation: ba-idle 2.6s ease-in-out var(--idle, 0ms) infinite; }
+.ba-hero[data-act='attack'] > .ba-fig { animation: ba-attack 720ms cubic-bezier(0.3, 0.7, 0.4, 1) var(--d) both; }
+.ba-hero[data-act='cheer'] > .ba-fig { animation: ba-cheer 640ms ease-in-out var(--d) 3; }
+@keyframes ba-idle { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+@keyframes ba-attack {
+  0% { translate: 0 0; rotate: 0deg; }
+  30% { translate: -16px 8px; rotate: -12deg; scale: 0.95; }
+  55% { translate: 46px -22px; rotate: 14deg; scale: 1.12; }
+  100% { translate: 0 0; rotate: 0deg; scale: 1; }
+}
+@keyframes ba-cheer { 0%, 100% { translate: 0 0; } 50% { translate: 0 -16px; } }
+
+/* Projectiles: the outer element moves across, the inner one along the arc. */
+.ba-shot-x { position: absolute; z-index: 1000; pointer-events: none; animation: ba-x var(--dur) linear var(--delay) both; }
+.ba-shot-y { display: block; animation: ba-y var(--dur) linear var(--delay) both; }
+@keyframes ba-x { 0% { translate: 0 0; opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { translate: var(--dx) 0; opacity: 0; } }
+@keyframes ba-y {
+  0% { translate: 0 0; animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1); }
+  50% { translate: 0 calc(var(--dy) / 2 + var(--arc)); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4); }
+  100% { translate: 0 var(--dy); }
+}
+.ba-proj { display: block; width: 38px; height: 38px; margin: -19px 0 0 -19px; }
+.ba-proj[data-kind='bolt'] { background: #fde047; clip-path: polygon(55% 0, 20% 55%, 45% 55%, 35% 100%, 85% 40%, 58% 40%); filter: drop-shadow(0 0 10px #facc15); }
+.ba-proj[data-kind='orb'] { border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #67e8f9 40%, #0891b2 75%); box-shadow: 0 0 18px #22d3ee; }
+.ba-proj[data-kind='star'] {
+  background: #f9a8d4;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  filter: drop-shadow(0 0 10px #ec4899);
+  animation: ba-spin 500ms linear infinite;
+}
+.ba-proj[data-kind='slash'] { border-radius: 50%; box-shadow: inset -9px 0 0 #e5e7eb; filter: drop-shadow(0 0 8px #fff); animation: ba-spin 300ms linear infinite; }
+@keyframes ba-spin { to { rotate: 360deg; } }
+.ba-impact {
+  position: absolute;
+  z-index: 1001;
+  pointer-events: none;
+  translate: -50% -50%;
+  opacity: 0;
+  font-weight: 900;
+  font-size: 34px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 3px 0 rgb(0 0 0 / 0.5), 0 0 14px #f59e0b;
+  animation: ba-impact 700ms ease-out var(--at) forwards;
+}
+@keyframes ba-impact { 0% { opacity: 1; scale: 0.4; } 40% { opacity: 1; scale: 1.25; } 100% { opacity: 0; scale: 1.1; translate: -50% -110%; } }
+.ba-total { z-index: 1002; animation: ba-total 600ms cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes ba-total { 0% { opacity: 0; scale: 0.3; } 100% { opacity: 1; scale: 1; } }
+
+/* The phone: my own avatar swings once. */
+.ba-hero-phone { animation: ba-attack 720ms cubic-bezier(0.3, 0.7, 0.4, 1) 350ms both; }
+
+/* Phase 2: the special attack. */
+.mon[data-action='charge'] .mon-body { animation: mon-charge 900ms ease-in 1 both; }
+.mon[data-action='charge'] .mon-svg { filter: drop-shadow(0 0 22px #fb7185) brightness(1.15); }
+.mon[data-action='heal'] .mon-svg { animation: mon-heal 1.3s ease-out 1; }
+.mon[data-action='stunned'] .mon-body { animation: mon-stunned 1.4s ease-in-out infinite; }
+.mon-stars { display: none; fill: #fde047; stroke: #92400e; stroke-width: 2; }
+.mon[data-action='stunned'] .mon-stars { display: inline; transform-box: view-box; transform-origin: 216px 70px; animation: mon-dizzy 1.6s linear infinite; }
+/* While a Rage / Enraged question runs, the monster in the HUD strip charges up. */
+.mon[data-action='brewing'] .mon-svg { animation: mon-brew 1.1s ease-in-out infinite; }
+@keyframes mon-charge { 0% { translate: 0 0; scale: 1 1; } 60% { translate: 30px 10px; scale: 1.08 0.9; } 80% { translate: -60px -10px; scale: 0.95 1.08; } 100% { translate: 0 0; scale: 1 1; } }
+@keyframes mon-heal { 0% { filter: none; } 30% { filter: drop-shadow(0 0 30px #4ade80) brightness(1.25); } 100% { filter: none; } }
+@keyframes mon-stunned { 0%, 100% { rotate: -4deg; } 50% { rotate: 4deg; translate: 0 6px; } }
+@keyframes mon-dizzy { to { rotate: 360deg; } }
+@keyframes mon-brew { 0%, 100% { filter: drop-shadow(0 0 0 transparent); } 50% { filter: drop-shadow(0 0 10px #fb7185); } }
+
+.ba-hero[data-act='brace'] > .ba-fig { animation: ba-brace 700ms ease-out var(--brace, 0ms) both; }
+@keyframes ba-brace { 0% { translate: 0 0; rotate: 0deg; } 25% { translate: -22px 4px; rotate: -10deg; } 60% { translate: 6px 0; rotate: 3deg; } 100% { translate: 0 0; rotate: 0deg; } }
+
+/* The counter-attack's shock wave rolls from the monster to the class. */
+.ba-wave {
+  position: absolute; z-index: 1003; width: 160px; height: 420px; margin-top: -60px; border-radius: 50%;
+  border-left: 18px solid #fb7185; filter: drop-shadow(0 0 18px #f43f5e); opacity: 0; pointer-events: none;
+  animation: ba-wave 800ms cubic-bezier(0.3, 0.1, 0.7, 1) both;
+}
+@keyframes ba-wave { 0% { opacity: 0; translate: 0 0; scale: 0.5 0.6; } 15% { opacity: 1; } 100% { opacity: 0; translate: -800px 0; scale: 1.2 1.3; } }
+.ba-heal { z-index: 1002; text-shadow: 0 4px 0 rgb(0 0 0 / 0.45); animation: ba-heal 1.2s ease-out both; }
+@keyframes ba-heal { 0% { opacity: 0; translate: 0 30px; } 25% { opacity: 1; translate: 0 0; } 100% { opacity: 1; translate: 0 -10px; } }
+.ba-banner { z-index: 1004; animation: ba-banner 450ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes ba-banner { 0% { opacity: 0; translate: 0 -20px; scale: 0.9; } 100% { opacity: 1; translate: 0 0; scale: 1; } }
+
+/* Announcing a mode before the question. */
+.bx-announce { animation: bx-announce 600ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes bx-announce { 0% { opacity: 0; scale: 0.6; } 100% { opacity: 1; scale: 1; } }
+
+/* Phase 3: weapons. */
+/* The class weapon, held at each avatar's side; it pops in when the class equips it. */
+.ba-weapon { position: absolute; right: -18%; bottom: -8%; width: 58%; height: 58%; rotate: 18deg; filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.4)); }
+.ba-weapon[data-equip='true'] { animation: ba-equip 650ms cubic-bezier(0.2, 1.5, 0.4, 1) var(--wd, 0ms) both; }
+@keyframes ba-equip { 0% { opacity: 0; scale: 0.2; rotate: -120deg; translate: 0 -40px; } 100% { opacity: 1; scale: 1; rotate: 18deg; translate: 0 0; } }
+.ba-proj[data-kind='fire'] { border-radius: 50% 50% 50% 0; rotate: 45deg; background: radial-gradient(circle at 60% 40%, #fef08a, #f97316 55%, #b91c1c); box-shadow: 0 0 18px #f97316; }
+.ba-proj[data-kind='ice'] { background: #e0f2fe; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); filter: drop-shadow(0 0 10px #67e8f9); animation: ba-spin 700ms linear infinite; }
+.ba-proj[data-kind='arrow'] { width: 54px; height: 10px; margin: -5px 0 0 -27px; background: linear-gradient(90deg, #c4b5fd 0 75%, #f5f3ff 75%); clip-path: polygon(0 30%, 80% 30%, 80% 0, 100% 50%, 80% 100%, 80% 70%, 0 70%); filter: drop-shadow(0 0 8px #a78bfa); rotate: -12deg; }
+.ba-proj[data-kind='crystal'] { background: linear-gradient(135deg, #ccfbf1, #14b8a6); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); filter: drop-shadow(0 0 10px #2dd4bf); }
+.ba-unlock { animation: ba-banner 450ms cubic-bezier(0.2, 1.3, 0.4, 1) both, ba-shine 1.4s ease-in-out 450ms infinite; }
+@keyframes ba-shine { 0%, 100% { box-shadow: 0 0 0 0 rgb(250 204 21 / 0.0); } 50% { box-shadow: 0 0 34px 6px rgb(250 204 21 / 0.55); } }
+
+/* The vote: the unlock title lands, the cards deal in. */
+.wx-stage { animation: wx-dim 500ms ease-out both; }
+@keyframes wx-dim { 0% { opacity: 0; filter: brightness(2.2); } 100% { opacity: 1; filter: none; } }
+.wx-title { animation: wx-title 700ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes wx-title { 0% { opacity: 0; scale: 1.6; letter-spacing: 0.2em; } 100% { opacity: 1; scale: 1; } }
+.wx-stage .wx-card { animation: wx-deal 600ms cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+.wx-stage .wx-card:nth-child(1) { animation-delay: 250ms; }
+.wx-stage .wx-card:nth-child(2) { animation-delay: 400ms; }
+.wx-stage .wx-card:nth-child(3) { animation-delay: 550ms; }
+@keyframes wx-deal { 0% { opacity: 0; translate: 0 60px; rotate: -4deg; } 100% { opacity: 1; translate: 0 0; rotate: 0deg; } }
+.wx-spin { animation: wx-spin 900ms cubic-bezier(0.2, 1.2, 0.4, 1) both; filter: drop-shadow(0 0 24px rgb(250 204 21 / 0.6)); }
+@keyframes wx-spin { 0% { opacity: 0; scale: 0.2; rotate: -540deg; } 100% { opacity: 1; scale: 1; rotate: 0deg; } }
+.wx-equip { animation: wx-title 700ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
