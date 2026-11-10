@@ -16,6 +16,8 @@ import { Playground } from '@/components/lobby/Playground';
 import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
 import { useReactions, type LiveReaction } from '@/hooks/useReactions';
 import { MusicToggle } from '@/components/audio/MusicToggle';
+import { WorldBackdrop, type WorldMood } from '@/components/world/WorldBackdrop';
+import { worldMood } from '@/lib/world';
 import { music, useReactionSounds, useSfxOn, useSoundtrack } from '@/hooks/useMusic';
 import { QrCode } from '@/components/live/QrCode';
 import { ConnectionPill } from '@/components/live/ConnectionPill';
@@ -114,7 +116,7 @@ export default function PresenterPage() {
 
   if ((lobby.status === 'in_progress' || lobby.phase === 'podium') && access.kind === 'ready' && sessionId) {
     return (
-      <Shell title={lobby.quizTitle} right={<ConnectionPill status={channel} quiet surface="night" />}>
+      <Shell title={lobby.quizTitle} mood={worldMood(game.state)} right={<ConnectionPill status={channel} quiet surface="night" />}>
         <PresenterGame client={access.client} sessionId={sessionId} game={game} players={lobby.participants} />
       </Shell>
     );
@@ -135,7 +137,7 @@ export default function PresenterPage() {
   const empty = lobby.participants.length === 0;
 
   return (
-    <Shell title={lobby.quizTitle} right={<ConnectionPill status={channel} quiet surface="night" />}>
+    <Shell title={lobby.quizTitle} mood={worldMood(game.state)} right={<ConnectionPill status={channel} quiet surface="night" />}>
       <LobbySound playerCount={lobby.participantCount} reactions={reactions} />
       <div className="grid min-h-0 flex-1 gap-8 py-[3vh] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:gap-14 [@media(max-aspect-ratio:4/3)]:grid-cols-1 [@media(max-aspect-ratio:4/3)]:grid-rows-[auto_minmax(0,1fr)]">
         {/* Join panel */}
@@ -211,6 +213,7 @@ export default function PresenterPage() {
               players={lobby.participants}
               offsetMs={game.offset}
               reactions={reactions}
+              lurker={Boolean(game.state?.battle?.enabled)}
               onInteraction={playBoing}
               variant="stage"
               label="Players"
@@ -273,9 +276,10 @@ function ProjectorStart({
   );
 }
 
-function Shell({ children, title, right }: { children: ReactNode; title?: string; right?: ReactNode }) {
+function Shell({ children, title, right, mood = 'calm' }: { children: ReactNode; title?: string; right?: ReactNode; mood?: WorldMood }) {
   return (
-    <NightCanvas className="flex h-dvh min-h-0 flex-col overflow-hidden px-[4vw]">
+    <NightCanvas className="isolate flex h-dvh min-h-0 flex-col overflow-hidden px-[4vw]">
+      <WorldBackdrop mood={mood} />
       <header className="flex items-start justify-between gap-6 pt-[3vh]">
         <ScoreBug tab="bg-signal-600" className="max-w-[70%] py-3 pr-5">
           <LogoMark tone="night" className="size-10" />

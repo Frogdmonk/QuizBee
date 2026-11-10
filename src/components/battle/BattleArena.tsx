@@ -6,7 +6,7 @@ import { planAttack } from '@/lib/battle/choreography';
 import { battleStage, hitSeverity, monsterInfo, SPECIAL_ATTACK, STAGE_LABEL } from '@/lib/battle/monster';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { music } from '@/lib/audio/engine';
-import { Avatar } from '@/components/avatar/Avatar';
+import { Hero } from '@/components/avatar/Hero';
 import type { BattleAttack, BattleState } from '@/types/game';
 import { Monster, type MonsterAction } from './Monster';
 import { WeaponIcon } from './WeaponIcon';
@@ -175,7 +175,7 @@ const Scene = memo(function Scene({
   const playing = Boolean(attack) && !reduced && step !== 'settled';
 
   return (
-    <>
+    <div className="ba-scene absolute inset-0" data-shake={step === 'landed' && severity === 'stagger' && !reduced ? 'true' : undefined}>
       {/* Monster name and health */}
       <div className="absolute top-[34px] right-[60px] left-[860px] flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-4 text-night-text">
@@ -201,6 +201,8 @@ const Scene = memo(function Scene({
         const delay = swingOf.get(p.id);
         const act = !attack || reduced ? 'idle' : step === 'counter' ? 'brace' : delay !== undefined ? 'attack' : 'cheer';
         const h = hashString(p.id);
+        // A full figure: as wide as the old head, feet where the bottom of the head used to be.
+        const w = spot.size * 0.95;
         return (
           <div
             key={p.id}
@@ -208,10 +210,10 @@ const Scene = memo(function Scene({
             data-act={act}
             style={
               {
-                left: spot.x - spot.size / 2,
-                top: spot.y - spot.size / 2,
-                width: spot.size,
-                height: spot.size,
+                left: spot.x - w / 2,
+                top: spot.y + spot.size / 2 - w * 1.5,
+                width: w,
+                height: w * 1.5,
                 zIndex: Math.round(spot.y),
                 '--d': `${delay ?? (h % 600)}ms`,
                 '--idle': `${-(h % 2600)}ms`,
@@ -219,16 +221,15 @@ const Scene = memo(function Scene({
             }
           >
             <div className="ba-fig size-full">
-              <Avatar code={p.avatar} mood={act === 'attack' && landed ? 'laugh' : act === 'attack' ? 'happy' : equipping ? 'happy' : null} className="size-full rounded-full" />
-              {held && (
-                <span
-                  className="ba-weapon"
-                  data-equip={equipping && !reduced ? 'true' : undefined}
-                  style={{ '--wd': `${300 + ((index * 70) % 1600)}ms` } as CSSProperties}
-                >
-                  <WeaponIcon weapon={held} className="size-full" />
-                </span>
-              )}
+              <Hero
+                code={p.avatar}
+                size={w}
+                pose={act === 'attack' ? 'attack' : act === 'brace' ? 'brace' : act === 'cheer' || equipping ? 'cheer' : 'idle'}
+                mood={act === 'attack' && landed ? 'laugh' : act === 'attack' ? 'happy' : equipping ? 'happy' : null}
+                weapon={held}
+                equipping={equipping && !reduced}
+                delayMs={act === 'attack' ? (delay ?? 0) : equipping ? 300 + ((index * 70) % 1600) : h % 2600}
+              />
             </div>
           </div>
         );
@@ -255,6 +256,7 @@ const Scene = memo(function Scene({
                   <span className="ba-proj" data-kind={s.kind} />
                 </span>
               </span>
+              <span className="ba-spark" style={{ left: tx, top: ty, '--at': `${s.launchMs + s.flightMs}ms` } as CSSProperties} aria-hidden />
               <span className="ba-impact" style={{ left: tx, top: ty, '--at': `${s.launchMs + s.flightMs}ms` } as CSSProperties}>
                 −{s.weight * (attack?.perHit ?? battle.baseDamage)}
               </span>
@@ -315,7 +317,9 @@ const Scene = memo(function Scene({
           )}
         </div>
       )}
-    </>
+      {/* A white flash on a big hit. */}
+      {step === 'landed' && severity === 'stagger' && !reduced && <span className="ba-flash" aria-hidden />}
+    </div>
   );
 });
 
@@ -355,7 +359,6 @@ function Backdrop() {
     <div aria-hidden className="pointer-events-none absolute inset-0">
       <div className="absolute inset-x-0 bottom-0 h-[34%] bg-[linear-gradient(to_bottom,rgb(255_255_255/0.05),rgb(255_255_255/0.015))]" />
       <svg viewBox="0 0 1600 900" className="absolute inset-0 size-full" preserveAspectRatio="none">
-        <path d="M0 600 L180 470 L320 560 L470 430 L640 560 L820 450 L980 560 L1150 420 L1330 540 L1480 460 L1600 540 L1600 900 L0 900 Z" fill="rgb(255 255 255 / 0.035)" />
         <path d="M0 640 C 400 600, 1200 600, 1600 640" stroke="rgb(255 255 255 / 0.12)" strokeWidth="3" fill="none" vectorEffect="non-scaling-stroke" />
       </svg>
     </div>

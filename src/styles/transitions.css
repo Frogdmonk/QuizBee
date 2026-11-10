@@ -1,0 +1,61 @@
+/* ── Cinematic wipes between phases (components/world/PhaseWipe) ────────────── */
+
+.phase-wipe { opacity: 0; }
+
+/* Ink brush: a ragged dark band sweeps across, covering then uncovering the screen. */
+.phase-wipe[data-kind='brush'] {
+  opacity: 1;
+  background:
+    radial-gradient(circle at 0% 20%, transparent 18px, #07060f 19px) 0 0 / 46px 46px,
+    #07060f;
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+  animation: wipe-brush 720ms cubic-bezier(0.7, 0, 0.3, 1) both;
+}
+@keyframes wipe-brush {
+  0% { clip-path: inset(0 100% 0 0); }
+  45% { clip-path: inset(0 0 0 0); }
+  55% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 0 100%); }
+}
+
+/* Slash: a bright diagonal streak flashes across. */
+.phase-wipe[data-kind='slash'] {
+  opacity: 1;
+  background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / 0.95) 49%, rgb(253 224 71 / 0.9) 51%, transparent 58%);
+  background-size: 300% 100%;
+  animation: wipe-slash 520ms cubic-bezier(0.5, 0, 0.2, 1) both;
+}
+@keyframes wipe-slash {
+  0% { background-position: 100% 0; opacity: 1; }
+  100% { background-position: 0% 0; opacity: 0.2; }
+}
+
+/* Dust: smoky clouds roll up from the ground and thin out. */
+.phase-wipe[data-kind='dust'] {
+  background:
+    radial-gradient(ellipse 30% 40% at 15% 100%, rgb(60 50 90 / 0.95), transparent 70%),
+    radial-gradient(ellipse 35% 45% at 50% 100%, rgb(45 38 70 / 0.95), transparent 70%),
+    radial-gradient(ellipse 30% 40% at 85% 100%, rgb(60 50 90 / 0.95), transparent 70%),
+    linear-gradient(to top, rgb(20 16 36 / 0.9), transparent 70%);
+  animation: wipe-dust 900ms ease-out both;
+}
+@keyframes wipe-dust {
+  0% { opacity: 0; translate: 0 60%; }
+  35% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: 0 -40%; }
+}
+
+/* Burst: a flash of warm light from the centre. */
+.phase-wipe[data-kind='burst'] {
+  background: radial-gradient(circle at 50% 55%, rgb(255 251 235 / 1), rgb(253 224 71 / 0.7) 25%, transparent 60%);
+  animation: wipe-burst 1000ms ease-out both;
+}
+@keyframes wipe-burst {
+  0% { opacity: 0; scale: 0.3; }
+  25% { opacity: 1; }
+  100% { opacity: 0; scale: 2.2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase-wipe { display: none; }
+}

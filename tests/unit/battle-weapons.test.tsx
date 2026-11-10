@@ -138,7 +138,7 @@ describe('weapons in the arena', () => {
     };
     const battle: BattleState = { enabled: true, monster: 'gloomjaw', hpSetting: null, baseDamage: 3, maxHp: 100, hp: 84, config: DEFAULT_BATTLE_CONFIG, current: null, energy: 0, armed: { shield: null, lightning: null, rally: null, scan: null }, draftPosition: null, weapon: null, vote: null, last: attack };
     render(<BattleArena battle={battle} players={[{ id: 'a', avatar: '000000000', nickname: 'A' }, { id: 'b', avatar: '000000000', nickname: 'B' }]} attack={attack} />);
-    expect(document.querySelectorAll('.ba-weapon')).toHaveLength(2);
+    expect(document.querySelectorAll('.hero-weapon')).toHaveLength(2);
     act(() => void vi.advanceTimersByTime(4000));
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent('Thunderclap! Every hit doubled · +10 weapon damage');

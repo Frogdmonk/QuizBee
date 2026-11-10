@@ -34,6 +34,7 @@ import { activeBattle, chargingNote, currentRules, modeTimer, revealAttack } fro
 import { BattleAnnounce } from '@/components/battle/BattleAnnounce';
 import { PhoneWeaponVote } from '@/components/battle/PhoneWeaponVote';
 import { PhoneDraft, PhonePowerup } from '@/components/battle/Powerups';
+import { worldMood } from '@/lib/world';
 import { useWeaponVote } from '@/hooks/useWeaponVote';
 import { LevelAnnounce, MisconceptionNote, ReviewScreen } from '@/components/learning/LearningScreens';
 import { PhoneBattleCard } from '@/components/battle/PhoneBattleCard';
@@ -116,7 +117,8 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-4 py-4">
+    <div className="relative isolate flex flex-1 flex-col gap-4 py-4">
+      {battle && <div aria-hidden className="phone-mood pointer-events-none fixed inset-0 -z-10" data-mood={worldMood(state)} />}
       <ScoreBug tab="bg-signal-400" className="w-full">
         {state.session.currentPosition !== null && phase !== 'podium' && (
           <span className="type-score text-score-sm">

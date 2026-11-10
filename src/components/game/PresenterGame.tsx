@@ -15,6 +15,8 @@ import { WeaponEquipStage, WeaponVoteStage } from '@/components/battle/WeaponVot
 import { WeaponPanel } from '@/components/battle/WeaponControls';
 import { WeaponIcon } from '@/components/battle/WeaponIcon';
 import { DraftStage, EnergyMeter, TeamAbilities } from '@/components/battle/Powerups';
+import { PhaseWipe } from '@/components/world/PhaseWipe';
+import { wipeFor } from '@/lib/world';
 import { useWeaponVote } from '@/hooks/useWeaponVote';
 import { LevelAnnounce, MasteryBanner, MisconceptionNote, ReviewScreen } from '@/components/learning/LearningScreens';
 import { LEVEL_SHORT } from '@/lib/learning';
@@ -35,7 +37,8 @@ import { CountRoll } from '@/components/ui/CountRoll';
 import { BreathingLine } from '@/components/ui/BreathingLine';
 import { Kbd } from '@/components/ui/Kbd';
 import { Spinner } from '@/components/ui/Spinner';
-import { Leaderboard, Podium } from '@/components/leaderboard/Leaderboard';
+import { Podium } from '@/components/leaderboard/Leaderboard';
+import { ClimbBoard } from '@/components/leaderboard/ClimbBoard';
 import { ReactionLayer } from '@/components/reactions/ReactionLayer';
 import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
 import { GameCommandButtons } from './GameCommandButtons';
@@ -150,6 +153,7 @@ export function PresenterGame({
       className="relative flex min-h-0 flex-1 flex-col gap-[2vh] py-[2vh]"
       style={{ '--rx-lane': lane ? 'clamp(7rem, 13vw, 13rem)' : '0px' } as CSSProperties}
     >
+      <PhaseWipe sceneKey={`${phase}:${question?.id ?? ''}`} kind={wipeFor(phase)} />
       {/* Everything important stays left of the reaction lane. */}
       <div className="flex min-h-0 flex-1 flex-col gap-[2vh] pr-[var(--rx-lane)]">
         <div className="flex min-h-[clamp(3rem,7.5vh,5.5rem)] shrink-0 items-center gap-3">
@@ -196,7 +200,7 @@ export function PresenterGame({
               </span>
             </ScoreBug>
           )}
-          {battle && (phase === 'question' || phase === 'leaderboard') && !announcing && (
+          {battle && phase === 'question' && !announcing && (
             <BattleStrip
               monster={battle.monster}
               hp={battle.hp}
@@ -290,17 +294,21 @@ export function PresenterGame({
           ) : phase === 'leaderboard' ? (
             <m.div key={`board-${position}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex min-h-0 flex-1 flex-col">
               {snapshot ? (
-                <Leaderboard snapshot={snapshot} variant="stage" className="mx-auto w-full max-w-5xl" />
+                <ClimbBoard
+                  snapshot={snapshot}
+                  monster={battle ? { key: battle.monster, hp: battle.hp, maxHp: battle.maxHp, at: battle.config } : null}
+                  className="min-h-0 w-full flex-1"
+                />
               ) : (
                 <p className="m-auto text-stage-name text-night-muted">No scores yet.</p>
               )}
               {state.rankedCount > 10 && (
-                <p className="mx-auto mt-[1.5vh] text-stage-name text-night-muted">
+                <p className="relative z-10 mx-auto mt-[1.5vh] text-stage-name text-night-muted">
                   Top 10 of {state.rankedCount} · everyone sees their own place on their phone
                 </p>
               )}
               {question && state.session.masteryEnabled && (
-                <div className="mx-auto mt-[1.5vh] w-full max-w-5xl">
+                <div className="relative z-10 mx-auto mt-[1.5vh] w-full max-w-5xl">
                   <MasteryBanner
                     question={question}
                     masteryPct={state.session.masteryPct}
@@ -341,7 +349,7 @@ export function PresenterGame({
         )}
 
         {isHost && (commands.canEnd || commands.canBoard || commands.canNext || phase !== 'podium') && (
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-night-rule pt-3" aria-label="Teacher controls">
+          <div className="relative z-10 flex flex-wrap items-center justify-end gap-3 border-t border-night-rule pt-3" aria-label="Teacher controls">
             {primary && (
               <span className="mr-auto hidden items-center gap-1.5 text-caption text-night-muted md:inline-flex">
                 <Kbd tone="night">Space</Kbd> or <Kbd tone="night">→</Kbd>

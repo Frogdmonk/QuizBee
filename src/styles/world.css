@@ -1,0 +1,54 @@
+/* ── The living world behind the projector (components/world/WorldBackdrop) ─── */
+
+.world { --hill-far: #1b1733; --hill-mid: #15122a; --hill-near: #0f0d1e; --orb: #f5f0ff; --orb-glow: rgb(196 181 253 / 0.35); --p: #e9e5ff; }
+.world[data-mood='rage'] { --hill-far: #3a1410; --hill-mid: #2a0f0c; --hill-near: #1a0a08; --orb: #fdba74; --orb-glow: rgb(249 115 22 / 0.45); --p: #fb923c; }
+.world[data-mood='enraged'] { --hill-far: #2a0a14; --hill-mid: #1d0710; --hill-near: #12050a; --orb: #fca5a5; --orb-glow: rgb(220 38 38 / 0.4); --p: #f87171; }
+.world[data-mood='victory'] .world-orb { box-shadow: 0 0 60px 24px var(--orb-glow); }
+.world[data-mood='victory'] { --hill-far: #3b2a52; --hill-mid: #2a1f40; --hill-near: #1c1530; --orb: #fef3c7; --orb-glow: rgb(253 224 71 / 0.55); --p: #fde68a; }
+
+.world-sky { transition: opacity 1.6s ease; }
+.world-sky[data-sky='calm'] { background: linear-gradient(to bottom, #0b0a1f 0%, #1c1745 55%, #3b2f6b 100%); }
+.world-sky[data-sky='rage'] { background: linear-gradient(to bottom, #12060a 0%, #4a1311 55%, #a3361a 100%); }
+.world-sky[data-sky='enraged'] { background: linear-gradient(to bottom, #050206 0%, #2a0711 50%, #5c0f1f 100%); }
+.world-sky[data-sky='victory'] { background: linear-gradient(to bottom, #1e1b4b 0%, #6d3a7a 50%, #f59e0b 100%); }
+
+.world-orb {
+  left: 53%;
+  top: 3.2vh;
+  width: clamp(2.2rem, 6vh, 3.75rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--orb);
+  /* A crescent shadow and a soft glow: reads as a moon (a sun at dawn). */
+  box-shadow: inset -0.9rem -0.4rem 0 rgb(12 10 30 / 0.55), 0 0 48px 16px var(--orb-glow);
+  opacity: 0.9;
+  transition: background 1.6s ease, box-shadow 1.6s ease;
+}
+
+.world-hills svg path { transition: fill 1.6s ease; }
+.world-far path { fill: var(--hill-far); }
+.world-mid path { fill: var(--hill-mid); }
+.world-near path { fill: var(--hill-near); }
+.world-far { height: 46%; }
+.world-near { height: 30%; }
+.world-drift { animation: world-drift 160s linear infinite; }
+.world-mid .world-drift { animation-duration: 110s; }
+.world-near .world-drift { animation-duration: 70s; }
+@keyframes world-drift { from { translate: 0 0; } to { translate: -50% 0; } }
+
+/* Particles: twinkling stars when calm, rising embers in a rage, sparkles at dawn. */
+.world-p { background: var(--p); opacity: 0; animation: world-twinkle 6s ease-in-out infinite; }
+.world[data-mood='rage'] .world-p,
+.world[data-mood='enraged'] .world-p { animation-name: world-ember; top: auto !important; bottom: -2%; box-shadow: 0 0 8px var(--p); }
+.world[data-mood='victory'] .world-p { animation-name: world-sparkle; box-shadow: 0 0 10px var(--p); }
+@keyframes world-twinkle { 0%, 100% { opacity: 0.1; } 50% { opacity: 0.8; } }
+@keyframes world-ember { 0% { opacity: 0; translate: 0 0; } 15% { opacity: 0.9; } 100% { opacity: 0; translate: 40px -70vh; } }
+@keyframes world-sparkle { 0%, 100% { opacity: 0; scale: 0.4; } 50% { opacity: 1; scale: 1.4; } }
+
+/* Lightning in the storm. */
+.world-flash { background: rgb(255 240 245 / 0.9); opacity: 0; mix-blend-mode: overlay; }
+.world[data-mood='enraged'] .world-flash { animation: world-flash 7s linear infinite; }
+@keyframes world-flash { 0%, 90%, 93%, 100% { opacity: 0; } 91% { opacity: 0.55; } 92% { opacity: 0.1; } 92.5% { opacity: 0.4; } }
+
+/* Keeps text readable: darker at the edges and behind the content. */
+.world-veil { background: radial-gradient(ellipse at 50% 45%, rgb(5 4 12 / 0.35), rgb(5 4 12 / 0.7) 100%); }

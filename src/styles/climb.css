@@ -1,0 +1,48 @@
+/* ── The Climb to the Lair (components/leaderboard/ClimbBoard) ─────────────── */
+
+.cl-glow { animation: cl-glow 2.4s ease-in-out infinite; }
+@keyframes cl-glow { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.3; } }
+
+.cl-flag { transform-box: fill-box; transform-origin: 0% 50%; animation: cl-flag 1.6s ease-in-out infinite; }
+@keyframes cl-flag { 0%, 100% { scale: 1 1; } 50% { scale: 0.85 1.05; } }
+
+.cl-crowd { animation: cl-bob 1.8s ease-in-out infinite; }
+@keyframes cl-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+
+.cl-crown { animation: cl-crown 900ms cubic-bezier(0.2, 1.4, 0.4, 1) both; filter: drop-shadow(0 4px 0 rgb(0 0 0 / 0.4)); }
+@keyframes cl-crown { 0% { opacity: 0; translate: -50% -40px; rotate: -20deg; } 100% { opacity: 1; translate: -50% 0; rotate: 0deg; } }
+
+/* A streak torch: a flickering flame on a post, bigger for longer streaks. */
+.cl-torch {
+  position: relative;
+  width: calc(26px * var(--s, 1));
+  height: calc(60px * var(--s, 1));
+  animation: cl-torch-in 500ms ease-out both;
+}
+.cl-torch::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 6px;
+  height: 45%;
+  translate: -50% 0;
+  border-radius: 2px;
+  background: #7c4a12;
+}
+.cl-torch::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 42%;
+  width: 100%;
+  height: 58%;
+  translate: -50% 0;
+  border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+  background: radial-gradient(circle at 50% 70%, #fef08a, #f97316 55%, rgb(220 38 38 / 0.85));
+  box-shadow: 0 0 24px 6px rgb(249 115 22 / 0.55);
+  transform-origin: 50% 100%;
+  animation: cl-flicker 420ms ease-in-out infinite alternate;
+}
+@keyframes cl-flicker { 0% { scale: 1 1; rotate: -4deg; } 100% { scale: 0.88 1.1; rotate: 4deg; } }
+@keyframes cl-torch-in { 0% { opacity: 0; scale: 0.4; } 100% { opacity: 1; scale: 1; } }

@@ -653,6 +653,33 @@ Planned design (ARCHITECTURE.md §3.1):
   * Client: `lib/battle/powerups.ts` (icons, abilities, `abilityStatus` mirror), `components/battle/Powerups.tsx`
     (`EnergyMeter`, `PhoneDraft`, `DraftStage`, `PhonePowerup`, `TeamAbilities`), energy in the HUD strip, team
     line in the reveal, removed answer dimmed (`QuestionStage hiddenOptionId`, phone tiles), lobby switch.
+* **Visual world (after phase 5):**
+  * `components/world/WorldBackdrop.tsx` + `styles/world.css`: one sky and landscape behind every projector
+    screen (`PresenterPage` `Shell`, `-z-10` inside an `isolate` canvas): mood skies that cross-fade, three
+    parallax hill layers drifting, stars / embers / sparkles, lightning flicker when Enraged, a crescent moon
+    (a sun at dawn), a dark veil for readability. Mood = `lib/world.ts worldMood(state)`: the monster's stage
+    (calm / rage / enraged), `victory` once defeated, calm without a battle. The arena no longer draws hills.
+  * The projector leaderboard is **The Climb to the Lair** (`components/leaderboard/ClimbBoard.tsx`,
+    `lib/leaderboard/climb.ts`, `styles/climb.css`): 10 ledges on a cliff path in a 1600×900 world (#1 at the
+    top below the lair), using the same playback engine as the list: climbers hop ledge by ledge (small rises),
+    leap in an arc (4+ places), slide down with a wobble (drops), jump up from the crowd (newcomers); torches for
+    streaks, lit ledges for the top 3, a crown on #1, the monster (or a flag) at the summit, a nameless crowd at
+    the foot for everyone else, an sr-only ordered list. The cliff bleeds past the board, so text and teacher
+    controls below it are `relative z-10`. Host laptop and phones keep the list leaderboard.
+  * Phones: `.phone-mood` tint by mood behind the game; `lib/haptics.ts buzz()` when my hit lands and when a
+    weapon is equipped (phones that support vibration; only after the person has tapped, else browsers log errors).
+  * Student figures: `components/avatar/Hero.tsx` + `styles/hero.css`: the avatar head (big, `headScale` 0.86)
+    on a body in the avatar's skin tone and shirt colour, `size` wide × 1.5 × `size` tall, feet at the bottom.
+    CSS poses: idle, attack (overhead swing, `delayMs` in time with the projectile), cheer, brace, climb, fall;
+    the class weapon in the right hand (pops in when equipped). Used in the battle arena and on the Climb (the
+    lobby playground keeps round heads: its collisions are radius-based).
+  * Cinematic wipes: `components/world/PhaseWipe.tsx` + `styles/transitions.css`, keyed by phase + question:
+    ink brush (question), slash (reveal), dust (leaderboard), light burst (podium); never on the first screen,
+    off under reduced motion. `wipeFor` in `lib/world.ts`.
+  * Impact: `.ba-spark` at every projectile hit, `.ba-scene[data-shake]` and `.ba-flash` on a stagger-sized hit.
+  * Lobby camp: `components/lobby/CampScenery.tsx` + `styles/camp.css` behind the projector playground
+    (tents, campfire, firelight, rocks), with the monster's silhouette and blinking eye on the horizon when a
+    boss battle is on (`Playground lurker`).
 * **Leaderboard animation engine** (`src/lib/leaderboard/`, pure, unit-tested, never touches scores):
   `config.ts` (all thresholds and the 4 s timeline), `movement.ts` (small/medium/major/legendary up,
   minor/medium/major/epic down, same, new), `themes.ts` (20 themes: 8 up, 7 down, 5 idle), `selection.ts`

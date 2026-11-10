@@ -1,0 +1,55 @@
+/* ── Student figures (components/avatar/Hero) ─────────────────────────────── */
+
+.hero-arm { transform-box: view-box; }
+.hero-arm-l { transform-origin: 25px 76px; }
+.hero-arm-r { transform-origin: 75px 76px; }
+.hero-leg { transform-box: view-box; transform-origin: 50% 106px; }
+.hero-head { transform-origin: 50% 100%; }
+.hero-body { transform-box: view-box; transform-origin: 50px 140px; }
+
+/* Idle: breathing and a slow sway (each figure is offset by its delay). */
+.hero[data-pose='idle'] .hero-body { animation: hero-breathe 2.6s ease-in-out var(--hd) infinite; }
+.hero[data-pose='idle'] .hero-arm-l { animation: hero-sway-l 2.6s ease-in-out var(--hd) infinite; }
+.hero[data-pose='idle'] .hero-arm-r { animation: hero-sway-r 2.6s ease-in-out var(--hd) infinite; }
+.hero[data-pose='idle'] .hero-head { animation: hero-nod 2.6s ease-in-out var(--hd) infinite; }
+@keyframes hero-breathe { 0%, 100% { scale: 1 1; } 50% { scale: 1.02 0.98; } }
+@keyframes hero-sway-l { 0%, 100% { rotate: 6deg; } 50% { rotate: 12deg; } }
+@keyframes hero-sway-r { 0%, 100% { rotate: -6deg; } 50% { rotate: -12deg; } }
+@keyframes hero-nod { 0%, 100% { translate: -50% 0; } 50% { translate: -50% 2px; } }
+
+/* Attack: wind up behind the head, swing forward, recover. */
+.hero[data-pose='attack'] .hero-arm-r { animation: hero-swing 720ms cubic-bezier(0.3, 0.7, 0.4, 1) var(--hd) both; }
+.hero[data-pose='attack'] .hero-arm-l { animation: hero-brace-l 720ms ease-out var(--hd) both; }
+@keyframes hero-swing { 0% { rotate: 0deg; } 30% { rotate: -200deg; } 60% { rotate: -40deg; } 100% { rotate: -10deg; } }
+
+/* Cheer: both arms up, bouncing. */
+.hero[data-pose='cheer'] .hero-arm-l { animation: hero-cheer-l 640ms ease-in-out var(--hd) infinite alternate; }
+.hero[data-pose='cheer'] .hero-arm-r { animation: hero-cheer-r 640ms ease-in-out var(--hd) infinite alternate; }
+@keyframes hero-cheer-l { 0% { rotate: 150deg; } 100% { rotate: 175deg; } }
+@keyframes hero-cheer-r { 0% { rotate: -150deg; } 100% { rotate: -175deg; } }
+
+/* Brace: arms up in front to shield from the counter-attack. */
+.hero[data-pose='brace'] .hero-arm-l { animation: hero-brace-l 700ms ease-out var(--hd) both; }
+.hero[data-pose='brace'] .hero-arm-r { animation: hero-brace-r 700ms ease-out var(--hd) both; }
+@keyframes hero-brace-l { 0% { rotate: 0deg; } 40%, 100% { rotate: 120deg; } }
+@keyframes hero-brace-r { 0% { rotate: 0deg; } 40%, 100% { rotate: -120deg; } }
+
+/* Climb: reaching up, hand over hand, legs stepping. */
+.hero[data-pose='climb'] .hero-arm-l { animation: hero-climb-l 380ms ease-in-out infinite alternate; }
+.hero[data-pose='climb'] .hero-arm-r { animation: hero-climb-r 380ms ease-in-out infinite alternate; }
+.hero[data-pose='climb'] .hero-leg-l { animation: hero-step 380ms ease-in-out infinite alternate; }
+.hero[data-pose='climb'] .hero-leg-r { animation: hero-step 380ms ease-in-out -190ms infinite alternate; }
+@keyframes hero-climb-l { 0% { rotate: 170deg; } 100% { rotate: 120deg; } }
+@keyframes hero-climb-r { 0% { rotate: -120deg; } 100% { rotate: -170deg; } }
+@keyframes hero-step { 0% { translate: 0 0; } 100% { translate: 0 -6px; } }
+
+/* Fall: arms flailing (a comic slide down, never a defeat pose). */
+.hero[data-pose='fall'] .hero-arm-l { animation: hero-flail-l 240ms linear infinite alternate; }
+.hero[data-pose='fall'] .hero-arm-r { animation: hero-flail-r 240ms linear infinite alternate; }
+@keyframes hero-flail-l { 0% { rotate: 120deg; } 100% { rotate: 170deg; } }
+@keyframes hero-flail-r { 0% { rotate: -170deg; } 100% { rotate: -120deg; } }
+
+/* The weapon pops into the hand when the class equips it. */
+.hero-weapon { transform-box: fill-box; transform-origin: 30% 70%; rotate: -30deg; }
+.hero-weapon-in { animation: hero-weapon-in 650ms cubic-bezier(0.2, 1.5, 0.4, 1) var(--hd) both; }
+@keyframes hero-weapon-in { 0% { opacity: 0; scale: 0.2; rotate: -200deg; } 100% { opacity: 1; scale: 1; rotate: -30deg; } }

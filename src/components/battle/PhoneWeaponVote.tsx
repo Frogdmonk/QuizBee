@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { buzz } from '@/lib/haptics';
 import { m } from 'motion/react';
 import { Check } from 'lucide-react';
 import { popIn } from '@/lib/motion';
@@ -36,6 +37,9 @@ export function PhoneWeaponVote({
   const voteKey = `${vote.id}:${vote.round}`;
   const choice = myChoice ?? (local?.key === voteKey ? local.choice : null);
   const nameOf = (key: string | null) => vote.offered.find((w) => w.key === key)?.name ?? '';
+  useEffect(() => {
+    if (stage === 'done') buzz([80, 50, 120]);
+  }, [stage, vote.id]);
 
   const cast = async (weapon: string) => {
     if (choice || busy) return;

@@ -1,0 +1,20 @@
+/* ── The lobby camp (components/lobby/CampScenery) and the lurking monster (WorldBackdrop) ── */
+
+.camp-light { animation: camp-light 1.4s ease-in-out infinite alternate; }
+@keyframes camp-light { 0% { opacity: 0.75; } 100% { opacity: 1; } }
+
+.camp-fire {
+  width: 7%;
+  aspect-ratio: 3 / 4;
+  translate: -50% -88%;
+  border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+  background: radial-gradient(circle at 50% 75%, #fef9c3, #fbbf24 35%, #f97316 60%, rgb(220 38 38 / 0.8));
+  box-shadow: 0 0 40px 14px rgb(249 115 22 / 0.45);
+  transform-origin: 50% 100%;
+  animation: camp-flicker 360ms ease-in-out infinite alternate;
+}
+@keyframes camp-flicker { 0% { scale: 1 1; rotate: -3deg; } 100% { scale: 0.9 1.08; rotate: 3deg; } }
+
+/* Gloomjaw waiting on a distant hill: a dark shape with one glowing, blinking eye. */
+.world-lurker-eye { transform-box: fill-box; transform-origin: center; animation: lurker-blink 5s ease-in-out infinite; filter: drop-shadow(0 0 6px #facc15); }
+@keyframes lurker-blink { 0%, 44%, 50%, 100% { scale: 1 1; } 47% { scale: 1 0.1; } }

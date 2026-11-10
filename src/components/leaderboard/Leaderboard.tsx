@@ -4,7 +4,8 @@ import { ArrowDown, ArrowUp, Crown, Flame, Minus, Swords } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { spring, slideFromLeft } from '@/lib/motion';
 import { nearMissMessage } from '@/lib/leaderboard/events';
-import type { LeaderboardEntry, LeaderboardSnapshot, Movement, SpecialEvent } from '@/lib/leaderboard/types';
+import { eventBanner } from '@/lib/leaderboard/banner';
+import type { LeaderboardEntry, LeaderboardSnapshot, Movement } from '@/lib/leaderboard/types';
 import { DEFAULT_LEADERBOARD_CONFIG } from '@/lib/leaderboard/config';
 import { stageAtLeast, useLeaderboardPlayback } from '@/hooks/useLeaderboardPlayback';
 import { CountRoll } from '@/components/ui/CountRoll';
@@ -26,17 +27,6 @@ const SIZES: Record<Variant, { row: string; avatar: string; name: string; score:
   panel: { row: 'min-h-14 px-3', avatar: 'size-11', name: 'text-body', score: 'text-score-md', chip: 'size-9 text-[1rem]', gap: 'gap-1.5' },
   compact: { row: 'min-h-12 px-2.5', avatar: 'size-9', name: 'text-body-sm', score: 'text-score-sm', chip: 'size-8 text-[0.95rem]', gap: 'gap-1' },
 };
-
-function eventBanner(events: SpecialEvent[], byId: Map<string, LeaderboardEntry>) {
-  const name = (id: string) => byId.get(id)?.nickname ?? 'Someone';
-  const legendary = events.find((e) => e.type === 'legendary-comeback');
-  if (legendary && legendary.type === 'legendary-comeback') return { tone: 'bg-volt-400', text: `Legendary comeback · ${name(legendary.participantId)} · ${legendary.from} → 1` };
-  const takeover = events.find((e) => e.type === 'champion-takeover');
-  if (takeover) return { tone: 'bg-rank-gold', text: `New champion · ${name(takeover.participantId)}` };
-  const defence = events.find((e) => e.type === 'champion-defence');
-  if (defence) return { tone: 'bg-rank-gold', text: `Champion defends · ${name(defence.participantId)}` };
-  return null;
-}
 
 /**
  * The animated leaderboard (top 10). Order, ranks and scores are exactly the server's; the

@@ -1,5 +1,7 @@
 import '@/styles/battle.css';
+import { useEffect } from 'react';
 import { m } from 'motion/react';
+import { buzz } from '@/lib/haptics';
 import { Swords } from 'lucide-react';
 import { popIn } from '@/lib/motion';
 import { monsterInfo, SPECIAL_ATTACK } from '@/lib/battle/monster';
@@ -25,6 +27,9 @@ export function PhoneBattleCard({
   me: { participantId: string; avatar: string };
 }) {
   const hit = attack.attackers.includes(me.participantId);
+  useEffect(() => {
+    if (hit) buzz([40, 60, 40]);
+  }, [hit, attack.questionId]);
   const name = monsterInfo(monster).name;
   const defeated = attack.hpAfter === 0 && attack.hpBefore > 0;
   const special = attack.mode && attack.mode !== 'defeated' && attack.defended !== null && !defeated ? SPECIAL_ATTACK[attack.mode] : null;

@@ -3,6 +3,7 @@ import { cn } from '@/lib/cn';
 import { PlaygroundSim, WORLD, radiusFor, staticLayout, type SimAct } from '@/lib/playground/sim';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Avatar, type AvatarMood } from '@/components/avatar/Avatar';
+import { CampScenery } from './CampScenery';
 import type { LiveReaction } from '@/hooks/useReactions';
 
 export type PlaygroundPlayer = { id: string; nickname: string; avatar: string };
@@ -29,6 +30,7 @@ export function Playground({
   offsetMs,
   reactions = [],
   highlightId,
+  lurker = false,
   onInteraction,
   variant = 'stage',
   className,
@@ -39,6 +41,8 @@ export function Playground({
   offsetMs: number;
   reactions?: readonly LiveReaction[];
   highlightId?: string | null;
+  /** The camp (stage): show the monster waiting on the horizon. */
+  lurker?: boolean;
   /** Called when two characters bump into each other and react (for sound). */
   onInteraction?: () => void;
   variant?: Variant;
@@ -187,6 +191,7 @@ export function Playground({
       className={cn('relative overflow-hidden', className)}
     >
       <div ref={worldRef} className="absolute top-0 left-0 origin-top-left" style={{ width: WORLD.width, height: WORLD.height }}>
+        {variant === 'stage' && <CampScenery lurker={lurker} />}
         {[...players.map((p) => ({ p, leaving: false })), ...gone.map((p) => ({ p, leaving: true }))].map(({ p, leaving }) => (
           <Walker
             key={(leaving ? 'gone:' : '') + p.id}
