@@ -163,6 +163,10 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
     Replaces `snapshot_eligible`, `resolve_battle`, `submit_answer` (Revival Crystal), `use_weapon_special`
     (targets via `ability_target`, Healing Wand), `battle_json`, `get_game_state` (`me.powerup`); new
     `choose_powerup`, `use_powerup`, `use_team_ability`, `set_powerup_settings`.
+13. `20261118090000_code_blocks.sql`: `code_language` / `code_content` on `quiz_questions` and
+    `session_questions` (code shown under a question, kept exactly as written, ≤ 2000 characters) and
+    `label_is_code` on `question_options` / `session_question_options` (answers that are code snippets).
+    Replaces `quiz_issues`, `copy_quiz`, `save_quiz`, `start_game`, `game_payload` with the code columns added.
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -701,6 +705,14 @@ Planned design (ARCHITECTURE.md §3.1):
   (`multiple_choice` | `true_false`), `options[{id,text}]`, `correct_answer` (an option id), `explanation`, optional
   `difficulty`, `topic`. Questions become ordinary `QuestionDraft`s (reducer action `importQuestions`), so they are
   saved by `save_quiz` and checked again by the server like hand-made questions. No new tables.
+* **Code blocks** (programming quizzes): a question may carry `code { language, content }` (python, c, cpp,
+  java; `text` for pseudo-code; other ids are stored and shown as plain text), and an answer may be a code
+  snippet (`isCode`). The JSON import accepts `"code"` on questions and on options; the prompt tells ChatGPT
+  to keep code out of `question_text`. Highlighting: `lib/code.ts` (Prism's tokenizer, rendered as React text,
+  never HTML), `components/code/CodeBlock` (display: language label, line numbers, sideways scroll) and
+  `CodeEditor` (textarea over the highlighted code; Tab indents). The projector puts code on the left and the
+  answers on the right; phones scroll long lines. **Nothing compiles or runs code.** Add a language: import its
+  Prism component in `lib/code.ts` and add a line to `LANGUAGES`.
 
 ### Next
 

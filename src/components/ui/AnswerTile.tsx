@@ -6,10 +6,16 @@ import { ANSWER_DIM, answerStyle } from '@/components/quiz/answer-styles';
 export type AnswerTileState = 'rest' | 'locked' | 'dim' | 'correct' | 'yourpick';
 export type AnswerTileSize = 'phone' | 'stage' | 'compact';
 
-const SIZES: Record<AnswerTileSize, { box: string; chip: string; label: string; panel: string }> = {
-  compact: { box: 'min-h-14', chip: 'size-8 text-[1.125rem]', label: 'text-body', panel: 'w-11' },
-  phone: { box: 'min-h-16', chip: 'size-10 text-[1.375rem]', label: 'text-[1.125rem]', panel: 'w-14' },
-  stage: { box: 'min-h-[clamp(4.5rem,11vh,8rem)]', chip: 'size-[clamp(2.5rem,6vh,4rem)] text-[clamp(1.5rem,3.6vh,2.5rem)]', label: 'text-[clamp(1.125rem,3vh,2rem)]', panel: 'w-[clamp(3.5rem,8vh,5.5rem)]' },
+const SIZES: Record<AnswerTileSize, { box: string; chip: string; label: string; code: string; panel: string }> = {
+  compact: { box: 'min-h-14', chip: 'size-8 text-[1.125rem]', label: 'text-body', code: 'text-body-sm', panel: 'w-11' },
+  phone: { box: 'min-h-16', chip: 'size-10 text-[1.375rem]', label: 'text-[1.125rem]', code: 'text-[1rem]', panel: 'w-14' },
+  stage: {
+    box: 'min-h-[clamp(4.5rem,11vh,8rem)]',
+    chip: 'size-[clamp(2.5rem,6vh,4rem)] text-[clamp(1.5rem,3.6vh,2.5rem)]',
+    label: 'text-[clamp(1.125rem,3vh,2rem)]',
+    code: 'text-[clamp(1rem,2.6vh,1.75rem)]',
+    panel: 'w-[clamp(3.5rem,8vh,5.5rem)]',
+  },
 };
 
 /**
@@ -23,6 +29,7 @@ export function AnswerTile({
   size = 'phone',
   state = 'rest',
   media,
+  code = false,
   className,
 }: {
   index: number;
@@ -30,6 +37,8 @@ export function AnswerTile({
   size?: AnswerTileSize;
   state?: AnswerTileState;
   media?: ReactNode;
+  /** The label is a code snippet: monospaced, line breaks and indentation kept. */
+  code?: boolean;
   className?: string;
 }) {
   const style = answerStyle(index);
@@ -53,7 +62,11 @@ export function AnswerTile({
       </span>
       <span className="sr-only">Answer {style.letter}: </span>
       {media && <span className="flex shrink-0 items-center p-2">{media}</span>}
-      <span className={cn('hyphens-words flex min-w-0 flex-1 items-center px-3 py-2 font-bold sm:px-4', s.label)}>{label}</span>
+      {code ? (
+        <code className={cn('flex min-w-0 flex-1 items-center px-3 py-2 font-mono font-semibold break-all whitespace-pre-wrap sm:px-4', s.code)}>{label}</code>
+      ) : (
+        <span className={cn('hyphens-words flex min-w-0 flex-1 items-center px-3 py-2 font-bold sm:px-4', s.label)}>{label}</span>
+      )}
       {state === 'correct' && (
         <span className="mr-3 grid size-8 shrink-0 place-items-center self-center rounded-full bg-success-400 text-night-950">
           <Check className="size-5" strokeWidth={3} aria-label="Correct answer" />

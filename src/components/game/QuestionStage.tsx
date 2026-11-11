@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn';
 import { mediaUrl } from '@/lib/media-url';
 import { spring } from '@/lib/motion';
 import { AnswerTile } from '@/components/ui/AnswerTile';
+import { CodeBlock } from '@/components/code/CodeBlock';
 import { answerStyle, ANSWER_DIM } from '@/components/quiz/answer-styles';
 import type { GameQuestion } from '@/types/game';
 
@@ -12,7 +13,8 @@ import type { GameQuestion } from '@/types/game';
  * correct tile is marked and each tile shows how many picked it (real counts from the server).
  *
  * `stage` (projector) fills the height it is given: centred prompt, then answer tiles that grow to
- * use the screen. `panel` (host page) is the compact flowing version.
+ * use the screen. With code, the code takes the left of the screen and the answers stack on the
+ * right, so neither covers the other. `panel` (host page) is the compact flowing version.
  */
 export function QuestionStage({
   question,
@@ -31,26 +33,40 @@ export function QuestionStage({
   const image = mediaUrl(question.imagePath);
   const stage = size === 'stage';
   const pictures = question.type === 'image_choice';
+  const code = question.code ?? null;
+  const split = stage && code !== null;
 
   return (
     <div className={cn('flex flex-col', stage ? 'h-full min-h-0 gap-[2.2vh]' : 'gap-4', className)}>
       <p
         className={cn(
           'text-pretty break-words',
-          stage ? 'type-display mx-auto max-w-[24ch] text-center text-[clamp(2rem,5.6vh,4.5rem)] leading-[1.05]' : 'type-headline text-headline',
+          split
+            ? 'type-display text-[clamp(1.5rem,4.2vh,3.25rem)] leading-[1.1]'
+            : stage
+              ? 'type-display mx-auto max-w-[24ch] text-center text-[clamp(2rem,5.6vh,4.5rem)] leading-[1.05]'
+              : 'type-headline text-headline',
         )}
       >
         {question.prompt}
       </p>
-      {image && (
+      {image && !split && (
         <div className={cn('overflow-hidden rounded-md bg-night-900', stage ? 'mx-auto max-w-[min(60%,48rem)] shrink' : 'max-w-md')}>
           <img src={image} alt="" className={cn('w-full object-contain', stage ? 'max-h-[26vh]' : 'max-h-48')} />
         </div>
       )}
+      {code && !split && <CodeBlock code={code} size="panel" className="max-h-[28rem]" />}
+      {/* With code on the projector: code on the left, answers stacked on the right. */}
+      <div className={split ? 'grid min-h-0 flex-1 grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-[2vw]' : 'contents'}>
+      {split && <CodeBlock code={code} size="stage" className="min-h-0" />}
       <div
         className={cn(
           'grid gap-[1.6vh]',
-          stage ? ['min-h-0 flex-1 auto-rows-fr grid-cols-2', image || pictures ? 'max-h-[44vh]' : 'max-h-[52vh]'] : 'md:grid-cols-2',
+          split
+            ? 'min-h-0 auto-rows-fr grid-cols-1'
+            : stage
+              ? ['min-h-0 flex-1 auto-rows-fr grid-cols-2', image || pictures ? 'max-h-[44vh]' : 'max-h-[52vh]']
+              : 'md:grid-cols-2',
         )}
       >
         {question.options.map((o, i) => {
@@ -89,6 +105,7 @@ export function QuestionStage({
                 <AnswerTile
                   index={i}
                   label={o.label}
+                  code={o.isCode}
                   size={stage ? 'stage' : 'compact'}
                   state={closed ? (correct ? 'correct' : 'dim') : 'rest'}
                   className={stage ? 'min-h-0 flex-1' : undefined}
@@ -110,6 +127,7 @@ export function QuestionStage({
             </m.div>
           );
         })}
+      </div>
       </div>
       {closed && question.explanation && (
         <m.p

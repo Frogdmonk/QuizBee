@@ -18,6 +18,7 @@ import { enterUp, popIn, spring } from '@/lib/motion';
 import { submitAnswer } from '@/services/game';
 import { friendlyError } from '@/utils/errors';
 import { AnswerTile } from '@/components/ui/AnswerTile';
+import { CodeBlock } from '@/components/code/CodeBlock';
 import { ScoreBug } from '@/components/ui/ScoreBug';
 import { LowerThird } from '@/components/ui/LowerThird';
 import { BreathingLine } from '@/components/ui/BreathingLine';
@@ -173,6 +174,8 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
             {question.imagePath && (
               <img src={mediaUrl(question.imagePath) ?? undefined} alt="" className="max-h-40 w-full rounded-md bg-night-900 object-contain" />
             )}
+            {/* Code scrolls sideways rather than shrinking, so indentation stays readable. */}
+            {question.code && <CodeBlock code={question.code} size="phone" className="max-h-[42dvh] shrink-0" />}
             {open && <Countdown remainingMs={remaining} totalSeconds={question.timeLimitSeconds} />}
 
             <div className={cn('grid gap-2', question.type === 'image_choice' && 'grid-cols-2')} role="group" aria-label="Answers">
@@ -204,7 +207,7 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
                         <span className={cn('type-stage absolute top-1.5 left-1.5 grid size-8 place-items-center rounded-[4px]', style.kit, style.fg)}>{style.letter}</span>
                       </span>
                     ) : (
-                      <AnswerTile index={i} label={o.label} size="phone" state={mine ? 'yourpick' : 'rest'} />
+                      <AnswerTile index={i} label={o.label} code={o.isCode} size="phone" state={mine ? 'yourpick' : 'rest'} />
                     )}
                   </m.button>
                 );

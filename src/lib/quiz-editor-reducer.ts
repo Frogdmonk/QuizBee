@@ -9,9 +9,9 @@ export type EditorState = {
 
 type DetailsPatch = Partial<Pick<QuizDraft, 'title' | 'description' | 'subject' | 'coverImagePath' | 'speedScoring'>>;
 type QuestionPatch = Partial<
-  Pick<QuestionDraft, 'prompt' | 'imagePath' | 'timeLimitSeconds' | 'points' | 'explanation' | 'level' | 'objective' | 'topic' | 'difficulty' | 'kind' | 'recovery'>
+  Pick<QuestionDraft, 'prompt' | 'imagePath' | 'timeLimitSeconds' | 'points' | 'explanation' | 'level' | 'objective' | 'topic' | 'difficulty' | 'kind' | 'recovery' | 'code'>
 >;
-type OptionPatch = Partial<Pick<OptionDraft, 'label' | 'imagePath' | 'misconception'>>;
+type OptionPatch = Partial<Pick<OptionDraft, 'label' | 'imagePath' | 'misconception' | 'isCode'>>;
 
 export type EditorAction =
   | { type: 'load'; draft: QuizDraft; saved: boolean }
@@ -36,7 +36,7 @@ export function initEditor(draft: QuizDraft, saved: boolean): EditorState {
 
 /** The untouched starter question of a new quiz: replaced by an import instead of kept as a blank. */
 export function isBlankQuestion(q: QuestionDraft): boolean {
-  return !q.prompt.trim() && !q.imagePath && !q.explanation.trim() && !q.recovery && q.options.every((o) => (q.type === 'true_false' || !o.label.trim()) && !o.imagePath && !o.isCorrect);
+  return !q.prompt.trim() && !q.imagePath && !q.explanation.trim() && !q.recovery && !q.code && q.options.every((o) => (q.type === 'true_false' || !o.label.trim()) && !o.imagePath && !o.isCorrect);
 }
 
 function mapQuestion(draft: QuizDraft, key: string, fn: (q: QuestionDraft) => QuestionDraft): QuizDraft {

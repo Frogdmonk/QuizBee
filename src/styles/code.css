@@ -1,0 +1,89 @@
+/* ── Code blocks in questions (components/code) ──────────────────────────────
+   Token colours keep ≥ 4.5:1 contrast on their surface: night (phones, projector, host panel)
+   and paper (the teacher's editor and importer). Comments are also italic, so colour is never
+   the only difference. */
+
+.code-night {
+  --code-bg: #101317;
+  --code-head: #1a1d21;
+  --code-line: #343a42;
+  --code-text: #eef0ec;
+  --code-muted: #8f98a3;
+  --tok-keyword: #ff8f6b;
+  --tok-string: #a8e07a;
+  --tok-comment: #8f98a3;
+  --tok-number: #f5c451;
+  --tok-function: #7cc4ff;
+  --tok-type: #5fd3c4;
+  --tok-operator: #c9ced4;
+  --tok-punctuation: #aab1b9;
+  --tok-meta: #d6a5ff;
+}
+
+.code-paper {
+  --code-bg: #fbfaf7;
+  --code-head: #f1efe9;
+  --code-line: #ddd9cf;
+  --code-text: #121214;
+  --code-muted: #5e5a53;
+  --tok-keyword: #a3215b;
+  --tok-string: #0f6b3a;
+  --tok-comment: #5e5a53;
+  --tok-number: #1f45c2;
+  --tok-function: #8a4b00;
+  --tok-type: #0a6e63;
+  --tok-operator: #3a3732;
+  --tok-punctuation: #5e5a53;
+  --tok-meta: #6b2fb3;
+}
+
+.code-block { background: var(--code-bg); border-color: var(--code-line); color: var(--code-text); }
+.code-head { background: var(--code-head); border-color: var(--code-line); color: var(--code-muted); }
+.code-gutter { color: var(--code-muted); border-right: 1px solid var(--code-line); }
+.code-copy { color: var(--code-muted); }
+.code-copy:hover { color: var(--code-text); background: var(--code-line); }
+.code-pre { tab-size: 4; font-variant-ligatures: none; }
+
+.tok-keyword, .tok-boolean, .tok-directive, .tok-important { color: var(--tok-keyword); font-weight: 600; }
+.tok-string, .tok-char, .tok-triple-quoted-string, .tok-template-string, .tok-attr-value { color: var(--tok-string); }
+.tok-comment, .tok-prolog, .tok-doctype, .tok-cdata { color: var(--tok-comment); font-style: italic; }
+.tok-number, .tok-constant, .tok-symbol { color: var(--tok-number); }
+.tok-function, .tok-function-definition { color: var(--tok-function); }
+.tok-class-name, .tok-builtin, .tok-namespace, .tok-generics { color: var(--tok-type); }
+.tok-operator { color: var(--tok-operator); }
+.tok-punctuation { color: var(--tok-punctuation); }
+.tok-macro, .tok-annotation, .tok-decorator, .tok-property { color: var(--tok-meta); }
+/* Inside a directive (#include <stdio.h>) the path keeps the string colour. */
+.tok-macro .tok-string { color: var(--tok-string); }
+
+/* The editor: a transparent textarea over the highlighted code, same metrics. */
+.code-editor { position: relative; }
+.code-editor textarea,
+.code-editor .code-editor-layer {
+  margin: 0;
+  border: 0;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  tab-size: 4;
+  white-space: pre;
+  overflow-wrap: normal;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}
+.code-editor textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--code-text);
+  outline: none;
+}
+.code-editor textarea::selection { background: rgb(31 69 194 / 0.25); color: transparent; }
+.code-editor textarea::placeholder { color: var(--code-muted); }
+.code-editor .code-editor-layer { pointer-events: none; min-height: 100%; }

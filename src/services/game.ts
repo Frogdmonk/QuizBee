@@ -49,6 +49,7 @@ export type RawState = {
     type: GameQuestion['type'];
     prompt: string;
     image_path: string | null;
+    code?: { language: string; content: string } | null;
     time_limit_seconds: number;
     points: number;
     status: GameQuestion['status'];
@@ -76,7 +77,7 @@ export type RawState = {
       explanation: string | null;
       correct_label: string | null;
     } | null;
-    options: { id: string; position: number; label: string; image_path: string | null }[];
+    options: { id: string; position: number; label: string; image_path: string | null; is_code?: boolean }[];
     correct_option_id: string | null;
     explanation: string | null;
     distribution: Record<string, number> | null;
@@ -406,6 +407,8 @@ export function toGameState(r: RawState): GameState {
       type: r.question.type,
       prompt: r.question.prompt,
       imagePath: r.question.image_path,
+      // Older servers (before code blocks) send no code.
+      code: r.question.code ?? null,
       timeLimitSeconds: r.question.time_limit_seconds,
       points: r.question.points,
       status: r.question.status,
@@ -437,7 +440,7 @@ export function toGameState(r: RawState): GameState {
             correctLabel: r.question.review.correct_label,
           }
         : null,
-      options: r.question.options.map((o) => ({ id: o.id, position: o.position, label: o.label, imagePath: o.image_path })),
+      options: r.question.options.map((o) => ({ id: o.id, position: o.position, label: o.label, imagePath: o.image_path, isCode: o.is_code ?? false })),
       correctOptionId: r.question.correct_option_id,
       explanation: r.question.explanation,
       distribution: r.question.distribution,

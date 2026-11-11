@@ -3,7 +3,8 @@ import type { SessionPhase, SessionStatus } from './session';
 
 export type GameRole = 'host' | 'presenter' | 'player';
 
-export type GameOption = { id: string; position: number; label: string; imagePath: string | null };
+/** `isCode`: the answer is a short code snippet (monospaced). */
+export type GameOption = { id: string; position: number; label: string; imagePath: string | null; isCode?: boolean };
 
 export type GameQuestion = {
   id: string;
@@ -11,6 +12,8 @@ export type GameQuestion = {
   type: 'multiple_choice' | 'true_false' | 'image_choice';
   prompt: string;
   imagePath: string | null;
+  /** Source code shown under the question (display only), or null. */
+  code?: { language: string; content: string } | null;
   timeLimitSeconds: number;
   points: number;
   status: 'pending' | 'open' | 'closed';

@@ -81,6 +81,8 @@ export type Database = {
           difficulty: 'easy' | 'medium' | 'hard' | null;
           kind: 'recall' | 'concept' | 'application' | 'predict' | 'bug' | 'multistep' | null;
           recovery: Json | null;
+          code_language: string | null;
+          code_content: string | null;
         };
         Insert: never;
         Update: never;
@@ -103,6 +105,7 @@ export type Database = {
           image_path: string | null;
           is_correct: boolean;
           misconception: string;
+          label_is_code: boolean;
         };
         Insert: never;
         Update: never;

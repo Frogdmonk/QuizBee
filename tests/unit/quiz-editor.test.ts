@@ -78,7 +78,7 @@ describe('question rules (mirror of private.quiz_issues)', () => {
     const payload = toSavePayload(draft);
     expect(payload.title).toBe('Quiz');
     expect(payload.questions[0]).toMatchObject({ prompt: 'Q', time_limit_seconds: 20, points: 1000 });
-    expect(payload.questions[0].options[0]).toEqual({ label: 'Paris', image_path: null, is_correct: true, misconception: '' });
+    expect(payload.questions[0].options[0]).toEqual({ label: 'Paris', image_path: null, is_correct: true, misconception: '', is_code: false });
     expect(payload.questions[0]).toMatchObject({ level: null, objective: '', kind: null, recovery: null });
   });
 });

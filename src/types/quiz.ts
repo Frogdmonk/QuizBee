@@ -9,7 +9,12 @@ export type OptionDraft = {
   isCorrect: boolean;
   /** For a wrong answer: why a student might pick it (shown to the class when it is the most common mistake). */
   misconception: string;
+  /** The answer is a short code snippet (shown in a monospaced font). */
+  isCode: boolean;
 };
+
+/** Source code shown under a question (only displayed; never run). `language` is an id such as python, c, cpp, java. */
+export type QuestionCode = { language: string; content: string };
 
 /** 1–3 = learning levels, 4 = the final mixed-concept challenge. */
 export type QuestionLevel = 1 | 2 | 3 | 4;
@@ -39,6 +44,8 @@ export type QuestionDraft = {
   difficulty: QuestionDifficulty | null;
   kind: QuestionKind | null;
   recovery: RecoveryDraft | null;
+  /** Code block shown under the question text, or null. */
+  code: QuestionCode | null;
 };
 
 export type QuizDraft = {

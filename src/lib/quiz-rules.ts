@@ -1,4 +1,5 @@
 import { LEARNING_LIMITS, recoveryIssues } from '@/lib/learning';
+import { CODE_LIMITS } from '@/lib/code';
 import type { OptionDraft, QuestionDraft, QuestionType, QuizDraft } from '@/types/quiz';
 
 /* Limits shared with supabase/migrations/*_phase2_quizzes.sql — keep in sync. */
@@ -43,7 +44,7 @@ export function newKey(): string {
 }
 
 export function newOption(label = ''): OptionDraft {
-  return { key: newKey(), label, imagePath: null, isCorrect: false, misconception: '' };
+  return { key: newKey(), label, imagePath: null, isCorrect: false, misconception: '', isCode: false };
 }
 
 function trueFalseOptions(previous?: OptionDraft[]): OptionDraft[] {
@@ -72,6 +73,7 @@ export function newQuestion(type: QuestionType = 'multiple_choice'): QuestionDra
     difficulty: null,
     kind: null,
     recovery: null,
+    code: null,
   };
 }
 
@@ -112,6 +114,7 @@ export function questionIssues(q: QuestionDraft): string[] {
   if (q.type !== 'image_choice' && q.options.some((o) => o.label.trim() === '')) issues.push('Fill in every answer.');
   if (q.type === 'image_choice' && q.options.some((o) => !o.imagePath)) issues.push('Add an image to every answer.');
   if (q.options.filter((o) => o.isCorrect).length !== 1) issues.push('Mark the correct answer.');
+  if (q.code && q.code.content.trim() === '') issues.push('Add the code, or remove the code block.');
   issues.push(...recoveryIssues(q.recovery));
   return issues;
 }
@@ -151,6 +154,7 @@ export function saveBlockers(draft: QuizDraft): string[] {
     if (q.prompt.trim().length > LIMITS.promptMax) out.push(`Question ${i + 1}: the question text is too long.`);
     if (q.explanation.trim().length > LIMITS.explanationMax) out.push(`Question ${i + 1}: the explanation is too long.`);
     if (q.options.some((o) => o.label.trim().length > LIMITS.optionLabelMax)) out.push(`Question ${i + 1}: an answer is too long.`);
+    if (q.code && q.code.content.length > CODE_LIMITS.contentMax) out.push(`Question ${i + 1}: the code can be at most ${CODE_LIMITS.contentMax} characters.`);
     if (q.objective.trim().length > LEARNING_LIMITS.objectiveMax) out.push(`Question ${i + 1}: the learning objective is too long.`);
     if (q.topic.trim().length > LEARNING_LIMITS.topicMax) out.push(`Question ${i + 1}: the topic is too long.`);
     if (q.options.some((o) => o.misconception.trim().length > LEARNING_LIMITS.misconceptionMax)) out.push(`Question ${i + 1}: a misconception note is too long.`);
@@ -184,7 +188,9 @@ export function toSavePayload(draft: QuizDraft) {
       time_limit_seconds: q.timeLimitSeconds,
       points: q.points,
       explanation: q.explanation.trim(),
-      options: q.options.map((o) => ({ label: o.label.trim(), image_path: o.imagePath, is_correct: o.isCorrect, misconception: o.misconception.trim() })),
+      // Code is kept exactly as written (no trimming: indentation matters).
+      code: q.code && { language: q.code.language, content: q.code.content },
+      options: q.options.map((o) => ({ label: o.label.trim(), image_path: o.imagePath, is_correct: o.isCorrect, misconception: o.misconception.trim(), is_code: o.isCode })),
       level: q.level,
       objective: q.objective.trim(),
       topic: q.topic.trim(),

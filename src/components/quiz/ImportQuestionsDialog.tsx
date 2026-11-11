@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { SelectField, TextAreaField } from '@/components/ui/FormControls';
 import { TextField } from '@/components/ui/TextField';
 import { CorrectToggle } from './QuestionEditor';
+import { CodeAnswerToggle, QuestionCodeField } from '@/components/code/QuestionCodeField';
 import { answerStyle } from './answer-styles';
 import { useToast } from '@/hooks/useToast';
 import { copyText } from '@/utils/clipboard';
@@ -68,7 +69,6 @@ export function ImportQuestionsDialog({
   // The quiz's starter question doesn't count: an import replaces it.
   const blankStarter = existing.length === 1 && isBlankQuestion(existing[0]);
   const existingCount = blankStarter ? 0 : existing.length;
-  const existingPrompts = useMemo(() => existing.map((q) => q.prompt), [existing]);
 
   const reset = () => {
     setStep('prompt');
@@ -115,7 +115,7 @@ export function ImportQuestionsDialog({
             Next: paste the JSON
           </Button>
         ) : step === 'paste' ? (
-          <PasteFooter json={json} check={check} existingCount={existingCount} setCheck={setCheck} existingPrompts={existingPrompts} onBack={() => setStep('prompt')} onReview={startReview} />
+          <PasteFooter json={json} check={check} existingCount={existingCount} setCheck={setCheck} existing={existing} onBack={() => setStep('prompt')} onReview={startReview} />
         ) : (
           <>
             <Button variant="ghost" leftIcon={<ArrowLeft className="size-4" />} onClick={() => setStep('paste')}>
@@ -386,7 +386,7 @@ function PasteFooter({
   check,
   setCheck,
   existingCount,
-  existingPrompts,
+  existing,
   onBack,
   onReview,
 }: {
@@ -394,7 +394,7 @@ function PasteFooter({
   check: ImportCheck | null;
   setCheck: (c: ImportCheck | null) => void;
   existingCount: number;
-  existingPrompts: readonly string[];
+  existing: readonly QuestionDraft[];
   onBack: () => void;
   onReview: (questions: QuestionDraft[]) => void;
 }) {
@@ -413,7 +413,7 @@ function PasteFooter({
           {validItems.length === 1 ? 'Review the 1 valid question only' : `Review the ${validItems.length} valid questions only`}
         </Button>
       )}
-      <Button variant={ready ? 'secondary' : 'primary'} disabled={!json.trim()} onClick={() => setCheck(checkImport(json, { existingPrompts }))}>
+      <Button variant={ready ? 'secondary' : 'primary'} disabled={!json.trim()} onClick={() => setCheck(checkImport(json, { existing }))}>
         Validate JSON
       </Button>
       <Button variant="primary" rightIcon={<ArrowRight className="size-4" />} disabled={!ready} onClick={() => check && onReview(check.items.map((i) => i.draft!))}>
@@ -518,6 +518,8 @@ function ReviewCard({
         className="[&_textarea]:min-h-0"
       />
 
+      <QuestionCodeField question={q} dispatch={dispatch} label={`Question ${n} code`} />
+
       <fieldset className="space-y-2">
         <legend className="text-label text-ink-900">
           Answers <span className="font-normal text-ink-500">· tick the correct one</span>
@@ -542,8 +544,15 @@ function ReviewCard({
                   aria-label={`Question ${n} answer ${style.letter}`}
                   placeholder={`Answer ${style.letter}`}
                   onChange={(e) => dispatch({ type: 'updateOption', questionKey: q.key, optionKey: option.key, patch: { label: e.target.value } })}
-                  className="h-10 min-w-0 flex-1 rounded-xs border border-transparent bg-transparent px-2 text-body outline-none read-only:cursor-default focus:border-line-strong focus:bg-surface"
+                  className={cn('h-10 min-w-0 flex-1 rounded-xs border border-transparent bg-transparent px-2 text-body outline-none read-only:cursor-default focus:border-line-strong focus:bg-surface', option.isCode && 'font-mono text-body-sm')}
                 />
+                {!trueFalse && (
+                  <CodeAnswerToggle
+                    option={option}
+                    letter={style.letter}
+                    onToggle={() => dispatch({ type: 'updateOption', questionKey: q.key, optionKey: option.key, patch: { isCode: !option.isCode } })}
+                  />
+                )}
                 <CorrectToggle checked={option.isCorrect} letter={style.letter} onSelect={() => dispatch({ type: 'setCorrect', questionKey: q.key, optionKey: option.key })} />
                 {!trueFalse && q.options.length > LIMITS.minOptions && (
                   <IconButton label={`Remove answer ${style.letter} from question ${n}`} danger onClick={() => dispatch({ type: 'removeOption', questionKey: q.key, optionKey: option.key })}>

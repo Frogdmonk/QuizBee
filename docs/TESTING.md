@@ -160,6 +160,27 @@ Machine check in Chromium (mocked server): prompt step, partly broken JSON with 
 valid question only", sample validated, review and edit, questions added to a new quiz (title filled, Publish READY),
 phone width without overflow; the only outside requests were the app's usual teacher-profile reads.
 
+### Code blocks coverage (programming questions)
+
+| Area | Tests |
+|---|---|
+| Database (`code-blocks.test.ts`) | code and code answers stored exactly (indentation, blank line, tab, quotes, backslash); copied with the quiz; missing/bad language, non-text and > 2000 characters refused; an unknown language kept as written; empty code blocks publishing; the game sends `code` and `is_code`, and the running game keeps its snapshot after the quiz is edited |
+| Logic and screens (`code-blocks.test.tsx`) | language names and aliases; Python/C/C++/Java highlighting (keywords, strings, comments, numbers, operators, functions, directives) without losing a character; code shown exactly; HTML in code stays text; projector font by length; no eval/fetch/innerHTML in the code feature; the editor's Tab indent and language change; save payload keeps code untrimmed; projector layout (code left, answers right), host panel, code answers in monospace; import of Python/C/C++/Java next to ordinary and true/false questions; code errors with question numbers; code answers; duplicates compare code |
+
+Machine check in Chromium (mocked server): projector at 1920×1080 (code beside the answers) and 1024×768 reveal;
+phone with long Java lines scrolling sideways (no page overflow); importer review editing code with Tab, Esc
+not closing the dialog; the editor and student preview showing the edited code.
+
+## Manual checklist: code blocks
+
+Run `20261118090000_code_blocks.sql` in the Supabase SQL Editor first.
+
+1. In a quiz, press **Add code** under a question, choose Python, paste a loop with indentation. Mark one answer as code with the `<>` button.
+2. Save, reload the editor: the code and its indentation are unchanged.
+3. Import JSON with Python, C, C++ and Java questions (use ChatGPT with the built-in prompt, or the sample). Each shows its language.
+4. Host it: the projector shows the code on the left and the answers on the right; a phone shows the code above the answers and scrolls long lines sideways; the reveal keeps the code.
+5. Try a code block with only spaces: the quiz cannot be published until code is added or the block removed.
+
 ## Manual checklist: importing questions from ChatGPT
 
 1. Open **My Quizzes → New quiz** and press **Import using ChatGPT** under the question list.

@@ -1,6 +1,7 @@
 import { LEARNING_LIMITS } from '@/lib/learning';
 import { LIMITS, newOption, newQuestion, questionIssues } from '@/lib/quiz-rules';
-import type { QuestionDifficulty, QuestionDraft } from '@/types/quiz';
+import { CODE_LIMITS, normaliseLanguage } from '@/lib/code';
+import type { QuestionCode, QuestionDifficulty, QuestionDraft } from '@/types/quiz';
 
 /*
  * Importing questions written by ChatGPT (or by hand) as JSON.
@@ -66,6 +67,24 @@ export const SAMPLE_IMPORT = {
       difficulty: 'easy',
       topic: 'Dictionary Fundamentals',
     },
+    {
+      question_text: 'What will be the output of the following Python program?',
+      question_type: 'multiple_choice',
+      code: {
+        language: 'python',
+        content: 'stock = {"apples": 3, "pears": 5}\nstock["apples"] += 2\n\nprint(stock["apples"] + stock["pears"])',
+      },
+      options: [
+        { id: 'A', text: '8' },
+        { id: 'B', text: '10' },
+        { id: 'C', text: '5' },
+        { id: 'D', text: '7' },
+      ],
+      correct_answer: 'B',
+      explanation: 'stock["apples"] becomes 3 + 2 = 5, and 5 + stock["pears"] (5) prints 10.',
+      difficulty: 'medium',
+      topic: 'Updating Dictionaries',
+    },
   ],
 } as const;
 
@@ -84,7 +103,7 @@ export function buildChatGptPrompt({ count, mix, audience }: PromptOptions): str
         ? `Generate only multiple-choice questions (${mc}).`
         : `Generate both multiple-choice and true/false questions: ${mc} multiple-choice and ${tf} true/false.`;
   const lines = [
-    'You are an educational assessment specialist.',
+    'You are an educational assessment specialist with expertise in programming education.',
     '',
     'I have uploaded a PowerPoint presentation. Analyse its contents carefully and generate quiz questions based strictly on the information contained in the presentation.',
     '',
@@ -108,10 +127,34 @@ export function buildChatGptPrompt({ count, mix, audience }: PromptOptions): str
     '14. Do not make all correct multiple-choice answers follow the same option pattern: vary which letter is correct.',
     '15. Ensure the output follows the exact JSON schema supplied below.',
     '',
+    'Programming questions:',
+    '',
+    'For questions involving programming, source code, program output, debugging, syntax, loops, conditions, functions, data structures or other programming concepts:',
+    '',
+    '1. Keep the question text separate from the code.',
+    '2. Include the programming code in a separate "code" object: {"language": "…", "content": "…"}.',
+    '3. Explicitly identify the programming language.',
+    '4. Preserve correct syntax.',
+    '5. Preserve all line breaks and indentation (use spaces for indentation).',
+    '6. Use escaped newline characters (\\n) inside "content", as JSON requires.',
+    '7. Never place the source code inside the "question_text" field.',
+    '8. Never place source code inside the answer options unless the option itself is intentionally a code snippet.',
+    '9. Ensure the code is relevant to the question.',
+    '10. Do not invent code examples that introduce concepts absent from the presentation unless the task explicitly requires an application question supported by those concepts.',
+    '',
+    'Supported language identifiers: "python", "c", "cpp", "java".',
+    '',
+    'For non-programming questions, omit the "code" field entirely.',
+    '',
+    'If an answer option itself needs to be a code snippet, write it as {"id": "A", "code": {"language": "python", "content": "…"}} instead of "text", keeping its unique id. Keep code options short (at most 120 characters).',
+    '',
+    'Ensure that "correct_answer" always references the id of the correct option.',
+    '',
     'Limits (questions that break them cannot be imported):',
     '',
     `- "question_text": at most ${LIMITS.promptMax} characters.`,
     `- Each option "text": at most ${LIMITS.optionLabelMax} characters.`,
+    `- "code" "content": at most ${CODE_LIMITS.contentMax} characters (about 40 short lines).`,
     `- "explanation": at most ${LIMITS.explanationMax} characters.`,
     `- "topic": at most ${LEARNING_LIMITS.topicMax} characters, naming the presentation section the question tests.`,
     '- "difficulty": "easy", "medium" or "hard".',
@@ -272,7 +315,7 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : null);
 
 /** Checks pasted JSON against the import schema. Never drops a question: every one is reported. */
-export function checkImport(raw: string, options: { existingPrompts?: readonly string[] } = {}): ImportCheck {
+export function checkImport(raw: string, options: { existing?: readonly { prompt: string; code?: { content: string } | null }[] } = {}): ImportCheck {
   if (raw.trim() === '') return emptyCheck(['Paste the JSON from ChatGPT first.']);
   if (raw.length > IMPORT_LIMITS.maxChars) {
     return emptyCheck([`That is too long to be one quiz (over ${IMPORT_LIMITS.maxChars.toLocaleString('en')} characters). Paste only the JSON for one quiz.`]);
@@ -307,12 +350,13 @@ export function checkImport(raw: string, options: { existingPrompts?: readonly s
     return { ...emptyCheck([`There are ${root.questions.length} questions. A quiz can have at most ${LIMITS.maxQuestions}.`], notes), quizErrors, title, description };
   }
 
-  const existing = new Set((options.existingPrompts ?? []).map(normaliseText).filter(Boolean));
+  const existing = new Set((options.existing ?? []).map((q) => questionIdentity(q.prompt, q.code)).filter(Boolean));
   const seen = new Map<string, number>();
   const items = root.questions.map((q, i): ImportItem => {
     const number = i + 1;
     const item = checkQuestion(q, number);
-    const text = isObject(q) && typeof q.question_text === 'string' ? normaliseText(q.question_text) : '';
+    const rawCode = isObject(q) && isObject(q.code) && typeof q.code.content === 'string' ? { content: q.code.content } : null;
+    const text = isObject(q) && typeof q.question_text === 'string' ? questionIdentity(q.question_text, rawCode) : '';
     if (text) {
       const earlier = seen.get(text);
       if (earlier !== undefined) item.errors.push(`Same question as question ${earlier}.`);
@@ -350,8 +394,12 @@ function checkQuestion(q: unknown, number: number): ImportItem {
   else if ((SUPPORTED_TYPES as readonly string[]).includes(rawType)) type = rawType as SupportedType;
   else errors.push(`Unsupported question type "${String(q.question_type)}". Use "multiple_choice" or "true_false".`);
 
-  // Options
-  type Opt = { id: string; text: string };
+  // Code shown with the question (optional)
+  const code = checkCode(q.code, 'Code', errors);
+  if (prompt.includes('```')) errors.push('The question text contains a code fence (```). Put the code in the "code" object instead.');
+
+  // Options (an option is text, or a short code snippet: { "id", "code": { "language", "content" } })
+  type Opt = { id: string; text: string; isCode: boolean };
   const opts: Opt[] = [];
   if (q.options === undefined) errors.push('Answer options ("options") are missing.');
   else if (!Array.isArray(q.options)) errors.push('"options" must be a list.');
@@ -360,12 +408,18 @@ function checkQuestion(q: unknown, number: number): ImportItem {
       const at = `Option ${j + 1}`;
       if (!isObject(o)) return void errors.push(`${at} must be an object with "id" and "text".`);
       const id = str(o.id)?.trim() ?? '';
-      const text = str(o.text)?.trim() ?? '';
+      const plain = str(o.text)?.trim() ?? '';
+      const snippet = o.code === undefined || o.code === null ? null : checkCode(o.code, `${at} code`, errors);
+      if (snippet && plain && plain !== snippet.content.trim()) errors.push(`${at} has both "text" and "code". Give one of them.`);
+      const text = snippet ? snippet.content.trim() : plain;
       if (!id) errors.push(`${at} has no "id".`);
-      if (!text) errors.push(`${at} has no "text".`);
+      if (o.code !== undefined && o.code !== null && !snippet) {
+        // checkCode already reported the problem.
+      } else if (!text) errors.push(`${at} has no "text".`);
       else if (text.length > LIMITS.optionLabelMax) errors.push(`${at} is ${text.length} characters; an answer can be at most ${LIMITS.optionLabelMax}.`);
-      opts.push({ id, text });
+      opts.push({ id, text, isCode: Boolean(snippet) });
     });
+    if (type === 'true_false' && opts.some((o) => o.isCode)) errors.push('True/false answers cannot be code.');
     const ids = opts.map((o) => o.id.toUpperCase()).filter(Boolean);
     if (new Set(ids).size !== ids.length) errors.push('Two options have the same id.');
     const texts = opts.map((o) => o.text.toLowerCase()).filter(Boolean);
@@ -427,18 +481,55 @@ function checkQuestion(q: unknown, number: number): ImportItem {
     explanation,
     difficulty,
     topic,
+    code,
     options:
       type === 'true_false'
         ? // Rally always shows True first; keep whichever one ChatGPT marked correct.
           base.options.map((o) => ({ ...o, isCorrect: o.label.toLowerCase() === correctText }))
-        : opts.map((o, j) => ({ ...newOption(o.text), isCorrect: j === correctIndex })),
+        : opts.map((o, j) => ({ ...newOption(o.text), isCorrect: j === correctIndex, isCode: o.isCode })),
   };
   return { number, label, errors: [], draft };
+}
+
+/**
+ * A code object: { "language": "python" | "c" | "cpp" | "java" | "text", "content": "…" }.
+ * The content is kept exactly as JSON decoded it (newlines, indentation, quotes, backslashes);
+ * only Windows line endings become plain newlines. Nothing is compiled or run.
+ */
+function checkCode(value: unknown, what: string, errors: string[]): QuestionCode | null {
+  if (value === undefined || value === null) return null;
+  if (!isObject(value)) {
+    errors.push(`${what} must be an object with "language" and "content".`);
+    return null;
+  }
+  const before = errors.length;
+  let language: string | null = null;
+  if (value.language === undefined || value.language === null || value.language === '') errors.push(`${what}: the language ("language") is missing.`);
+  else if (typeof value.language !== 'string') errors.push(`${what}: "language" must be text.`);
+  else {
+    language = normaliseLanguage(value.language);
+    if (!language) errors.push(`${what}: unsupported language identifier "${value.language}". Use ${SUPPORTED_LANGUAGE_LIST}.`);
+  }
+  const content = typeof value.content === 'string' ? value.content.replace(/\r\n?/g, '\n') : null;
+  if (value.content === undefined || value.content === null || (content !== null && content.trim() === '')) errors.push(`${what} content is missing.`);
+  else if (content === null) errors.push(`${what} content must be text (with \\n for new lines).`);
+  else if (content.length > CODE_LIMITS.contentMax) errors.push(`${what} is ${content.length} characters; the limit is ${CODE_LIMITS.contentMax}.`);
+  return errors.length > before || !language || content === null ? null : { language, content };
+}
+
+const SUPPORTED_LANGUAGE_LIST = '"python", "c", "cpp" or "java"';
+
+/** What makes two questions "the same": the text plus any code (the same text can ask about different code). */
+export function questionIdentity(prompt: string, code: { content: string } | null | undefined): string {
+  const text = normaliseText(prompt);
+  if (!text) return '';
+  return code ? `${text}\u0000${code.content.replace(/\s+/g, ' ').trim()}` : text;
 }
 
 /** Problems with a question while it is reviewed before import (after the teacher's edits). */
 export function reviewIssues(q: QuestionDraft): string[] {
   const issues = questionIssues(q);
+  if (q.code && q.code.content.length > CODE_LIMITS.contentMax) issues.push(`Shorten the code to ${CODE_LIMITS.contentMax} characters.`);
   if (q.prompt.trim().length > LIMITS.promptMax) issues.push(`Shorten the question to ${LIMITS.promptMax} characters.`);
   if (q.options.some((o) => o.label.trim().length > LIMITS.optionLabelMax)) issues.push(`Shorten answers to ${LIMITS.optionLabelMax} characters.`);
   if (!q.explanation.trim()) issues.push('Add an explanation.');

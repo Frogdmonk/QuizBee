@@ -91,13 +91,14 @@ export async function getQuizDraft(id: string): Promise<QuizDraft> {
       explanation: q.explanation,
       options: [...q.question_options]
         .sort((a, b) => a.position - b.position)
-        .map((o) => ({ key: newKey(), label: o.label, imagePath: o.image_path, isCorrect: o.is_correct, misconception: o.misconception ?? '' })),
+        .map((o) => ({ key: newKey(), label: o.label, imagePath: o.image_path, isCorrect: o.is_correct, misconception: o.misconception ?? '', isCode: o.label_is_code ?? false })),
       level: (q.level ?? null) as QuestionDraft['level'],
       objective: q.objective ?? '',
       topic: q.topic ?? '',
       difficulty: q.difficulty ?? null,
       kind: q.kind ?? null,
       recovery: toRecoveryDraft(q.recovery),
+      code: q.code_language != null && q.code_content != null ? { language: q.code_language, content: q.code_content } : null,
     })),
   };
 }

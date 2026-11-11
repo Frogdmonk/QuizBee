@@ -14,6 +14,7 @@ import { ImagePicker } from './ImagePicker';
 import { answerStyle } from './answer-styles';
 import { QUESTION_TYPE_ICONS } from './question-type-icons';
 import { LearningEditor } from './LearningEditor';
+import { CodeAnswerToggle, QuestionCodeField } from '@/components/code/QuestionCodeField';
 
 type Props = {
   question: QuestionDraft;
@@ -119,6 +120,8 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
           />
         </div>
 
+        <QuestionCodeField question={q} dispatch={dispatch} />
+
         <fieldset className="space-y-3">
           <legend className="text-label text-ink-900">
             Answers <span className="font-normal text-ink-500">· tick the correct one</span>
@@ -182,6 +185,7 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
                       }
                       className={cn(
                         'h-11 min-w-0 flex-1 rounded-sm border border-transparent bg-transparent px-2 text-body font-semibold text-ink-900 outline-none',
+                        option.isCode && !pictureAnswers && 'font-mono text-body-sm',
                         'placeholder:font-normal placeholder:text-ink-500 focus:border-line-strong focus:bg-surface',
                         pictureAnswers && 'w-full border-line-strong bg-surface text-body-sm',
                         trueFalse && 'cursor-default',
@@ -189,6 +193,13 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
                       )}
                     />
 
+                    {!pictureAnswers && !trueFalse && (
+                      <CodeAnswerToggle
+                        option={option}
+                        letter={style.letter}
+                        onToggle={() => dispatch({ type: 'updateOption', questionKey: q.key, optionKey: option.key, patch: { isCode: !option.isCode } })}
+                      />
+                    )}
                     {!pictureAnswers && (
                       <CorrectToggle
                         checked={option.isCorrect}

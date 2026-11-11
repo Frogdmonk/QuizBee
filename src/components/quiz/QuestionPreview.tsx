@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn';
 import { mediaUrl } from '@/lib/media-url';
 import { spring } from '@/lib/motion';
 import { AnswerTile } from '@/components/ui/AnswerTile';
+import { CodeBlock } from '@/components/code/CodeBlock';
 import { ScoreBug } from '@/components/ui/ScoreBug';
 import type { QuestionDraft } from '@/types/quiz';
 import { answerStyle, ANSWER_DIM } from './answer-styles';
@@ -70,6 +71,10 @@ export const QuestionPreview = memo(function QuestionPreview({
         </div>
       )}
 
+      {question.code && question.code.content.trim() !== '' && (
+        <CodeBlock code={question.code} size={stage ? 'panel' : 'phone'} className={stage ? 'max-h-[40vh]' : 'max-h-64'} />
+      )}
+
       {pictureAnswers ? (
         <div className={cn('grid grid-cols-2', stage ? 'gap-4' : 'gap-2')}>
           {question.options.map((option, i) => {
@@ -125,6 +130,7 @@ export const QuestionPreview = memo(function QuestionPreview({
               <AnswerTile
                 index={i}
                 size={stage ? 'stage' : 'compact'}
+                code={option.isCode && option.label.trim() !== ''}
                 label={option.label.trim() || <span className="opacity-60">Answer {answerStyle(i).letter}</span>}
                 state={reveal ? (option.isCorrect ? 'correct' : 'dim') : 'rest'}
               />
