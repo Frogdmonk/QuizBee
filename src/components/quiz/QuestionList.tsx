@@ -1,5 +1,5 @@
 import { m } from 'motion/react';
-import { Plus, Settings2 } from 'lucide-react';
+import { FileJson, Plus, Settings2 } from 'lucide-react';
 import { Menu } from '@/components/ui/Menu';
 import { cn } from '@/lib/cn';
 import { spring } from '@/lib/motion';
@@ -14,12 +14,14 @@ type Props = {
   selected: EditorSelection;
   onSelect: (selection: EditorSelection) => void;
   onAdd: (type: QuestionType) => void;
+  /** Opens "Import questions using ChatGPT". */
+  onImport?: () => void;
   issueKeys: Set<string>;
   detailsHasIssues: boolean;
 };
 
 /** Running order of the quiz: a rail on desktop, a horizontal chip strip on phones. */
-export function QuestionList({ questions, selected, onSelect, onAdd, issueKeys, detailsHasIssues }: Props) {
+export function QuestionList({ questions, selected, onSelect, onAdd, onImport, issueKeys, detailsHasIssues }: Props) {
   const atLimit = questions.length >= LIMITS.maxQuestions;
   const addMenu = (
     <Menu
@@ -86,7 +88,20 @@ export function QuestionList({ questions, selected, onSelect, onAdd, issueKeys, 
           })}
         </ol>
 
-        <div className="shrink-0 lg:pt-2">{addMenu}</div>
+        <div className="flex shrink-0 gap-2 lg:flex-col lg:pt-2">
+          {addMenu}
+          {onImport && (
+            <button
+              type="button"
+              onClick={onImport}
+              disabled={atLimit}
+              aria-label="Import questions using ChatGPT"
+              className="flex h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-sm border border-dashed border-line-strong px-3 text-label text-ink-700 hover:bg-surface hover:text-ink-900 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <FileJson className="size-4" /> <span className="hidden lg:inline">Import using ChatGPT</span>
+            </button>
+          )}
+        </div>
       </div>
       <p className="mt-2 hidden px-1 text-caption text-ink-500 lg:block">
         <span className="type-score text-score-sm">{questions.length}</span> / {LIMITS.maxQuestions} questions

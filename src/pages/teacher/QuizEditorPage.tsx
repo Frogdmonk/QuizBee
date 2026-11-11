@@ -14,6 +14,7 @@ import { QuestionList, type EditorSelection } from '@/components/quiz/QuestionLi
 import { QuestionEditor } from '@/components/quiz/QuestionEditor';
 import { QuizDetailsEditor } from '@/components/quiz/QuizDetailsEditor';
 import { PreviewPanel } from '@/components/quiz/PreviewPanel';
+import { ImportQuestionsDialog, type ImportedQuestions } from '@/components/quiz/ImportQuestionsDialog';
 import { StatusBadge } from '@/components/quiz/StatusBadge';
 import { editorReducer, initEditor } from '@/lib/quiz-editor-reducer';
 import { draftFingerprint, emptyQuiz, newKey, quizIssues, saveBlockers } from '@/lib/quiz-rules';
@@ -58,6 +59,7 @@ export default function QuizEditorPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   // Phones show either the form or the student preview.
   const [phoneView, setPhoneView] = useState<'edit' | 'preview'>('edit');
   const allowNavigation = useRef(false);
@@ -204,6 +206,16 @@ export default function QuizEditorPage() {
     const key = newKey();
     dispatch({ type: 'addQuestion', questionType: type, key, afterKey: selected === 'details' ? undefined : selected });
     setSelected(key);
+  };
+
+  const importQuestions = ({ questions, title, description }: ImportedQuestions) => {
+    dispatch({ type: 'importQuestions', questions, title, description });
+    setSelected(questions[0]?.key ?? 'details');
+    toast({
+      tone: 'success',
+      title: questions.length === 1 ? '1 question added' : `${questions.length} questions added`,
+      description: 'They work like any other question. Save the quiz to keep them.',
+    });
   };
 
   const duplicateQuestion = (key: string) => {
@@ -403,6 +415,7 @@ export default function QuizEditorPage() {
             selected={activeSelection}
             onSelect={setSelected}
             onAdd={addQuestion}
+            onImport={() => setImportOpen(true)}
             issueKeys={issueKeys}
             detailsHasIssues={draft.title.trim() === ''}
           />
@@ -519,6 +532,8 @@ export default function QuizEditorPage() {
           )}
         </ul>
       </Dialog>
+
+      <ImportQuestionsDialog open={importOpen} onClose={() => setImportOpen(false)} existing={draft.questions} onImport={importQuestions} />
 
       <ConfirmDialog
         open={pendingDelete !== null}

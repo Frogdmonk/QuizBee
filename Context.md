@@ -692,6 +692,16 @@ Planned design (ARCHITECTURE.md §3.1):
   (correct tile + answer counts + explanation) → top-10 animated leaderboard → podium; phones answer, lock in, see
   Correct / Not this time (never red), their rank card with their own animation, and the compact leaderboard.
 
+### Importing questions from ChatGPT (JSON)
+
+* Quiz editor → **Import using ChatGPT** (under "Add question"): `components/quiz/ImportQuestionsDialog.tsx`, logic in
+  `lib/quiz-import.ts`. Three steps: copy a built-in prompt (number of questions, mix, students), paste ChatGPT's JSON
+  and validate it, review/edit, then add. **Rally makes no AI or network call for this**; the teacher runs ChatGPT.
+* Schema: `quiz_title`, optional `description`, `questions[]` with `question_text`, `question_type`
+  (`multiple_choice` | `true_false`), `options[{id,text}]`, `correct_answer` (an option id), `explanation`, optional
+  `difficulty`, `topic`. Questions become ordinary `QuestionDraft`s (reducer action `importQuestions`), so they are
+  saved by `save_quiz` and checked again by the server like hand-made questions. No new tables.
+
 ### Next
 
 * Not built yet: pause/resume, automatic progression (the host clicks Next), emoji reactions, confetti,

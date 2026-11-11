@@ -26,11 +26,17 @@ export type EditorAction =
   | { type: 'setCorrect'; questionKey: string; optionKey: string }
   | { type: 'addOption'; questionKey: string }
   | { type: 'removeOption'; questionKey: string; optionKey: string }
+  | { type: 'importQuestions'; questions: QuestionDraft[]; title?: string; description?: string }
   | { type: 'saved'; id: string; sent: QuizDraft }
   | { type: 'status'; status: QuizStatus };
 
 export function initEditor(draft: QuizDraft, saved: boolean): EditorState {
   return { draft, savedFingerprint: saved ? draftFingerprint(draft) : '' };
+}
+
+/** The untouched starter question of a new quiz: replaced by an import instead of kept as a blank. */
+export function isBlankQuestion(q: QuestionDraft): boolean {
+  return !q.prompt.trim() && !q.imagePath && !q.explanation.trim() && !q.recovery && q.options.every((o) => (q.type === 'true_false' || !o.label.trim()) && !o.imagePath && !o.isCorrect);
 }
 
 function mapQuestion(draft: QuizDraft, key: string, fn: (q: QuestionDraft) => QuestionDraft): QuizDraft {
@@ -75,6 +81,25 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const questions = [...draft.questions];
       questions.splice(index + 1, 0, copy);
       return { ...state, draft: { ...draft, questions } };
+    }
+
+    case 'importQuestions': {
+      // Idempotent: questions whose keys are already in the quiz (a repeated click) are not added twice.
+      const present = new Set(draft.questions.map((q) => q.key));
+      const incoming = action.questions.filter((q) => !present.has(q.key));
+      if (incoming.length === 0) return state;
+      const kept = draft.questions.length === 1 && isBlankQuestion(draft.questions[0]) ? [] : draft.questions;
+      if (kept.length + incoming.length > LIMITS.maxQuestions) return state;
+      return {
+        ...state,
+        draft: {
+          ...draft,
+          // Fill the quiz details only where the teacher has not written their own.
+          title: draft.title.trim() ? draft.title : (action.title?.trim().slice(0, LIMITS.titleMax) ?? draft.title),
+          description: draft.description.trim() ? draft.description : (action.description?.trim().slice(0, LIMITS.descriptionMax) ?? draft.description),
+          questions: [...kept, ...incoming],
+        },
+      };
     }
 
     case 'removeQuestion':

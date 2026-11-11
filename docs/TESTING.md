@@ -150,6 +150,25 @@ Machine check in Chromium (mocked server): projector draft, final question with 
 a removed answer, teacher's ability buttons, reveal with Final Rally / Lightning / strikes / energy; phone
 draft, X-Ray hint with the removed answer disabled, held power-up; host abilities; no overflow.
 
+### Question import from ChatGPT JSON coverage
+
+| Area | Tests |
+|---|---|
+| Logic and dialog (`quiz-import.test.tsx`) | the prompt (count, mix, students, grounding and JSON-only rules, schema); the sample converts to native multiple-choice and true/false questions that pass the publish rules and save payload; True listed first whatever ChatGPT's order; per-question errors with number and field (wrong correct answer, missing explanation, unsupported type, answer given as text, empty, duplicate, not True/False, 5 options, bad difficulty), nothing dropped; broken / cut-off / curly-quote / empty / list / too-long input; code fence and chat text removed with a note; questions already in the quiz; the 100-question limit; review checks after edits; the reducer replaces the blank starter question, fills an empty title and ignores a repeated import; the dialog flow from prompt to "Add"; no network or AI calls in the feature's code |
+
+Machine check in Chromium (mocked server): prompt step, partly broken JSON with per-question errors and "Review the 1
+valid question only", sample validated, review and edit, questions added to a new quiz (title filled, Publish READY),
+phone width without overflow; the only outside requests were the app's usual teacher-profile reads.
+
+## Manual checklist: importing questions from ChatGPT
+
+1. Open **My Quizzes → New quiz** and press **Import using ChatGPT** under the question list.
+2. Choose the number of questions and the mix, press **Copy ChatGPT prompt**, and paste it into ChatGPT with a PPTX.
+3. Paste ChatGPT's answer and press **Validate JSON**. Every question is listed with a tick or its problems.
+4. **Review questions**: edit a question, change the correct answer, delete one, move one. **Add N questions to the quiz**.
+5. Save the quiz and publish it, then host it: the imported questions time, score and show on the leaderboard like any other.
+6. Open the import again and paste the same JSON: each question is reported as "already in your quiz".
+
 ## Manual checklist: power-ups and team energy (projector + 3 phones)
 
 Run `20261117090000_powerups_energy.sql` after the learning migration. Use a quiz with a final-challenge question.

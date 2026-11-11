@@ -18,8 +18,8 @@ type DialogProps = {
   className?: string;
   /** Paper (teacher) or night (student / projector). */
   tone?: 'paper' | 'night';
-  /** md = 28rem, lg = 40rem. */
-  size?: 'md' | 'lg';
+  /** md = 28rem, lg = 40rem, xl = 56rem. */
+  size?: 'md' | 'lg' | 'xl';
 };
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -112,7 +112,7 @@ export function Dialog({
             transition={spring.sheet}
             className={cn(
               'relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-16px)] w-full flex-col overflow-hidden rounded-t-md outline-none sm:rounded-md',
-              size === 'lg' ? 'sm:max-w-[40rem]' : 'sm:max-w-md',
+              size === 'xl' ? 'sm:max-w-[56rem]' : size === 'lg' ? 'sm:max-w-[40rem]' : 'sm:max-w-md',
               night
                 ? 'border border-night-line bg-night-900 text-night-text'
                 : 'border-t-[3px] border-ink-950 bg-surface text-ink-900 shadow-pop',

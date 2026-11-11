@@ -282,7 +282,7 @@ export function QuestionEditor({ question, index, total, issues, dispatch, onDup
   );
 }
 
-function CorrectToggle({ checked, letter, onSelect }: { checked: boolean; letter: string; onSelect: () => void }) {
+export function CorrectToggle({ checked, letter, onSelect }: { checked: boolean; letter: string; onSelect: () => void }) {
   return (
     <button
       type="button"
