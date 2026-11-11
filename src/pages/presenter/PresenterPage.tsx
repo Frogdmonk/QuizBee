@@ -114,7 +114,9 @@ export default function PresenterPage() {
     );
   }
 
-  if ((lobby.status === 'in_progress' || lobby.phase === 'podium') && access.kind === 'ready' && sessionId) {
+  // The game state (pushed to every screen at once) can be newer than the lobby: trust whichever is.
+  const live = game.state && game.state.session.stateVersion > lobby.stateVersion ? game.state.session : lobby;
+  if ((live.status === 'in_progress' || live.phase === 'podium') && access.kind === 'ready' && sessionId) {
     return (
       <Shell title={lobby.quizTitle} mood={worldMood(game.state)} right={<ConnectionPill status={channel} quiet surface="night" />}>
         <PresenterGame client={access.client} sessionId={sessionId} game={game} players={lobby.participants} />
