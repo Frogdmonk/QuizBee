@@ -45,6 +45,12 @@ export function Dialog({
   const titleId = useId();
   const descriptionId = useId();
   const night = tone === 'night';
+  // The latest onClose, so a parent passing a new function on every render does not re-run the
+  // open effect (which would move focus back to the first control while someone types).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +68,7 @@ export function Dialog({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && dismissible) {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
       // Minimal focus trap.
       if (e.key === 'Tab' && panelRef.current) {
@@ -86,7 +92,7 @@ export function Dialog({
       document.body.style.overflow = overflow;
       previouslyFocused?.focus?.();
     };
-  }, [open, dismissible, onClose]);
+  }, [open, dismissible]);
 
   return createPortal(
     <AnimatePresence>

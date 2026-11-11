@@ -115,7 +115,7 @@ describe('checking pasted JSON', () => {
   });
 
   it('catches questions already in the quiz and the 100-question limit', () => {
-    const check = checkImport(SAMPLE_JSON, { existingPrompts: ['which method returns all key-value pairs in a dictionary'] });
+    const check = checkImport(SAMPLE_JSON, { existing: [{ prompt: 'which method returns all key-value pairs in a dictionary' }] });
     expect(check.items[0].errors).toEqual(['This question is already in your quiz.']);
     expect(roomError(2, 98)).toBeNull();
     expect(roomError(3, 98)).toMatch(/room for 2 more/);
@@ -150,6 +150,25 @@ describe('adding imported questions to the editor', () => {
   });
 });
 
+describe('dialogs', () => {
+  it('keep focus where the teacher is typing when the parent re-renders with a new onClose', async () => {
+    const { Dialog } = await import('@/components/ui/Dialog');
+    const view = (n: number) => (
+      <Dialog open onClose={() => n} title="Typing">
+        <input aria-label="first" />
+        <textarea aria-label="typing here" />
+      </Dialog>
+    );
+    const { rerender } = render(view(1));
+    await new Promise((r) => requestAnimationFrame(r));
+    const box = screen.getByLabelText('typing here');
+    box.focus();
+    rerender(view(2));
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(document.activeElement).toBe(box);
+  });
+});
+
 describe('the import dialog', () => {
   const wrap = ({ children }: { children: ReactNode }) => <ToastProvider>{children}</ToastProvider>;
 
@@ -169,20 +188,21 @@ describe('the import dialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Use sample JSON/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Validate JSON' }));
-    expect(screen.getByText('All 2 questions are valid')).toBeInTheDocument();
+    expect(screen.getByText('All 3 questions are valid')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Review questions/ }));
 
     const first = screen.getByRole('listitem', { name: 'Question 1' });
     fireEvent.change(within(first).getByLabelText('Question'), { target: { value: 'Which method gives key-value pairs?' } });
     fireEvent.click(within(first).getByRole('radio', { name: 'Mark answer A as correct' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete question 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add 1 question to the quiz' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 questions to the quiz' }));
 
     expect(onImport).toHaveBeenCalledTimes(1);
     const { questions, title } = onImport.mock.calls[0][0];
     expect(title).toBe('Python Dictionaries');
-    expect(questions).toHaveLength(1);
+    expect(questions).toHaveLength(2);
     expect(questions[0].prompt).toBe('Which method gives key-value pairs?');
+    expect(questions[1].code).toEqual({ language: 'python', content: SAMPLE_IMPORT.questions[2].code.content });
     expect(questions[0].options[0].isCorrect).toBe(true);
   });
 
