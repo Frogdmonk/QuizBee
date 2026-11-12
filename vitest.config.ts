@@ -5,6 +5,9 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      // Each database suite runs its own in-memory Postgres (PGlite); too many at once can exhaust
+      // memory on a laptop and crash workers. Four keeps the whole run reliable and fast.
+      maxWorkers: 4,
       projects: [
         {
           extends: true,
