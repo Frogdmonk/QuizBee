@@ -91,6 +91,8 @@ export type SharedQuiz = {
   access: QuizAccess;
   canPublish: boolean;
   workspaces: string[];
+  /** The owner's subject this quiz is shared through (when that subject is shared with you). */
+  sharedSubject: { id: string; name: string } | null;
 };
 
 export type QuizActivityAction = 'edited' | 'published' | 'unpublished' | 'archived' | 'restored' | 'copied';

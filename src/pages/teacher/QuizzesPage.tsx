@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence } from 'motion/react';
-import { Plus, Search } from 'lucide-react';
+import { CheckSquare, Plus, Search } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/Dialog';
 import { SegmentedControl, Skeleton } from '@/components/ui/FormControls';
@@ -19,6 +19,8 @@ import { useMyQuizzes } from '@/hooks/useMyQuizzes';
 import { useToast } from '@/hooks/useToast';
 import { deleteQuiz, duplicateQuiz, setQuizStatus } from '@/services/quizzes';
 import { friendlyError } from '@/utils/errors';
+import { SelectionBar, SubjectBar, SubjectHeader, SubjectNameDialog, type Folder } from '@/components/quiz/SubjectControls';
+import { createSubject, deleteSubject, listMySubjects, renameSubject, setQuizzesSubject, type Subject } from '@/services/subjects';
 import type { QuizStatus, QuizSummary } from '@/types/quiz';
 
 type Filter = 'active' | 'draft' | 'published' | 'archived';
@@ -54,6 +56,71 @@ export default function QuizzesPage() {
   const phone = useMediaQuery('(max-width: 639px)');
   const effectiveView: View = phone ? 'list' : view;
 
+  // Subjects: folders of quizzes; sharing one shares every quiz in it.
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [folder, setFolder] = useState<Folder>('all');
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [moving, setMoving] = useState(false);
+  const [naming, setNaming] = useState<'create' | 'rename' | 'create-and-move' | null>(null);
+  const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
+  const [subjectToShare, setSubjectToShare] = useState<Subject | null>(null);
+  const [subjectsNonce, setSubjectsNonce] = useState(0);
+  const reloadSubjects = () => setSubjectsNonce((n) => n + 1);
+  useEffect(() => {
+    let cancelled = false;
+    listMySubjects()
+      .then((list) => {
+        if (!cancelled) setSubjects(list);
+      })
+      .catch(() => undefined); // the library still works without subjects
+    return () => {
+      cancelled = true;
+    };
+  }, [subjectsNonce]);
+  const subjectById = useMemo(() => new Map(subjects.map((s) => [s.id, s])), [subjects]);
+  const openSubject = folder !== 'all' && folder !== 'none' ? (subjectById.get(folder) ?? null) : null;
+  // A subject that no longer exists (deleted elsewhere) falls back to all quizzes.
+  const effectiveFolder: Folder = folder !== 'all' && folder !== 'none' && !openSubject ? 'all' : folder;
+  const inFolder = useCallback(
+    (q: QuizSummary) =>
+      effectiveFolder === 'all' ? true : effectiveFolder === 'none' ? !q.subjectId || !subjectById.has(q.subjectId) : q.subjectId === effectiveFolder,
+    [effectiveFolder, subjectById],
+  );
+
+  const toggle = (id: string) =>
+    setSelected((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+  const moveSelected = async (subjectId: string | null) => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setMoving(true);
+    try {
+      await setQuizzesSubject(ids, subjectId);
+      setQuizzes((list) => list.map((q) => (selected.has(q.id) ? { ...q, subjectId } : q)));
+      const name = subjectId ? subjectById.get(subjectId)?.name : null;
+      toast({
+        tone: 'success',
+        title: subjectId ? `Moved to ${name ?? 'the subject'}` : 'Taken out of the subject',
+        description: `${ids.length} ${ids.length === 1 ? 'quiz' : 'quizzes'}`,
+      });
+      stopSelecting();
+      reloadSubjects();
+    } catch (error) {
+      toast({ tone: 'error', title: 'Could not move the quizzes', description: friendlyError(error) });
+    } finally {
+      setMoving(false);
+    }
+  };
+
   const changeView = (next: View) => {
     setView(next);
     try {
@@ -63,24 +130,25 @@ export default function QuizzesPage() {
     }
   };
 
-  const counts = useMemo(
-    () => ({
-      active: quizzes.filter(FILTERS.active).length,
-      draft: quizzes.filter(FILTERS.draft).length,
-      published: quizzes.filter(FILTERS.published).length,
-      archived: quizzes.filter(FILTERS.archived).length,
-    }),
-    [quizzes],
-  );
+  const counts = useMemo(() => {
+    const here = quizzes.filter(inFolder);
+    return {
+      active: here.filter(FILTERS.active).length,
+      draft: here.filter(FILTERS.draft).length,
+      published: here.filter(FILTERS.published).length,
+      archived: here.filter(FILTERS.archived).length,
+    };
+  }, [quizzes, inFolder]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return quizzes.filter(
       (q) =>
+        inFolder(q) &&
         FILTERS[filter](q) &&
         (!needle || q.title.toLowerCase().includes(needle) || q.subject.toLowerCase().includes(needle)),
     );
-  }, [quizzes, filter, query]);
+  }, [quizzes, filter, query, inFolder]);
 
   const patch = useCallback(
     (id: string, changes: Partial<QuizSummary>) =>
@@ -153,6 +221,25 @@ export default function QuizzesPage() {
         </ButtonLink>
       </header>
 
+      {status === 'ready' && quizzes.length > 0 && (
+        <SubjectBar
+          subjects={subjects}
+          folder={effectiveFolder}
+          onFolder={setFolder}
+          total={quizzes.length}
+          unfiled={quizzes.filter((q) => !q.subjectId || !subjectById.has(q.subjectId)).length}
+          onNew={() => setNaming('create')}
+        />
+      )}
+      {openSubject && (
+        <SubjectHeader
+          subject={openSubject}
+          onShare={() => setSubjectToShare(openSubject)}
+          onRename={() => setNaming('rename')}
+          onDelete={() => setSubjectToDelete(openSubject)}
+        />
+      )}
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <UnderlineTabs
           label="Filter quizzes"
@@ -179,6 +266,11 @@ export default function QuizzesPage() {
               className={cn(inputClasses, 'h-11 pl-9')}
             />
           </label>
+          {status === 'ready' && quizzes.length > 0 && !selecting && (
+            <Button variant="secondary" leftIcon={<CheckSquare className="size-4" />} onClick={() => setSelecting(true)}>
+              Select
+            </Button>
+          )}
           <div className="hidden w-[8.5rem] sm:block">
             <SegmentedControl<View>
               label="Layout"
@@ -237,14 +329,26 @@ export default function QuizzesPage() {
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence initial={false}>
             {visible.map((quiz) => (
-              <QuizCard key={quiz.id} quiz={quiz} actions={actions} />
+              <QuizCard
+                key={quiz.id}
+                quiz={quiz}
+                actions={actions}
+                selection={selecting ? { selected: selected.has(quiz.id), onToggle: () => toggle(quiz.id) } : null}
+                subjectName={effectiveFolder === 'all' && quiz.subjectId ? (subjectById.get(quiz.subjectId)?.name ?? null) : null}
+              />
             ))}
           </AnimatePresence>
         </div>
       ) : (
         <Ledger className="border-t border-line">
           {visible.map((quiz) => (
-            <QuizRow key={quiz.id} quiz={quiz} actions={actions} />
+            <QuizRow
+              key={quiz.id}
+              quiz={quiz}
+              actions={actions}
+              selection={selecting ? { selected: selected.has(quiz.id), onToggle: () => toggle(quiz.id) } : null}
+              subjectName={effectiveFolder === 'all' && quiz.subjectId ? (subjectById.get(quiz.subjectId)?.name ?? null) : null}
+            />
           ))}
         </Ledger>
       )}
@@ -258,6 +362,85 @@ export default function QuizzesPage() {
       >
         New quiz
       </ButtonLink>
+
+      {selecting && (
+        <SelectionBar
+          count={selected.size}
+          subjects={subjects}
+          canRemove={quizzes.some((q) => selected.has(q.id) && q.subjectId)}
+          busy={moving}
+          onMove={(id) => void moveSelected(id)}
+          onNewAndMove={() => setNaming('create-and-move')}
+          onRemove={() => void moveSelected(null)}
+          onSelectAll={() => setSelected(new Set(visible.map((q) => q.id)))}
+          onDone={stopSelecting}
+        />
+      )}
+
+      <SubjectNameDialog
+        open={naming !== null}
+        title={naming === 'rename' ? 'Rename subject' : 'New subject'}
+        initial={naming === 'rename' ? (openSubject?.name ?? '') : ''}
+        confirmLabel={naming === 'rename' ? 'Rename' : naming === 'create-and-move' ? 'Create and move' : 'Create subject'}
+        onClose={() => setNaming(null)}
+        onSubmit={async (name) => {
+          try {
+            if (naming === 'rename' && openSubject) {
+              await renameSubject(openSubject.id, name);
+              toast({ tone: 'success', title: 'Subject renamed' });
+            } else {
+              const id = await createSubject(name);
+              if (naming === 'create-and-move') {
+                await setQuizzesSubject([...selected], id);
+                setQuizzes((list) => list.map((q) => (selected.has(q.id) ? { ...q, subjectId: id } : q)));
+                stopSelecting();
+              }
+              setFolder(id);
+              toast({ tone: 'success', title: `Subject “${name}” created` });
+            }
+            setNaming(null);
+            reloadSubjects();
+          } catch (error) {
+            throw new Error(friendlyError(error), { cause: error });
+          }
+        }}
+      />
+      <ConfirmDialog
+        open={subjectToDelete !== null}
+        title="Delete this subject?"
+        description={
+          <>
+            <strong className="text-ink-900">{subjectToDelete?.name}</strong> is removed and its sharing ends. Its quizzes are not deleted: they
+            stay in your library, not in a subject.
+          </>
+        }
+        confirmLabel="Delete subject"
+        tone="danger"
+        onCancel={() => setSubjectToDelete(null)}
+        onConfirm={() => {
+          const s = subjectToDelete;
+          if (!s) return;
+          setSubjectToDelete(null);
+          deleteSubject(s.id)
+            .then(() => {
+              setQuizzes((list) => list.map((q) => (q.subjectId === s.id ? { ...q, subjectId: null } : q)));
+              setFolder('all');
+              reloadSubjects();
+              toast({ tone: 'success', title: 'Subject deleted', description: 'Its quizzes are still in your library.' });
+            })
+            .catch((error) => toast({ tone: 'error', title: 'Could not delete the subject', description: friendlyError(error) }));
+        }}
+      />
+      <ShareQuizDialog
+        open={subjectToShare !== null}
+        quizId={null}
+        quizTitle=""
+        subject={subjectToShare ? { id: subjectToShare.id, name: subjectToShare.name } : null}
+        onClose={() => {
+          setSubjectToShare(null);
+          reloadSubjects();
+        }}
+      />
 
       <HostQuizDialog quiz={toHost} onClose={() => setToHost(null)} />
       <ShareQuizDialog

@@ -27,7 +27,11 @@ type RawSharing = {
 export async function getQuizSharing(quizId: string): Promise<WorkspaceSharing[]> {
   const { data, error } = await getTeacherClient().rpc('get_quiz_sharing', { p_quiz_id: quizId });
   if (error) throw error;
-  const raw = data as unknown as RawSharing;
+  return toWorkspaceSharing(data as unknown as RawSharing);
+}
+
+/** The sharing settings shape returned by get_quiz_sharing and get_subject_sharing. */
+export function toWorkspaceSharing(raw: Pick<RawSharing, 'workspaces'>): WorkspaceSharing[] {
   return raw.workspaces.map((w) => ({
     workspaceId: w.id,
     workspaceName: w.name,
@@ -69,6 +73,7 @@ type RawShared = {
   access: QuizAccess;
   can_publish: boolean;
   workspaces: string[];
+  shared_subject?: { id: string; name: string } | null;
 };
 
 export async function listSharedWithMe(): Promise<SharedQuiz[]> {
@@ -87,6 +92,7 @@ export async function listSharedWithMe(): Promise<SharedQuiz[]> {
     access: q.access,
     canPublish: q.can_publish,
     workspaces: q.workspaces,
+    sharedSubject: q.shared_subject ?? null,
   }));
 }
 

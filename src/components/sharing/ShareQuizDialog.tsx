@@ -7,6 +7,7 @@ import { Button, ButtonLink } from '@/components/ui/Button';
 import { SegmentedControl, SelectField, Skeleton, Switch } from '@/components/ui/FormControls';
 import { Alert } from '@/components/ui/Alert';
 import { getQuizSharing, setQuizSharing } from '@/services/sharing';
+import { getSubjectSharing, setSubjectSharing } from '@/services/subjects';
 import { useToast } from '@/hooks/useToast';
 import { friendlyError } from '@/utils/errors';
 import { ACCESS_DESCRIPTIONS, ACCESS_LABELS } from '@/lib/workspace-rules';
@@ -25,6 +26,8 @@ type Props = {
   quizId: string | null;
   quizTitle: string;
   onClose: () => void;
+  /** Share a whole subject instead of one quiz (quizId and quizTitle are then ignored). */
+  subject?: { id: string; name: string } | null;
 };
 
 const ACCESS_OPTIONS = [
@@ -37,7 +40,11 @@ const ACCESS_OPTIONS = [
  * Owner-only dialog: open a quiz to everyone in a workspace (view by default,
  * or copy / edit), and/or give chosen members their own access level.
  */
-export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
+export function ShareQuizDialog({ open, quizId: quizIdProp, quizTitle, onClose, subject = null }: Props) {
+  // A subject is shared with exactly the same settings as a quiz; only the target differs.
+  const quizId = subject ? subject.id : quizIdProp;
+  const load = subject ? getSubjectSharing : getQuizSharing;
+  const store = subject ? setSubjectSharing : setQuizSharing;
   const { toast } = useToast();
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [workspaces, setWorkspaces] = useState<WorkspaceSharing[]>([]);
@@ -58,7 +65,7 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
   useEffect(() => {
     if (!open || !quizId) return;
     let cancelled = false;
-    getQuizSharing(quizId)
+    load(quizId)
       .then((list) => {
         if (cancelled) return;
         const nextDrafts: Record<string, SharingDraft> = {};
@@ -77,6 +84,7 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `load` only changes with `subject`, which changes `quizId`
   }, [open, quizId, nonce]);
 
   const changed = useMemo(
@@ -103,7 +111,7 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
     setSaving(true);
     try {
       for (const id of changed) {
-        await setQuizSharing(quizId, id, toSharingSettings(drafts[id]));
+        await store(quizId, id, toSharingSettings(drafts[id]));
         setOriginal((o) => ({ ...o, [id]: sharingFingerprint(drafts[id]) }));
       }
       toast({ tone: 'success', title: 'Sharing updated' });
@@ -124,11 +132,17 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
       onClose={onClose}
       dismissible={!saving}
       size="lg"
-      title="Share quiz"
+      title={subject ? 'Share subject' : 'Share quiz'}
       description={
-        <span>
-          Choose who in your workspaces can use <strong className="text-ink-900">{quizTitle || 'this quiz'}</strong>.
-        </span>
+        subject ? (
+          <span>
+            Choose who can use every quiz in <strong className="text-ink-900">{subject.name}</strong>, including quizzes you add to it later.
+          </span>
+        ) : (
+          <span>
+            Choose who in your workspaces can use <strong className="text-ink-900">{quizTitle || 'this quiz'}</strong>.
+          </span>
+        )
       }
       footer={
         state === 'ready' && workspaces.length > 0 ? (
@@ -291,8 +305,8 @@ export function ShareQuizDialog({ open, quizId, quizTitle, onClose }: Props) {
                 </ul>
               )}
               <p className="mt-3 text-caption text-ink-500">
-                View: open and preview. Copy: add their own copy to change freely. Edit: change this quiz for everyone; you
-                can see who edited it.
+                View: open and preview. Copy: add their own copy to change freely. Edit: change {subject ? 'these quizzes' : 'this quiz'} for
+                everyone; you can see who edited {subject ? 'them' : 'it'}.
               </p>
             </section>
           </div>

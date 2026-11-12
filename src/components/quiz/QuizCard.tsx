@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router';
 import { m } from 'motion/react';
-import { Archive, Copy, Eye, MoreVertical, Pencil, Radio, RotateCcw, Rocket, Trash2, Undo2, Users } from 'lucide-react';
+import { Archive, Check, Copy, Eye, FolderOpen, MoreVertical, Pencil, Radio, RotateCcw, Rocket, Trash2, Undo2, Users } from 'lucide-react';
 import { Menu, type MenuItem } from '@/components/ui/Menu';
 import { Button } from '@/components/ui/Button';
 import { LedgerLink, LedgerRow } from '@/components/ui/Ledger';
@@ -45,6 +45,38 @@ function menuItems(quiz: QuizSummary, actions: QuizCardActions): MenuItem[] {
   ];
 }
 
+/** Choosing quizzes (to file them in a subject): the whole card or row toggles. */
+export type QuizSelection = { selected: boolean; onToggle: () => void } | null;
+
+function SelectOverlay({ quiz, selection }: { quiz: QuizSummary; selection: NonNullable<QuizSelection> }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selection.selected}
+      aria-label={`Select ${quiz.title}`}
+      onClick={selection.onToggle}
+      className={cn('absolute inset-0 z-20 rounded-[inherit] text-left outline-none focus-visible:ring-[3px] focus-visible:ring-signal-600', selection.selected && 'ring-[3px] ring-signal-600')}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'absolute top-3 left-3 grid size-7 place-items-center rounded-sm border-2',
+          selection.selected ? 'border-signal-600 bg-signal-600 text-white' : 'border-line-strong bg-surface text-transparent',
+        )}
+      >
+        <Check className="size-4" strokeWidth={3} />
+      </span>
+    </button>
+  );
+}
+
+const SubjectTag = ({ name }: { name: string }) => (
+  <span className="inline-flex max-w-full items-center gap-1 truncate text-caption font-semibold text-ink-700">
+    <FolderOpen className="size-3.5 shrink-0" aria-hidden />
+    <span className="truncate">{name}</span>
+  </span>
+);
+
 const meta = (quiz: QuizSummary) =>
   `${quiz.questionCount} ${quiz.questionCount === 1 ? 'question' : 'questions'} · edited ${relativeTime(quiz.updatedAt)}`;
 
@@ -62,7 +94,18 @@ function PrimaryAction({ quiz, actions, compact = false }: { quiz: QuizSummary; 
 }
 
 /** "Fixture card": cover band, subject kicker, title, one action. Status is shown by the left tab and a badge. */
-export const QuizCard = memo(function QuizCard({ quiz, actions }: { quiz: QuizSummary; actions: QuizCardActions }) {
+export const QuizCard = memo(function QuizCard({
+  quiz,
+  actions,
+  selection = null,
+  subjectName = null,
+}: {
+  quiz: QuizSummary;
+  actions: QuizCardActions;
+  selection?: QuizSelection;
+  /** The subject (folder) it is filed in, shown when the library shows several subjects. */
+  subjectName?: string | null;
+}) {
   return (
     <m.article
       variants={enterUp}
@@ -83,22 +126,34 @@ export const QuizCard = memo(function QuizCard({ quiz, actions }: { quiz: QuizSu
             {quiz.title}
           </Link>
         </h3>
+        {subjectName && <SubjectTag name={subjectName} />}
         <p className={cn('text-caption', quiz.questionCount === 0 ? 'text-warning-700' : 'text-ink-500')}>{meta(quiz)}</p>
         <div className="relative z-10 mt-auto flex items-center justify-between gap-2 pt-3">
           <PrimaryAction quiz={quiz} actions={actions} />
           <Menu label={`Actions for ${quiz.title}`} trigger={<MoreVertical className="size-5" />} items={menuItems(quiz, actions)} />
         </div>
       </div>
+      {selection && <SelectOverlay quiz={quiz} selection={selection} />}
     </m.article>
   );
 });
 
 /** The same quiz as a ledger row (phones, and the list view). */
-export const QuizRow = memo(function QuizRow({ quiz, actions }: { quiz: QuizSummary; actions: QuizCardActions }) {
+export const QuizRow = memo(function QuizRow({
+  quiz,
+  actions,
+  selection = null,
+  subjectName = null,
+}: {
+  quiz: QuizSummary;
+  actions: QuizCardActions;
+  selection?: QuizSelection;
+  subjectName?: string | null;
+}) {
   return (
     <LedgerRow
       tab={quiz.status === 'published' ? 'published' : quiz.status === 'archived' ? 'archived' : 'draft'}
-      className="min-h-[72px]"
+      className={cn('relative min-h-[72px]', selection && 'pl-14')}
       actions={
         <>
           <PrimaryAction quiz={quiz} actions={actions} compact />
@@ -109,6 +164,7 @@ export const QuizRow = memo(function QuizRow({ quiz, actions }: { quiz: QuizSumm
       <div className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
           <LedgerLink to={`/teacher/quizzes/${quiz.id}/edit`}>{quiz.title}</LedgerLink>
+          {subjectName && <SubjectTag name={subjectName} />}
           <p className={cn('mt-0.5 truncate text-caption', quiz.questionCount === 0 ? 'text-warning-700' : 'text-ink-500')}>
             {quiz.subject ? `${quiz.subject} · ` : ''}
             {meta(quiz)}
@@ -118,6 +174,7 @@ export const QuizRow = memo(function QuizRow({ quiz, actions }: { quiz: QuizSumm
           <StatusBadge status={quiz.status} />
         </span>
       </div>
+      {selection && <SelectOverlay quiz={quiz} selection={selection} />}
     </LedgerRow>
   );
 });

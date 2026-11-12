@@ -70,6 +70,8 @@ export type QuizSummary = {
   status: QuizStatus;
   questionCount: number;
   sourceQuizId: string | null;
+  /** The teacher's subject (folder) this quiz is filed in, or null. */
+  subjectId: string | null;
   createdAt: string;
   updatedAt: string;
 };

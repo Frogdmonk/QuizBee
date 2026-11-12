@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Copy, Eye, MoreVertical, Pencil, Search } from 'lucide-react';
+import { Copy, Eye, FolderOpen, MoreVertical, Pencil, Search } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Skeleton } from '@/components/ui/FormControls';
@@ -167,15 +167,52 @@ export default function SharedWithMePage() {
         </div>
       ) : (
         status === 'ready' && (
-          <Ledger className="border-t border-line">
-            {visible.map((quiz) => (
-              <SharedQuizRow key={quiz.id} quiz={quiz} copying={copying === quiz.id} onCopy={() => void copy(quiz)} />
+          <div className="space-y-8">
+            {/* Quizzes shared through a subject, grouped under it; then quizzes shared one by one. */}
+            {groupBySubject(visible).map((group) => (
+              <section key={group.key} aria-label={group.subject ? `Subject ${group.subject.name}` : 'Shared quizzes'}>
+                {group.subject ? (
+                  <div className="mb-2 flex flex-wrap items-baseline gap-x-2">
+                    <FolderOpen className="size-4 self-center text-ink-500" aria-hidden />
+                    <h2 className="text-title">{group.subject.name}</h2>
+                    <span className="text-caption text-ink-500">
+                      subject from {group.owner} · {group.quizzes.length} {group.quizzes.length === 1 ? 'quiz' : 'quizzes'}
+                    </span>
+                  </div>
+                ) : (
+                  groupBySubject(visible).length > 1 && <h2 className="mb-2 text-title">Shared one by one</h2>
+                )}
+                <Ledger className="border-t border-line">
+                  {group.quizzes.map((quiz) => (
+                    <SharedQuizRow key={quiz.id} quiz={quiz} copying={copying === quiz.id} onCopy={() => void copy(quiz)} />
+                  ))}
+                </Ledger>
+              </section>
             ))}
-          </Ledger>
+          </div>
         )
       )}
     </div>
   );
+}
+
+type SharedGroup = { key: string; subject: { id: string; name: string } | null; owner: string; quizzes: SharedQuiz[] };
+
+/** Shared subjects first (by name), each with its quizzes; then quizzes shared on their own. */
+function groupBySubject(quizzes: readonly SharedQuiz[]): SharedGroup[] {
+  const groups = new Map<string, SharedGroup>();
+  const loose: SharedQuiz[] = [];
+  for (const q of quizzes) {
+    if (!q.sharedSubject) {
+      loose.push(q);
+      continue;
+    }
+    const g = groups.get(q.sharedSubject.id) ?? { key: q.sharedSubject.id, subject: q.sharedSubject, owner: q.ownerName, quizzes: [] };
+    g.quizzes.push(q);
+    groups.set(q.sharedSubject.id, g);
+  }
+  const sorted = [...groups.values()].sort((a, b) => a.subject!.name.localeCompare(b.subject!.name));
+  return loose.length ? [...sorted, { key: 'loose', subject: null, owner: '', quizzes: loose }] : sorted;
 }
 
 function SharedQuizRow({ quiz, copying, onCopy }: { quiz: SharedQuiz; copying: boolean; onCopy: () => void }) {

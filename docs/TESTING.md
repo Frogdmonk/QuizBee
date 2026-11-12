@@ -167,6 +167,24 @@ phone width without overflow; the only outside requests were the app's usual tea
 | Logic (`monster-engine.test.ts`) | archetypes complete (elements, parts, personalities, names, titles, every animation state) and in the server's format; the brief's families all present; every named monster valid, stable and unique; 3000 random monsters coherent; deterministic per seed and varied (every body, every element); incompatible monsters never generated and caught by the checker (winged golem, fire sea serpent, stomping ghost, wrong body); surprise bosses rare but without difficulty; weakness only from the quiz's topics; drawable bodies and "avoid last" respected; teacher picks stable; stored specs survive JSON; broken specs fall back to Gloomjaw; reaction lines short and never aimed at anyone |
 | Database (`monster-engine.test.ts`) | default Gloomjaw on auto; a generated monster stored, shown to every player and kept after the start and on reconnect; locked at the start; host only; broken specs refused (bad body, colour, long name, odd part, empty ability, oversize, not an object); null resets; difficulty presets (hard, epic thresholds, easy), invalid and after-start refused; auto: untagged = medium (HP unchanged), mostly hard = easy (×0.85), long mostly easy = hard (×1.15); epic ×1.3; the teacher's HP and hand-tuned settings kept |
 
+### Subjects coverage
+
+| Area | Tests |
+|---|---|
+| Database (`subjects.test.ts`) | create, unique names per teacher, filing (counts, no-op re-filing), rename; owner-only filing, sharing and deleting; a shared subject reaches its quizzes and later ones, not unfiled ones or outsiders; Shared with Me shows the subject and workspace; taking a quiz out ends access; copy access copies but cannot edit; edit with publishing through the subject; the higher of a quiz grant and a subject grant wins; leaving the workspace removes subject grants; deleting a subject keeps its quizzes, unshared |
+
+Machine check in Chromium (stateful mock): select three quizzes, create a subject and move them in, the subject view,
+sharing the subject, the subject tag in All quizzes, and Shared with Me grouped by subject.
+
+## Manual checklist: subjects
+
+Run `20261120090000_subjects.sql` first.
+
+1. My Quizzes → Select → choose quizzes → Move to subject → New subject…: they move and the subject opens.
+2. Share subject with a workspace (everyone, View). A colleague in that workspace sees those quizzes grouped under the subject in Shared with Me.
+3. Add another quiz to the subject: the colleague sees it too. Take one out: it disappears for them.
+4. Delete the subject: the quizzes stay in your library; the colleague no longer sees them.
+
 ### Monster controls coverage (monster engine phase 6)
 
 | Area | Tests |

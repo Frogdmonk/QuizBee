@@ -4,7 +4,7 @@ import type { QuestionOptionRow, QuizQuestionRow, QuizRow } from '@/types/databa
 import type { QuestionDraft, QuizDraft, QuizStatus, QuizSummary, RecoveryDraft } from '@/types/quiz';
 
 const SUMMARY_COLUMNS =
-  'id, title, description, subject, cover_image_path, status, question_count, source_quiz_id, created_at, updated_at';
+  'id, title, description, subject, cover_image_path, status, question_count, source_quiz_id, subject_id, created_at, updated_at';
 
 type SummaryRow = Pick<
   QuizRow,
@@ -16,6 +16,7 @@ type SummaryRow = Pick<
   | 'status'
   | 'question_count'
   | 'source_quiz_id'
+  | 'subject_id'
   | 'created_at'
   | 'updated_at'
 >;
@@ -30,6 +31,7 @@ function toSummary(row: SummaryRow): QuizSummary {
     status: row.status,
     questionCount: row.question_count,
     sourceQuizId: row.source_quiz_id,
+    subjectId: row.subject_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

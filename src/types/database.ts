@@ -52,6 +52,7 @@ export type Database = {
           speed_scoring: boolean;
           status: QuizStatusEnum;
           source_quiz_id: string | null;
+          subject_id: string | null;
           question_count: number;
           published_at: string | null;
           revision: number;
@@ -280,6 +281,13 @@ export type Database = {
       send_reaction: { Args: { p_session_id: string; p_emote: string }; Returns: Json };
       set_reactions_enabled: { Args: { p_session_id: string; p_enabled: boolean }; Returns: number };
       set_battle_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };
+      list_my_subjects: { Args: Record<string, never>; Returns: Json };
+      create_subject: { Args: { p_name: string }; Returns: string };
+      rename_subject: { Args: { p_subject_id: string; p_name: string }; Returns: undefined };
+      delete_subject: { Args: { p_subject_id: string }; Returns: undefined };
+      set_quizzes_subject: { Args: { p_quiz_ids: string[]; p_subject_id: string | null }; Returns: number };
+      get_subject_sharing: { Args: { p_subject_id: string }; Returns: Json };
+      set_subject_sharing: { Args: { p_subject_id: string; p_workspace_id: string; p_settings: Json }; Returns: undefined };
       set_battle_monster: { Args: { p_session_id: string; p_spec: Json | null }; Returns: number };
       set_battle_difficulty: { Args: { p_session_id: string; p_difficulty: string }; Returns: number };
       set_weapon_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };

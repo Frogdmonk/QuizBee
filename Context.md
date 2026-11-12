@@ -171,6 +171,11 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
     `private.clean_monster_spec`), `difficulty` (auto/easy/medium/hard/epic) and `difficulty_resolved`; new
     `set_battle_monster`, `set_battle_difficulty`, `private.apply_difficulty_preset`, `private.auto_difficulty`;
     replaces `start_session_battle` (difficulty and HP scaling) and `battle_json` (sends the monster and difficulty).
+15. `20261120090000_subjects.sql`: `subjects` (a teacher's folders of quizzes) and `quizzes.subject_id`;
+    `subject_grants` (sharing a subject, same shape as `quiz_grants`). Replaces `shared_quiz_ids`, `quiz_access_of`,
+    `quiz_can_publish` (they now also count the grants of a quiz's subject) and `list_shared_with_me` (adds
+    `shared_subject`); new `list_my_subjects`, `create_subject`, `rename_subject`, `delete_subject`,
+    `set_quizzes_subject`, `get_subject_sharing`, `set_subject_sharing`.
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -717,6 +722,12 @@ Planned design (ARCHITECTURE.md §3.1):
   `CodeEditor` (textarea over the highlighted code; Tab indents). The projector puts code on the left and the
   answers on the right; phones scroll long lines. **Nothing compiles or runs code.** Add a language: import its
   Prism component in `lib/code.ts` and add a line to `LANGUAGES`.
+* **Subjects** (folders of quizzes): My Quizzes has a subject bar (All, each subject, Not in a subject, New
+  subject), the open subject's Share / Rename / Delete, and Select mode to move quizzes in or out
+  (`components/quiz/SubjectControls.tsx`, `services/subjects.ts`). A quiz is in at most one subject. Sharing a
+  subject (the same dialog as a quiz, `ShareQuizDialog subject=…`) reaches every quiz in it, including later
+  ones; taking a quiz out ends that access; deleting a subject keeps its quizzes. Shared with Me groups by
+  subject. `quizzes.subject` (the free-text "Subject or topic") is unrelated.
 * **Monster engine** (`docs/MONSTER_ENGINE_PLAN.md`): `lib/monsters` (archetypes, elements, catalogue, generator,
   personalities, resolver, colours, art registry) and `components/monsters` (one SVG body per rig, registry).
   `<Monster monster={spec} stage action />` draws any monster; screens get the spec from `monsterOf(battle)`.
