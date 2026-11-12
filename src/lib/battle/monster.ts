@@ -1,14 +1,22 @@
+import { resolveMonster } from '@/lib/monsters/resolve';
+import type { MonsterSpec } from '@/lib/monsters/types';
+
 /**
- * The monsters a class can fight. Original characters; art is drawn in components/battle/Monster.tsx.
+ * The monster a battle is fought against: who it is comes from the Monster Generation Engine
+ * (lib/monsters); this file keeps the rules for how it looks at a given HP.
  */
-export type MonsterInfo = { key: string; name: string; title: string };
+export function monsterOf(battle: { monster?: string | null; monsterSpec?: MonsterSpec | null } | null | undefined): MonsterSpec {
+  return battle?.monsterSpec ?? resolveMonster(battle);
+}
 
-export const MONSTERS: Record<string, MonsterInfo> = {
-  gloomjaw: { key: 'gloomjaw', name: 'Gloomjaw', title: 'the Riddle Eater' },
-};
+/** A monster passed as its resolved spec or just its catalogue key. */
+export function asMonster(monster: MonsterSpec | string | null | undefined): MonsterSpec {
+  return typeof monster === 'object' && monster !== null ? monster : resolveMonster({ monster });
+}
 
-export function monsterInfo(key: string | null | undefined): MonsterInfo {
-  return (key && MONSTERS[key]) || MONSTERS.gloomjaw;
+/** The special attack the monster charges during a question in each mode (from its abilities). */
+export function specialAttack(monster: MonsterSpec, mode: 'normal' | 'rage' | 'enraged'): string {
+  return monster.abilities.specials[mode];
 }
 
 /**
@@ -26,13 +34,6 @@ export function battleStage(hp: number | null, maxHp: number | null, at: { rageA
   if (pct > at.enragedAt) return 'rage';
   return 'enraged';
 }
-
-/** The special attack the monster charges during a question in each mode. */
-export const SPECIAL_ATTACK: Record<'normal' | 'rage' | 'enraged', { name: string; verb: string }> = {
-  normal: { name: 'Tail Swipe', verb: 'swipes its tail' },
-  rage: { name: 'Riddle Roar', verb: 'roars a riddle' },
-  enraged: { name: 'Gloom Storm', verb: 'summons a storm' },
-};
 
 export const MODE_TITLE: Record<'intro' | 'normal' | 'rage' | 'enraged', string> = {
   intro: 'appears!',

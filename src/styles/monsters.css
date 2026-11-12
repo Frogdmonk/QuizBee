@@ -1,0 +1,224 @@
+/* ── Generated monster bodies (components/monsters) ─────────────────────────
+   Every body is painted only with the palette variables set on .mon-rig (lib/monsters/colour.ts),
+   so one drawing serves every element. Battle actions (hit, stagger, charge, defeat…) come from
+   battle.css on .mon-body and work on every body. */
+
+.mon-rig .mon-svg * { transition: fill 600ms ease, opacity 400ms ease; }
+
+.rg-main { fill: var(--m-main); stroke: var(--m-dark); stroke-width: 5; stroke-linejoin: round; }
+.rg-second { fill: var(--m-second); stroke: var(--m-dark); stroke-width: 4; stroke-linejoin: round; }
+.rg-light { fill: var(--m-light); stroke: var(--m-dark); stroke-width: 4; stroke-linejoin: round; }
+.rg-dark { fill: var(--m-dark); }
+.rg-membrane { fill: var(--m-second-dark); stroke: var(--m-dark); stroke-width: 5; stroke-linejoin: round; }
+.rg-bone, .rg-horn { fill: var(--m-bone); stroke: var(--m-dark); stroke-width: 4; stroke-linejoin: round; }
+.rg-bone-line { fill: none; stroke: var(--m-dark); stroke-width: 9; stroke-linecap: round; }
+.rg-rib { fill: none; stroke: var(--m-dark); stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+.rg-rib-strong { stroke-width: 5; opacity: 1; }
+.rg-line { fill: none; stroke: var(--m-dark); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.rg-line-soft { fill: none; stroke: var(--m-second-dark); stroke-width: 4; stroke-linecap: round; opacity: 0.8; }
+.rg-mouth-line { fill: none; stroke: var(--m-dark); stroke-width: 5; stroke-linecap: round; }
+.rg-mouth { fill: #170a12; stroke: var(--m-dark); stroke-width: 4; stroke-linejoin: round; }
+.rg-metal { fill: #8f949c; stroke: var(--m-dark); stroke-width: 4; stroke-linejoin: round; }
+.rg-wood { fill: #6b4423; stroke: var(--m-dark); stroke-width: 4; stroke-linejoin: round; }
+.rg-gold { fill: #e8b21a; stroke: #6b4a00; stroke-width: 3; stroke-linejoin: round; }
+.rg-ghost { fill: var(--m-main); opacity: 0.55; }
+.rg-void { fill: #0b0b12; }
+.rg-skin { fill: #d9ccb2; stroke: var(--m-dark); stroke-width: 3; stroke-linejoin: round; }
+.rg-moss { fill: #6f8f3a; stroke: #2c3b14; stroke-width: 4; stroke-linejoin: round; }
+.rg-snow { fill: #f4f8ff; stroke: #8fa7c4; stroke-width: 3; stroke-linejoin: round; }
+.rg-leaf { fill: #7fae4a; stroke: #2c4a14; stroke-width: 3; stroke-linejoin: round; }
+.rg-water { fill: #2b6f9e; opacity: 0.85; }
+.rg-foam { fill: none; stroke: #e6fbff; stroke-width: 4; stroke-linecap: round; opacity: 0.8; }
+
+/* A golem's fists glow while it winds up an attack. */
+.rg-fist { fill: var(--m-accent); opacity: 0; }
+.mon-rig[data-action='charge'] .rg-fist, .mon-rig[data-action='brewing'] .rg-fist { opacity: 0.45; }
+
+/* A caster's rune circle appears when it gets angry. */
+.rg-circle { display: none; }
+.mon-rig[data-stage='rage'] .rg-circle, .mon-rig[data-stage='enraged'] .rg-circle { display: inline; animation: rg-flicker 1.2s ease-in-out infinite; }
+
+/* Eyes: brighter in Rage, a narrowed look when Enraged, an X when defeated. */
+.rg-eye { fill: var(--m-eye); stroke: var(--m-dark); stroke-width: 3; }
+.rg-pupil { fill: #0b0b14; }
+.rg-shine { fill: #fff; opacity: 0.85; }
+.rg-x { fill: none; stroke: var(--m-dark); stroke-width: 7; stroke-linecap: round; }
+.rg-glow-eye { fill: var(--m-accent); }
+.mon-rig[data-stage='rage'] .rg-eye-glow, .mon-rig[data-stage='enraged'] .rg-eye-glow { fill: var(--m-accent); }
+.rg-brow { fill: none; stroke: var(--m-dark); stroke-width: 8; stroke-linecap: round; transition: translate 400ms ease; }
+.mon-rig[data-stage='rage'] .rg-brow, .mon-rig[data-stage='enraged'] .rg-brow { translate: 0 6px; }
+
+/* The element's glow: a chest core, runes, crystals. Grows with anger and while charging. */
+.rg-core, .rg-glow { fill: var(--m-accent); }
+.rg-core { opacity: 0.22; }
+.rg-accent-line { fill: none; stroke: var(--m-accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.mon-rig[data-stage='rage'] .rg-core { opacity: 0.55; }
+.mon-rig[data-stage='enraged'] .rg-core { opacity: 0.85; animation: rg-pulse 0.9s ease-in-out infinite; }
+.mon-rig[data-action='charge'] .rg-core, .mon-rig[data-action='brewing'] .rg-core { opacity: 1; }
+.mon-rig[data-stage='defeated'] .rg-core, .mon-rig[data-stage='defeated'] .rg-glow { opacity: 0.15; }
+
+/* Cracks: the element shows through. Element bodies (golems) always glow faintly. */
+.mon-rig .mon-cracks { stroke: var(--m-accent); filter: none; }
+.mon-rig .rg-cracks-always { display: inline; opacity: 0.4; }
+.mon-rig[data-stage='rage'] .rg-cracks-always { opacity: 0.75; }
+
+/* Rage aura: sparks of the element rising. */
+.rg-aura { display: none; }
+.mon-rig[data-stage='rage'] .rg-aura, .mon-rig[data-stage='enraged'] .rg-aura { display: inline; }
+.rg-aura circle { fill: var(--m-accent); opacity: 0; transform-box: fill-box; transform-origin: center; animation: rg-rise 1.8s ease-out infinite; }
+.mon-rig[data-stage='enraged'] .rg-aura circle { animation-duration: 1.1s; }
+
+/* Idle life that suits the body (state-specific motion per archetype comes in phase 4). */
+.rg-wing { transform-box: view-box; transform-origin: 168px 210px; animation: rg-flap 2.6s ease-in-out infinite; }
+.rg-wing-bird { transform-box: view-box; transform-origin: 170px 190px; animation: rg-flap 1.8s ease-in-out infinite; }
+.mon-rig[data-stage='enraged'] .rg-wing, .mon-rig[data-stage='enraged'] .rg-wing-bird { animation-duration: 1.2s; }
+.rg-float { animation: rg-float 3.2s ease-in-out infinite; }
+.rg-shadow-float { animation: rg-shadow 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.rg-bob { transform-box: fill-box; transform-origin: center; animation: rg-float 2.4s ease-in-out infinite; }
+.rg-bob:nth-of-type(2n) { animation-delay: -0.8s; }
+.rg-bob:nth-of-type(3n) { animation-delay: -1.6s; }
+.rg-sway { transform-box: fill-box; transform-origin: 50% 100%; animation: rg-sway 3s ease-in-out infinite; }
+.rg-sway:nth-of-type(2n) { animation-delay: -1s; animation-direction: reverse; }
+.rg-flicker { animation: rg-flicker 1.4s ease-in-out infinite; }
+.rg-wave { animation: rg-wave 3s ease-in-out infinite; }
+
+/* Stage looks on the wrapper (HTML filters, so they combine with action filters on the SVG). */
+.mon-rig[data-stage='rage'] .mon-fx { filter: saturate(1.2); }
+.mon-rig[data-stage='enraged'] .mon-fx { filter: saturate(1.3) drop-shadow(0 0 14px var(--m-accent)); }
+.mon-rig[data-stage='defeated'] .mon-fx { filter: grayscale(0.85) brightness(0.72); }
+/* A legendary monster always has a faint aura of its element. */
+.mon-rig[data-rarity='legendary']:not([data-stage='defeated']) .mon-fx { filter: drop-shadow(0 0 10px var(--m-accent)); }
+
+@keyframes rg-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes rg-rise { 0% { opacity: 0; translate: 0 10px; scale: 0.6; } 30% { opacity: 0.85; } 100% { opacity: 0; translate: 0 -50px; scale: 1.3; } }
+@keyframes rg-flap { 0%, 100% { rotate: 0deg; } 50% { rotate: -9deg; } }
+@keyframes rg-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -12px; } }
+@keyframes rg-shadow { 0%, 100% { scale: 1; opacity: 1; } 50% { scale: 0.85; opacity: 0.7; } }
+@keyframes rg-sway { 0%, 100% { rotate: -3deg; } 50% { rotate: 3deg; } }
+@keyframes rg-flicker { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.55; } }
+@keyframes rg-wave { 0%, 100% { translate: 0 0; } 50% { translate: 12px 0; } }
+
+/* ── Phase 4: the state machine's motions (lib/monsters/motion.ts) ──────────
+   The Monster component sets data-state and --m-anim (this archetype's motion for the state,
+   timed by its personality). This rule outranks battle.css's generic action animations. */
+.mon.mon-rig[data-state] .mon-body { animation: var(--m-anim); }
+
+/* Weakened: colour drains, wings droop. Defending: wings rise as a shield. */
+.mon-rig[data-stage][data-state='weakened'] .mon-fx { filter: saturate(0.55) brightness(0.82); }
+.mon-rig[data-state='weakened'] .rg-wing, .mon-rig[data-state='weakened'] .rg-wing-bird { animation: none; rotate: -14deg; transition: rotate 600ms ease; }
+.mon-rig[data-state='defending'] .rg-wing, .mon-rig[data-state='defending'] .rg-wing-bird { animation: none; rotate: 20deg; transition: rotate 300ms ease; }
+.mon-rig[data-state='rage'] .rg-wing { animation-duration: 1.8s; }
+/* Preparing and attacking: rune circles, glowing fists and core. */
+.mon-rig[data-state='preparing'] .rg-circle, .mon-rig[data-state='attacking'] .rg-circle { display: inline; }
+.mon-rig[data-state='preparing'] .rg-fist, .mon-rig[data-state='attacking'] .rg-fist { opacity: 0.5; }
+.mon-rig[data-state='preparing'] .rg-core, .mon-rig[data-state='attacking'] .rg-core { opacity: 1; }
+
+/* Body motions */
+@keyframes mm-breathe { 0%, 100% { scale: 1 1; translate: 0 0; } 50% { scale: 1.03 0.97; translate: 0 4px; } }
+@keyframes mm-hover { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+@keyframes mm-sway { 0%, 100% { rotate: -2deg; } 50% { rotate: 2deg; } }
+@keyframes mm-pace { 0%, 100% { translate: -10px 0; } 50% { translate: 10px 0; } }
+@keyframes mm-hop { 0%, 100% { translate: 0 0; scale: 1 1; } 30% { translate: 0 -14px; scale: 0.98 1.03; } 60% { translate: 0 0; scale: 1.03 0.96; } }
+@keyframes mm-yawn { 0%, 70%, 100% { scale: 1 1; translate: 0 0; } 35% { scale: 0.98 1.06; translate: 0 -6px; } }
+@keyframes mm-loom { 0%, 100% { translate: 0 0; scale: 1; } 50% { translate: 0 -6px; scale: 1.02; } }
+@keyframes mm-glide { 0%, 100% { translate: 0 0; rotate: -2deg; } 50% { translate: 0 -12px; rotate: 2deg; } }
+@keyframes mm-gather { 0%, 100% { scale: 1 1; translate: 0 0; } 50% { scale: 0.96 1.04; translate: 6px 0; } }
+@keyframes mm-rise { 0%, 100% { translate: 0 0; } 50% { translate: 0 -14px; } }
+@keyframes mm-windup { 0%, 100% { rotate: 0deg; translate: 0 0; } 50% { rotate: 6deg; translate: 18px 0; } }
+@keyframes mm-rear { 0%, 100% { translate: 0 0; scale: 1 1; } 50% { translate: 10px -16px; scale: 1 1.05; } }
+@keyframes mm-crouch { 0%, 100% { scale: 1 0.94; translate: 0 6px; } 50% { scale: 1.02 0.9; translate: 0 10px; } }
+@keyframes mm-lunge { 0% { translate: 0 0; rotate: 0deg; scale: 1 1; } 35% { translate: 26px 6px; rotate: 5deg; scale: 1.04 0.96; } 60% { translate: -70px -6px; rotate: -6deg; scale: 0.97 1.05; } 100% { translate: 0 0; rotate: 0deg; scale: 1 1; } }
+@keyframes mm-cast { 0% { translate: 0 0; rotate: 0deg; } 40% { translate: 0 -18px; } 60% { translate: -30px -10px; rotate: -4deg; } 100% { translate: 0 0; rotate: 0deg; } }
+@keyframes mm-slam { 0% { translate: 0 0; scale: 1 1; } 40% { translate: 0 -30px; scale: 0.97 1.06; } 60% { translate: 0 8px; scale: 1.08 0.9; } 100% { translate: 0 0; scale: 1 1; } }
+@keyframes mm-strike { 0% { translate: 0 0; } 30% { translate: 14px 0; } 55% { translate: -50px 0; } 100% { translate: 0 0; } }
+@keyframes mm-pounce { 0% { translate: 0 0; rotate: 0deg; scale: 1 1; } 30% { translate: 20px 10px; scale: 1.04 0.94; } 55% { translate: -90px -30px; rotate: -8deg; scale: 1 1; } 100% { translate: 0 0; rotate: 0deg; } }
+@keyframes mm-flinch { 0% { translate: 0 0; rotate: 0deg; } 25% { translate: 26px 0; rotate: 5deg; } 100% { translate: 0 0; rotate: 0deg; } }
+@keyframes mm-scatter { 0% { scale: 1 1; translate: 0 0; opacity: 1; } 20% { scale: 1.08 0.94; translate: 16px 0; opacity: 0.6; } 40% { scale: 0.94 1.06; opacity: 0.9; } 100% { scale: 1 1; translate: 0 0; opacity: 1; } }
+@keyframes mm-recoil { 0% { translate: 0 0; rotate: 0deg; } 30% { translate: 24px -12px; rotate: 6deg; } 100% { translate: 0 0; rotate: 0deg; } }
+@keyframes mm-brace { 0%, 100% { translate: 0 8px; scale: 1.02 0.95; } 50% { translate: 0 10px; scale: 1.03 0.94; } }
+@keyframes mm-fade { 0%, 100% { opacity: 0.95; } 50% { opacity: 0.55; } }
+@keyframes mm-mend { 0%, 100% { scale: 1; } 40% { scale: 1.05; } }
+@keyframes mm-rage { 0%, 100% { translate: 0 0; scale: 1 1; } 25% { translate: -4px 2px; } 50% { translate: 3px 5px; scale: 1.04 0.96; } 75% { translate: 4px 0; } }
+@keyframes mm-swell { 0%, 100% { scale: 1; } 50% { scale: 1.06; } }
+@keyframes mm-thrash { 0%, 100% { rotate: -5deg; } 50% { rotate: 5deg; } }
+@keyframes mm-droop { 0%, 100% { translate: 0 10px; rotate: -2deg; scale: 1 0.96; } 50% { translate: 0 14px; rotate: -3deg; scale: 1 0.95; } }
+@keyframes mm-stunned { 0%, 100% { rotate: -4deg; } 50% { rotate: 4deg; translate: 0 6px; } }
+/* Defeats end on a frame that still shows the beaten monster (the result card holds it). */
+@keyframes mm-crash { 0% { translate: 0 0; rotate: 0deg; } 20% { translate: 20px -20px; rotate: 6deg; } 100% { translate: -30px 40px; rotate: -14deg; scale: 1 0.88; opacity: 0.85; } }
+@keyframes mm-topple { 0% { translate: 0 0; rotate: 0deg; } 25% { rotate: -4deg; } 100% { translate: 60px 60px; rotate: 32deg; opacity: 0.8; } }
+@keyframes mm-crumble { 0% { translate: 0 0; scale: 1 1; } 30% { translate: 0 -6px; } 100% { translate: 0 40px; scale: 1.08 0.7; opacity: 0.7; } }
+@keyframes mm-disperse { 0% { translate: 0 0; scale: 1; opacity: 1; } 100% { translate: 0 -30px; scale: 1.12; opacity: 0.3; } }
+@keyframes mm-kneel { 0% { translate: 0 0; rotate: 0deg; } 100% { translate: 0 40px; rotate: 6deg; scale: 1 0.9; opacity: 0.85; } }
+@keyframes mm-sink { 0% { translate: 0 0; opacity: 1; } 100% { translate: 0 50px; opacity: 0.5; } }
+
+/* ── Effects (components/monsters/MonsterFx.tsx) ── */
+.fx * { pointer-events: none; }
+.fx-glow { fill: var(--m-accent); }
+.fx-hot { fill: #fff8e0; opacity: 0.85; }
+.fx-breath { transform-box: view-box; animation: fx-breath 900ms ease-out 1 both; }
+.fx-bolt { transform-box: fill-box; transform-origin: center; animation: fx-bolt 800ms cubic-bezier(0.3, 0, 0.7, 1) 1 both; }
+.fx-ring { fill: none; stroke: var(--m-accent); stroke-width: 7; transform-box: fill-box; transform-origin: center; animation: fx-ring 900ms ease-out 1 both; }
+.fx-slash { fill: none; stroke: var(--m-accent); stroke-width: 16; stroke-linecap: round; stroke-dasharray: 1; animation: fx-slash 700ms ease-out 1 both; }
+.fx-beam { transform-box: view-box; animation: fx-beam 900ms ease-out 1 both; }
+.fx-shield { animation: rg-flicker 1.2s ease-in-out infinite; }
+.fx-shield-fill { fill: var(--m-accent); opacity: 0.18; }
+.fx-shield-line { fill: none; stroke: var(--m-accent); stroke-width: 8; stroke-linecap: round; }
+.fx-heal { fill: none; stroke: #4ade80; stroke-width: 6; stroke-linecap: round; transform-box: fill-box; transform-origin: center; animation: fx-heal 1300ms ease-out 1 both; }
+.fx-converge { transform-box: fill-box; transform-origin: center; animation: fx-converge 900ms ease-in infinite; }
+.fx-runes { transform-box: view-box; animation: fx-spin 3s linear infinite; }
+.fx-rune-line { fill: none; stroke: var(--m-accent); stroke-width: 4; }
+.fx-chip { fill: var(--m-second); stroke: var(--m-dark); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: fx-fly 650ms ease-out 1 both; }
+.fx-feather { fill: var(--m-second); stroke: var(--m-dark); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: fx-fly 900ms ease-out 1 both; }
+.fx-smoke { fill: #9aa0a8; opacity: 0; transform-box: fill-box; transform-origin: center; animation: fx-smoke 2.1s ease-out infinite; }
+.fx-pebble { fill: var(--m-second-dark); stroke: var(--m-dark); stroke-width: 2; opacity: 0; animation: fx-pebble 3.9s ease-in infinite; }
+.fx-dust { fill: #b8b0a0; opacity: 0; transform-box: fill-box; transform-origin: center; animation: fx-dust 1.3s ease-out 1 both; }
+.fx-spark { transform-box: fill-box; transform-origin: center; animation: fx-spark 1.4s ease-in-out infinite; }
+.fx-drip { fill: #cfe8ff; opacity: 0; animation: fx-drip 2.2s ease-in infinite; }
+
+@keyframes fx-breath { 0% { scale: 0 1; opacity: 0; } 25% { scale: 1 1; opacity: 1; } 80% { opacity: 1; } 100% { scale: 1.05 1; opacity: 0; } }
+@keyframes fx-bolt { 0% { translate: 0 0; opacity: 0; scale: 0.4; } 20% { opacity: 1; scale: 1; } 100% { translate: -320px 40px; opacity: 0; } }
+@keyframes fx-ring { 0% { scale: 0.2; opacity: 1; } 100% { scale: 1.6; opacity: 0; } }
+@keyframes fx-slash { 0% { stroke-dashoffset: 1; opacity: 1; } 60% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes fx-beam { 0% { scale: 0 1; opacity: 0; } 30% { scale: 1 1; opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fx-heal { 0% { translate: 0 0; opacity: 0; } 25% { opacity: 1; } 100% { translate: 0 -70px; opacity: 0; } }
+@keyframes fx-converge { 0% { translate: var(--dx) var(--dy); opacity: 0; } 30% { opacity: 1; } 100% { translate: 0 0; opacity: 0.2; } }
+@keyframes fx-spin { to { rotate: 360deg; } }
+@keyframes fx-fly { 0% { translate: 0 0; rotate: 0deg; opacity: 1; } 100% { translate: var(--dx) var(--dy); rotate: 160deg; opacity: 0; } }
+@keyframes fx-smoke { 0% { translate: 0 0; scale: 0.6; opacity: 0; } 25% { opacity: 0.55; } 100% { translate: 0 -60px; scale: 1.7; opacity: 0; } }
+@keyframes fx-pebble { 0%, 8% { translate: 0 0; opacity: 0; } 12% { opacity: 1; } 55% { translate: 0 var(--fall); opacity: 1; } 65%, 100% { translate: 0 var(--fall); opacity: 0; } }
+@keyframes fx-dust { 0% { scale: 0.2; opacity: 0; } 30% { opacity: 0.55; } 100% { scale: 1.7; opacity: 0; } }
+@keyframes fx-spark { 0%, 100% { scale: 0.4; opacity: 0; } 50% { scale: 1; opacity: 1; } }
+@keyframes fx-drip { 0%, 10% { translate: 0 0; opacity: 0; } 20% { opacity: 0.9; } 70% { translate: 0 30px; opacity: 0.9; } 80%, 100% { translate: 0 34px; opacity: 0; } }
+
+/* ── Phase 5: the monster in the battle ── */
+
+/* Its first appearance: it rises out of the ground. */
+.mon-spawn { animation: mon-spawn 1100ms cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+@keyframes mon-spawn { 0% { translate: 0 60px; scale: 0.7; opacity: 0; } 60% { scale: 1.05; opacity: 1; } 100% { translate: 0 0; scale: 1; opacity: 1; } }
+
+/* What it says: a speech bubble pointing at the monster, popping in after the hits land. */
+.mon-say {
+  border-radius: 18px;
+  background: #fffdf5;
+  color: #121214;
+  padding: 12px 18px;
+  font-size: 24px;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.2;
+  box-shadow: 0 6px 0 rgb(0 0 0 / 0.25);
+  transform-origin: 100% 50%;
+  animation: mon-say 420ms cubic-bezier(0.2, 0.8, 0.3, 1.2) 250ms both;
+}
+.mon-say::after {
+  content: '';
+  position: absolute;
+  top: 26px;
+  right: -14px;
+  border: 10px solid transparent;
+  border-left: 16px solid #fffdf5;
+}
+@keyframes mon-say { 0% { scale: 0.4; opacity: 0; } 100% { scale: 1; opacity: 1; } }
+
+/* In the camp, the monster waits on the horizon: a dark shape rimmed with its element's glow. */
+.camp-lurker .mon-fx { filter: brightness(0.3) saturate(0.6) drop-shadow(0 0 6px var(--m-accent)) !important; }

@@ -4,7 +4,8 @@ import { m } from 'motion/react';
 import { buzz } from '@/lib/haptics';
 import { Swords } from 'lucide-react';
 import { popIn } from '@/lib/motion';
-import { monsterInfo, SPECIAL_ATTACK } from '@/lib/battle/monster';
+import { asMonster, specialAttack } from '@/lib/battle/monster';
+import type { MonsterSpec } from '@/lib/monsters/types';
 import { Avatar } from '@/components/avatar/Avatar';
 import type { BattleAttack } from '@/types/game';
 import { HpBar } from './HpBar';
@@ -21,7 +22,7 @@ export function PhoneBattleCard({
   me,
 }: {
   attack: BattleAttack;
-  monster: string;
+  monster: MonsterSpec | string;
   maxHp: number;
   baseDamage: number;
   me: { participantId: string; avatar: string };
@@ -30,9 +31,10 @@ export function PhoneBattleCard({
   useEffect(() => {
     if (hit) buzz([40, 60, 40]);
   }, [hit, attack.questionId]);
-  const name = monsterInfo(monster).name;
+  const spec = asMonster(monster);
+  const name = spec.name;
   const defeated = attack.hpAfter === 0 && attack.hpBefore > 0;
-  const special = attack.mode && attack.mode !== 'defeated' && attack.defended !== null && !defeated ? SPECIAL_ATTACK[attack.mode] : null;
+  const special = attack.mode && attack.mode !== 'defeated' && attack.defended !== null && !defeated ? specialAttack(spec, attack.mode) : null;
   return (
     <m.div variants={popIn} initial="hidden" animate="show" className="rounded-md bg-night-900 p-4">
       <div className="flex items-center gap-3">
@@ -57,8 +59,8 @@ export function PhoneBattleCard({
       {special && (
         <p className={attack.defended ? 'mt-2 text-body-sm font-bold text-success-400' : 'mt-2 text-body-sm font-bold text-rose-400'}>
           {attack.defended
-            ? `Your class stopped the ${special.name}!`
-            : `The ${special.name} hit back (${attack.targetCount} needed)${attack.heal > 0 ? `: ${name} healed ${attack.heal} HP` : ''}.`}
+            ? `Your class stopped the ${special}!`
+            : `The ${special} hit back (${attack.targetCount} needed)${attack.heal > 0 ? `: ${name} healed ${attack.heal} HP` : ''}.`}
         </p>
       )}
       {attack.energyGain > 0 && <p className="mt-2 text-body-sm font-semibold text-sun-400">+{attack.energyGain} team energy</p>}

@@ -31,6 +31,8 @@ import { AnimatedNumber } from '@/components/leaderboard/AnimatedNumber';
 import { Countdown } from './Countdown';
 import { GetReady } from './GetReady';
 import type { GameMe, GameQuestion } from '@/types/game';
+import { monsterOf } from '@/lib/battle/monster';
+import { weakSpotNote } from '@/lib/monsters/reactions';
 import { activeBattle, chargingNote, currentRules, modeTimer, revealAttack } from '@/lib/battle/state';
 import { BattleAnnounce } from '@/components/battle/BattleAnnounce';
 import { PhoneWeaponVote } from '@/components/battle/PhoneWeaponVote';
@@ -167,8 +169,11 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
           </m.div>
         ) : phase === 'question' && question ? (
           <m.div key={`q-${question.id}`} variants={enterUp} initial="hidden" animate="show" exit="exit" className="flex flex-1 flex-col gap-4">
-            {battle && chargingNote(rules, question.eligibleCount) && (
-              <p className="-mb-2 text-caption font-semibold text-rose-400">{chargingNote(rules, question.eligibleCount)}</p>
+            {battle && chargingNote(rules, question.eligibleCount, monsterOf(battle)) && (
+              <p className="-mb-2 text-caption font-semibold text-rose-400">{chargingNote(rules, question.eligibleCount, monsterOf(battle))}</p>
+            )}
+            {battle && weakSpotNote(monsterOf(battle), question) && (
+              <p className="-mb-2 text-caption font-semibold text-sun-400">{weakSpotNote(monsterOf(battle), question)}</p>
             )}
             <p className="type-headline text-pretty text-[1.375rem] leading-snug break-words">{question.prompt}</p>
             {question.imagePath && (
@@ -263,7 +268,7 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
                 <RevealCard me={me} question={question} compact={Boolean(attack)} />
                 <MisconceptionNote misconception={question.misconception} size="phone" />
                 {battle && attack && (
-                  <PhoneBattleCard attack={attack} monster={battle.monster} maxHp={battle.maxHp} baseDamage={attack.perHit ?? battle.baseDamage} me={me} />
+                  <PhoneBattleCard attack={attack} monster={monsterOf(battle)} maxHp={battle.maxHp} baseDamage={attack.perHit ?? battle.baseDamage} me={me} />
                 )}
                 {weaponVote.vote && weaponVote.stage === 'pending' && (
                   <PhoneWeaponVote client={client} vote={weaponVote.vote} stage="pending" closesInMs={weaponVote.closesIn} myChoice={null} onVoted={() => void refresh()} />
@@ -286,7 +291,7 @@ export function PlayerGame({ client, game }: { client: AppSupabaseClient; game: 
         ) : phase === 'podium' ? (
           <m.div key="final" variants={enterUp} initial="hidden" animate="show" className="flex flex-1 flex-col gap-5">
             <p className="type-kicker">Final results</p>
-            {battle && <BattleResult monster={battle.monster} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} size="phone" />}
+            {battle && <BattleResult monster={monsterOf(battle)} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} size="phone" />}
             <RankCard me={me} total={state.rankedCount} final />
             <Leaderboard snapshot={snapshotFromState(state)} variant="compact" highlightId={me.participantId} />
             <GameEmotes client={client} game={game} reactions={reactions} meId={me.participantId} />

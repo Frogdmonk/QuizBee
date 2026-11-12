@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
 import { ArrowLeft, Check, Copy, ExternalLink, LogOut, MonitorUp, Play, QrCode as QrIcon, UserMinus, X } from 'lucide-react';
@@ -19,6 +19,11 @@ import { useReactions } from '@/hooks/useReactions';
 import { Playground } from '@/components/lobby/Playground';
 import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
 import { BattleSettings } from '@/components/battle/BattleSettings';
+import { MonsterPicker } from '@/components/battle/MonsterPicker';
+import { DRAWN_RIGS } from '@/components/monsters/registry';
+import { generateMonster } from '@/lib/monsters/generate';
+import { setBattleMonster } from '@/services/battle';
+import { useQuizFacts } from '@/hooks/useQuizFacts';
 import { LearningSettings } from '@/components/learning/LearningSettings';
 import { startGame } from '@/services/game';
 import { LowerThird } from '@/components/ui/LowerThird';
@@ -55,6 +60,23 @@ export default function HostLobbyPage() {
   const [joinSheet, setJoinSheet] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+
+  // The quiz's topics (the monster's weakness) and question difficulties (the automatic preview).
+  const quiz = useQuizFacts(lobby?.quizId);
+  // A new session gets its own random monster, once, as soon as the lobby opens. If that fails the
+  // default monster stays; the teacher can still choose one.
+  const autoRolled = useRef(false);
+  const battleState = game.state?.battle;
+  const refreshGame = game.refresh;
+  useEffect(() => {
+    if (autoRolled.current || !sessionId || !quiz.loaded || lobby?.status !== 'lobby') return;
+    if (!battleState?.enabled || battleState.monsterChosen) return;
+    autoRolled.current = true;
+    const spec = generateMonster({ seed: Math.floor(Math.random() * 2 ** 31), mode: 'random', topics: quiz.topics, rigs: DRAWN_RIGS });
+    setBattleMonster(getTeacherClient(), sessionId, spec)
+      .then(() => refreshGame())
+      .catch(() => undefined);
+  }, [sessionId, quiz.loaded, quiz.topics, lobby?.status, battleState?.enabled, battleState?.monsterChosen, refreshGame]);
 
   if (load === 'loading') {
     return (
@@ -436,12 +458,16 @@ export default function HostLobbyPage() {
           {isOpen && lobby.status === 'lobby' && game.state?.battle && sessionId && (
             <section aria-labelledby="battle-heading" className="space-y-3">
               <SectionHead id="battle-heading" kicker="Boss battle" />
+              {game.state.battle.enabled && (
+                <MonsterPicker client={getTeacherClient()} sessionId={sessionId} battle={game.state.battle} topics={quiz.topics} onChanged={game.refresh} />
+              )}
               <BattleSettings
                 client={getTeacherClient()}
                 sessionId={sessionId}
                 battle={game.state.battle}
                 players={lobby.participantCount}
                 questions={lobby.questionCount}
+                difficulties={quiz.difficulties}
                 onChanged={game.refresh}
               />
             </section>

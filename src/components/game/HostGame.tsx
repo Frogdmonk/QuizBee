@@ -21,6 +21,8 @@ import { QuestionStage } from './QuestionStage';
 import { ReactionsToggle } from '@/components/reactions/ReactionsToggle';
 import { BattleStrip } from '@/components/battle/BattleStrip';
 import { BattleResult } from '@/components/battle/BattleResult';
+import { monsterOf } from '@/lib/battle/monster';
+import { weakSpotNote } from '@/lib/monsters/reactions';
 import { activeBattle, chargingNote, currentRules, revealAttack } from '@/lib/battle/state';
 import { VoteHostPanel, WeaponPanel } from '@/components/battle/WeaponControls';
 import { TeamAbilities } from '@/components/battle/Powerups';
@@ -100,11 +102,11 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
         {phase === 'podium' && <Badge surface="night">Game over</Badge>}
         {battle && (
           <BattleStrip
-            monster={battle.monster}
+            monster={monsterOf(battle)}
             hp={battle.hp}
             maxHp={battle.maxHp}
             at={battle.config}
-            note={phase === 'question' ? chargingNote(rules, question?.eligibleCount ?? null) : null}
+            note={phase === 'question' ? [chargingNote(rules, question?.eligibleCount ?? null, monsterOf(battle)), weakSpotNote(monsterOf(battle), question)].filter(Boolean).join(' · ') || null : null}
             size="sm"
             className="w-72"
           />
@@ -149,7 +151,7 @@ export function HostGame({ sessionId, game }: { sessionId: string; game: GameCon
         <section aria-label="Current question" className="ground-night min-w-0 rounded-md bg-night-950 p-5 text-night-text">
           {phase === 'podium' ? (
             <>
-              {battle && <BattleResult monster={battle.monster} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} size="phone" className="mb-6" />}
+              {battle && <BattleResult monster={monsterOf(battle)} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} size="phone" className="mb-6" />}
               <p className="type-kicker">Final results</p>
               {state.leaderboard.length > 0 ? <Podium entries={state.leaderboard} className="mt-6" /> : <p className="mt-3 text-night-muted">No questions were scored.</p>}
               <LearningReport learning={state.learning} tone="night" className="mt-8" />

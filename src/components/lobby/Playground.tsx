@@ -5,6 +5,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Avatar, type AvatarMood } from '@/components/avatar/Avatar';
 import { CampScenery } from './CampScenery';
 import type { LiveReaction } from '@/hooks/useReactions';
+import type { MonsterSpec } from '@/lib/monsters/types';
 
 export type PlaygroundPlayer = { id: string; nickname: string; avatar: string };
 
@@ -31,6 +32,7 @@ export function Playground({
   reactions = [],
   highlightId,
   lurker = false,
+  monster = null,
   onInteraction,
   variant = 'stage',
   className,
@@ -43,6 +45,8 @@ export function Playground({
   highlightId?: string | null;
   /** The camp (stage): show the monster waiting on the horizon. */
   lurker?: boolean;
+  /** Which monster waits there (the session's; Gloomjaw when absent). */
+  monster?: MonsterSpec | null;
   /** Called when two characters bump into each other and react (for sound). */
   onInteraction?: () => void;
   variant?: Variant;
@@ -191,7 +195,7 @@ export function Playground({
       className={cn('relative overflow-hidden', className)}
     >
       <div ref={worldRef} className="absolute top-0 left-0 origin-top-left" style={{ width: WORLD.width, height: WORLD.height }}>
-        {variant === 'stage' && <CampScenery lurker={lurker} />}
+        {variant === 'stage' && <CampScenery lurker={lurker} monster={monster} />}
         {[...players.map((p) => ({ p, leaving: false })), ...gone.map((p) => ({ p, leaving: true }))].map(({ p, leaving }) => (
           <Walker
             key={(leaving ? 'gone:' : '') + p.id}

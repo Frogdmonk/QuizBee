@@ -1,3 +1,4 @@
+import type { Difficulty, DifficultySetting, MonsterSpec } from '@/lib/monsters/types';
 import type { LeaderboardEntry } from '@/lib/leaderboard/types';
 import type { SessionPhase, SessionStatus } from './session';
 
@@ -206,6 +207,13 @@ export type BattleCurrent = {
 export type BattleState = {
   enabled: boolean;
   monster: string;
+  /** Who the class fights (generated in the lobby, fixed once the game starts). Missing in old fixtures. */
+  monsterSpec?: MonsterSpec;
+  /** A monster was chosen for this session (otherwise the default is shown). */
+  monsterChosen?: boolean;
+  /** The teacher's difficulty, and what it became when the game started. */
+  difficulty?: DifficultySetting;
+  difficultyResolved?: Difficulty | null;
   /** Teacher's HP choice; null = automatic at the start. */
   hpSetting: number | null;
   baseDamage: number;

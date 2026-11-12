@@ -1,6 +1,7 @@
 import type { AppSupabaseClient } from '@/lib/supabase';
 import type { Json } from '@/types/database';
 import type { PerMode, VoteStatus } from '@/types/game';
+import type { DifficultySetting, MonsterSpec } from '@/lib/monsters/types';
 
 /* Boss battle (supabase/migrations/*_battle_phase1_arena.sql). HP and damage are the server's job. */
 
@@ -33,6 +34,23 @@ export async function setBattleSettings(client: AppSupabaseClient, sessionId: st
   if (input.heal !== undefined) settings.heal = input.heal;
   if (input.timers !== undefined) settings.timers = input.timers;
   const { data, error } = await client.rpc('set_battle_settings', { p_session_id: sessionId, p_settings: settings });
+  if (error) throw error;
+  return data as number;
+}
+
+/**
+ * The session's monster (generated in the lobby; locked once the game starts). Host only.
+ * Null goes back to the default monster.
+ */
+export async function setBattleMonster(client: AppSupabaseClient, sessionId: string, spec: MonsterSpec | null): Promise<number> {
+  const { data, error } = await client.rpc('set_battle_monster', { p_session_id: sessionId, p_spec: spec as unknown as Json });
+  if (error) throw error;
+  return data as number;
+}
+
+/** The session's difficulty: automatic, or a fixed one (which applies its preset at once). Host only, lobby only. */
+export async function setBattleDifficulty(client: AppSupabaseClient, sessionId: string, difficulty: DifficultySetting): Promise<number> {
+  const { data, error } = await client.rpc('set_battle_difficulty', { p_session_id: sessionId, p_difficulty: difficulty });
   if (error) throw error;
   return data as number;
 }

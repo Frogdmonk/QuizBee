@@ -167,6 +167,10 @@ Migrations live in [supabase/migrations/](supabase/migrations/), one per phase:
     `session_questions` (code shown under a question, kept exactly as written, ≤ 2000 characters) and
     `label_is_code` on `question_options` / `session_question_options` (answers that are code snippets).
     Replaces `quiz_issues`, `copy_quiz`, `save_quiz`, `start_game`, `game_payload` with the code columns added.
+14. `20261119090000_monster_engine.sql`: `session_battles.monster_spec` (the generated monster, validated by
+    `private.clean_monster_spec`), `difficulty` (auto/easy/medium/hard/epic) and `difficulty_resolved`; new
+    `set_battle_monster`, `set_battle_difficulty`, `private.apply_difficulty_preset`, `private.auto_difficulty`;
+    replaces `start_session_battle` (difficulty and HP scaling) and `battle_json` (sends the monster and difficulty).
 
 **Applying them:** the Supabase CLI is *not* linked on the owner's machine and Docker isn't installed, so
 `supabase start` doesn't work locally. Either:
@@ -713,6 +717,10 @@ Planned design (ARCHITECTURE.md §3.1):
   `CodeEditor` (textarea over the highlighted code; Tab indents). The projector puts code on the left and the
   answers on the right; phones scroll long lines. **Nothing compiles or runs code.** Add a language: import its
   Prism component in `lib/code.ts` and add a line to `LANGUAGES`.
+* **Monster engine** (`docs/MONSTER_ENGINE_PLAN.md`): `lib/monsters` (archetypes, elements, catalogue, generator,
+  personalities, resolver, colours, art registry) and `components/monsters` (one SVG body per rig, registry).
+  `<Monster monster={spec} stage action />` draws any monster; screens get the spec from `monsterOf(battle)`.
+  Teachers browse at `/teacher/monsters`. Phases 1–3 built.
 
 ### Next
 

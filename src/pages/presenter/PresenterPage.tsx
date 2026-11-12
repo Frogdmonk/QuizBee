@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { monsterOf } from '@/lib/battle/monster';
 import { useParams } from 'react-router';
 import { AnimatePresence, m } from 'motion/react';
 import { Lock, Maximize, Minimize, Play, WifiOff } from 'lucide-react';
@@ -216,6 +217,7 @@ export default function PresenterPage() {
               offsetMs={game.offset}
               reactions={reactions}
               lurker={Boolean(game.state?.battle?.enabled)}
+              monster={game.state?.battle ? monsterOf(game.state.battle) : null}
               onInteraction={playBoing}
               variant="stage"
               label="Players"

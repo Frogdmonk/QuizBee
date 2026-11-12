@@ -1,13 +1,23 @@
 import { memo } from 'react';
 import '@/styles/camp.css';
+import { Monster } from '@/components/battle/Monster';
+import type { MonsterSpec } from '@/lib/monsters/types';
 
 /**
  * The lobby as a camp before the battle (projector only): two tents, a campfire and a few rocks,
  * drawn behind the players in the playground's 1000×700 world. Static SVG plus a CSS flame.
  */
-export const CampScenery = memo(function CampScenery({ lurker = false }: { lurker?: boolean }) {
+export const CampScenery = memo(function CampScenery({ lurker = false, monster = null }: { lurker?: boolean; monster?: MonsterSpec | null }) {
+  // A generated monster waits on the horizon as itself (a dark silhouette rimmed with its glow);
+  // the original Gloomjaw keeps its hand-drawn silhouette.
+  const drawn = lurker && monster && monster.rig !== 'blob';
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
+      {drawn && (
+        <div className="absolute" style={{ left: 770, top: -36, width: 190, height: 200 }}>
+          <Monster monster={monster} stage="normal" className="camp-lurker size-full" label={`${monster.name} waits on the horizon`} />
+        </div>
+      )}
       <svg viewBox="0 0 1000 700" className="absolute inset-0 size-full">
         <defs>
           <radialGradient id="camp-glow" cx="0.5" cy="0.5" r="0.5">
@@ -16,7 +26,7 @@ export const CampScenery = memo(function CampScenery({ lurker = false }: { lurke
           </radialGradient>
         </defs>
         {/* Before a boss battle: the monster waits on the horizon, one eye glowing. */}
-        {lurker && (
+        {lurker && !drawn && (
           <g transform="translate(790 -4) scale(1.3)">
             <path
               d="M18 108 C 10 70 22 34 60 34 C 98 34 110 70 102 108 Z M34 40 C 24 22 26 8 36 2 C 36 18 44 28 52 34 Z M86 40 C 96 22 94 8 84 2 C 84 18 76 28 68 34 Z"

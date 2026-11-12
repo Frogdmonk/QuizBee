@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { battleStage, monsterInfo, STAGE_LABEL } from '@/lib/battle/monster';
+import { asMonster, battleStage, STAGE_LABEL } from '@/lib/battle/monster';
+import type { MonsterSpec } from '@/lib/monsters/types';
 import { Monster, type MonsterAction } from './Monster';
 import { EnergyMeter } from './Powerups';
 import { HpBar } from './HpBar';
@@ -17,7 +18,7 @@ export function BattleStrip({
   energy,
   className,
 }: {
-  monster: string;
+  monster: MonsterSpec | string;
   hp: number;
   maxHp: number;
   size?: 'sm' | 'md' | 'stage';
@@ -30,10 +31,12 @@ export function BattleStrip({
   className?: string;
 }) {
   const stage = battleStage(hp, maxHp, at);
-  const info = monsterInfo(monster);
+  const info = asMonster(monster);
   return (
     <div className={cn('flex min-w-0 items-center gap-3', className)}>
       <Monster
+        monster={info}
+        hpFraction={maxHp ? hp / maxHp : null}
         stage={stage}
         action={action}
         className={cn('shrink-0', size === 'stage' ? 'size-[clamp(3rem,7vh,5.5rem)]' : size === 'md' ? 'size-12' : 'size-9')}

@@ -1,3 +1,5 @@
+import { resolveMonster } from '@/lib/monsters/resolve';
+import type { Difficulty, DifficultySetting } from '@/lib/monsters/types';
 import type { AppSupabaseClient } from '@/lib/supabase';
 import type { LeaderboardEntry } from '@/lib/leaderboard/types';
 import type { LearningState, Misconception, MyPowerup, PowerupInfo } from '@/types/game';
@@ -136,6 +138,9 @@ function toLearning(l: RawState['learning']): LearningState | null {
 export type RawBattle = {
   enabled: boolean;
   monster: string;
+  monster_spec?: unknown;
+  difficulty?: DifficultySetting;
+  difficulty_resolved?: Difficulty | null;
   hp_setting: number | null;
   base_damage: number;
   max_hp: number | null;
@@ -268,6 +273,11 @@ export function toBattle(b: RawBattle | null | undefined): BattleState | null {
   return {
     enabled: b.enabled,
     monster: b.monster,
+    // A stored monster this version cannot show falls back to the catalogue / default monster.
+    monsterSpec: resolveMonster({ monster: b.monster, monsterSpec: b.monster_spec }),
+    monsterChosen: b.monster_spec !== null && b.monster_spec !== undefined,
+    difficulty: b.difficulty ?? 'auto',
+    difficultyResolved: b.difficulty_resolved ?? null,
     hpSetting: b.hp_setting,
     baseDamage: b.base_damage,
     maxHp: b.max_hp,

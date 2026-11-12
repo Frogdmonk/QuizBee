@@ -70,6 +70,7 @@ export const router = createBrowserRouter([
                 handle: { wide: true },
                 lazy: page(() => import('@/pages/teacher/QuizEditorPage')),
               },
+              { path: 'monsters', lazy: page(() => import('@/pages/teacher/MonstersPage')) },
               { path: 'shared', lazy: page(() => import('@/pages/teacher/SharedWithMePage')) },
               { path: 'workspaces', lazy: page(() => import('@/pages/teacher/WorkspacesPage')) },
               { path: 'workspaces/:workspaceId', lazy: page(() => import('@/pages/teacher/WorkspaceDetailPage')) },

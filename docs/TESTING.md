@@ -160,6 +160,60 @@ Machine check in Chromium (mocked server): prompt step, partly broken JSON with 
 valid question only", sample validated, review and edit, questions added to a new quiz (title filled, Publish READY),
 phone width without overflow; the only outside requests were the app's usual teacher-profile reads.
 
+### Monster engine coverage (phases 1–2)
+
+| Area | Tests |
+|---|---|
+| Logic (`monster-engine.test.ts`) | archetypes complete (elements, parts, personalities, names, titles, every animation state) and in the server's format; the brief's families all present; every named monster valid, stable and unique; 3000 random monsters coherent; deterministic per seed and varied (every body, every element); incompatible monsters never generated and caught by the checker (winged golem, fire sea serpent, stomping ghost, wrong body); surprise bosses rare but without difficulty; weakness only from the quiz's topics; drawable bodies and "avoid last" respected; teacher picks stable; stored specs survive JSON; broken specs fall back to Gloomjaw; reaction lines short and never aimed at anyone |
+| Database (`monster-engine.test.ts`) | default Gloomjaw on auto; a generated monster stored, shown to every player and kept after the start and on reconnect; locked at the start; host only; broken specs refused (bad body, colour, long name, odd part, empty ability, oversize, not an object); null resets; difficulty presets (hard, epic thresholds, easy), invalid and after-start refused; auto: untagged = medium (HP unchanged), mostly hard = easy (×0.85), long mostly easy = hard (×1.15); epic ×1.3; the teacher's HP and hand-tuned settings kept |
+
+### Monster controls coverage (monster engine phase 6)
+
+| Area | Tests |
+|---|---|
+| Logic and screens (`monster-controls.test.tsx`) | automatic difficulty and HP scaling match the server (same numbers as the database test); the picker shows the session's monster and its weakness, rolls a random monster (avoiding the current body, with the quiz's weakness topic) or a surprise boss (epic or legendary); the catalogue by family with the current monster marked, saving a pick; difficulty replaces intensity, Auto previews this quiz, a fixed level is saved |
+
+Machine check in Chromium (stateful mock): the host lobby rolls a monster once on opening, Surprise boss and a catalogue
+pick are saved and shown, Epic raises the HP estimate, all difficulty labels fit, no page overflow.
+
+## Manual checklist: monsters in a live session
+
+Run `20261119090000_monster_engine.sql` first.
+
+1. Host a quiz: the lobby's Boss battle section shows a monster straight away. Try New random monster, Surprise boss and Choose….
+2. The projector's camp shows that monster on the horizon. Start the game: the announcement, arena, HUD and phones show the same monster.
+3. Reload the projector and a phone mid-game: the same monster.
+4. Set Difficulty to Epic before starting: the monster enters Rage at 75 %. With Auto on a quiz of mostly hard questions, the battle is Easy.
+
+### Monster battle coverage (monster engine phase 5)
+
+| Area | Tests |
+|---|---|
+| Logic and screens (`monster-battle.test.tsx`) | reaction moments from the server's result; the same line on every screen in the monster's personality; weapon elements and super effective; weak spot matches the quiz's topic or objective; the arena: defending while hits land then preparing and attacking when it wins, its line after, taking hits and stunned when it loses, super effective banner; the announcement rises from the ground with its intro line and weakness; the result's last words (no taunt when it escapes); the camp horizon shows the session's monster (Gloomjaw keeps its silhouette) |
+
+Machine check in Chromium: Stonebreaker winning a round (fists blazing, Rockfall!, heal, speech bubble), Morvexa's intro,
+Ashfang on the camp horizon in the lobby, and a phone flagging a weak-spot question.
+
+### Monster motion coverage (monster engine phase 4)
+
+| Area | Tests |
+|---|---|
+| Logic and screens (`monster-motion.test.tsx`) | the state machine (every action and stage, weakened at ≤ 15 %, hits still show when weakened); every archetype's motion name exists; archetypes move differently in the same state (breath, rings, runes, pebbles, shield, crumble, evaporate); personality paces loops only, enraged faster; arena jitter and knock-back kept; unknown names fall back; the component sets state, motion and effect; every state draws for every archetype |
+
+Machine check in Chromium: nine states captured mid-animation (dragon breath, golem pebbles and shock rings, witch runes,
+knight shield, hydra recoil, guardian healing, weakened firebird, crumbling colossus) and the projector arena sequence
+ending stunned with the monster's own special named.
+
+### Monster bodies coverage (monster engine phase 3)
+
+| Area | Tests |
+|---|---|
+| Drawing (`monster-art.test.tsx`) | every body the generator can pick is registered; every archetype draws every part value for every element in its own body and palette; every stage with key actions (and every action) draws, defeated shows crossed-out eyes; screen-reader label is the name and title (or the battle label); no monster, Gloomjaw, or a body that throws all show Gloomjaw; art states and fallback to idle art; palette outline and highlight colours |
+
+Machine check in Chromium (mocked server): all 29 named monsters on the Monsters page; close-ups of serpents, dragons,
+casters, brutes, undead, beasts, the firebird and guardians; the projector's battle announcement (The Hollow King)
+and the arena reveal (Ashfang in Rage taking the class's hits).
+
 ### Code blocks coverage (programming questions)
 
 | Area | Tests |

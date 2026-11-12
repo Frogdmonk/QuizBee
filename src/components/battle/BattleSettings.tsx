@@ -3,10 +3,11 @@ import { SegmentedControl, Switch } from '@/components/ui/FormControls';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
-import { setBattleSettings, setPowerupSettings, setWeaponSettings, type BattleSettingsInput, type WeaponSettingsInput } from '@/services/battle';
+import { setBattleDifficulty, setBattleSettings, setPowerupSettings, setWeaponSettings, type BattleSettingsInput, type WeaponSettingsInput } from '@/services/battle';
+import { DIFFICULTY_HELP, DIFFICULTY_LABEL, DIFFICULTY_SETTINGS, autoHpAt, effectiveDifficulty } from '@/lib/monsters/difficulty';
+import type { DifficultySetting } from '@/lib/monsters/types';
 import { friendlyError } from '@/utils/errors';
-import { monsterInfo } from '@/lib/battle/monster';
-import { autoMonsterHp } from '@/lib/battle/hp';
+import { monsterOf } from '@/lib/battle/monster';
 import type { AppSupabaseClient } from '@/lib/supabase';
 import type { BattleConfig, BattleState } from '@/types/game';
 
@@ -22,6 +23,7 @@ export function BattleSettings({
   battle,
   players,
   questions,
+  difficulties = [],
   onChanged,
 }: {
   client: AppSupabaseClient;
@@ -29,14 +31,30 @@ export function BattleSettings({
   battle: BattleState;
   players: number;
   questions: number;
+  /** The quiz's question difficulties (null = untagged), for the automatic preview. */
+  difficulties?: readonly (string | null)[];
   onChanged: () => void;
 }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [customHp, setCustomHp] = useState(battle.hpSetting !== null ? String(battle.hpSetting) : '');
   const [hpError, setHpError] = useState<string | null>(null);
-  const name = monsterInfo(battle.monster).name;
-  const autoHp = autoMonsterHp(players, questions, battle.baseDamage);
+  const name = monsterOf(battle).name;
+  const difficulty: DifficultySetting = battle.difficulty ?? 'auto';
+  const effective = effectiveDifficulty(difficulty, difficulties);
+  const autoHp = autoHpAt(players, questions, battle.baseDamage, effective);
+
+  const saveDifficulty = async (value: DifficultySetting) => {
+    setBusy(true);
+    try {
+      await setBattleDifficulty(client, sessionId, value);
+      onChanged();
+    } catch (error) {
+      toast({ tone: 'error', title: 'Difficulty not saved', description: friendlyError(error) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const save = async (input: BattleSettingsInput) => {
     setBusy(true);
@@ -116,7 +134,7 @@ export function BattleSettings({
           {battle.hpSetting === null && customHp === '' ? (
             <p className="text-caption text-ink-500">
               About <span className="font-bold text-ink-800">{autoHp} HP</span> for {players} {players === 1 ? 'player' : 'players'} and {questions}{' '}
-              {questions === 1 ? 'question' : 'questions'}: a class getting about 70% right wins near the end. Fixed when you start.
+              {questions === 1 ? 'question' : 'questions'} at {DIFFICULTY_LABEL[effective].toLowerCase()}: a class getting about 70% right wins near the end. Fixed when you start.
             </p>
           ) : (
             <form
@@ -155,21 +173,31 @@ export function BattleSettings({
             options={DAMAGE_OPTIONS.map((d) => ({ value: d, label: d }))}
             onChange={(v) => void save({ baseDamage: Number(v) })}
           />
-          <p className="pt-1 text-body-sm font-semibold text-ink-800">Battle intensity</p>
+          <p className="pt-1 text-body-sm font-semibold text-ink-800">Difficulty</p>
           <SegmentedControl
-            label="Battle intensity"
-            layoutId="battle-intensity"
-            value={battle.config.intensity}
-            options={[
-              { value: 'gentle', label: 'Gentle' },
-              { value: 'standard', label: 'Standard' },
-              { value: 'fierce', label: 'Fierce' },
-              ...(battle.config.intensity === 'custom' ? [{ value: 'custom' as const, label: 'Custom' }] : []),
-            ]}
+            label="Difficulty"
+            layoutId="battle-difficulty"
+            className="gap-0.5 [&_button]:px-1 [&_button]:text-caption"
+            value={difficulty}
+            options={DIFFICULTY_SETTINGS.map((d) => ({ value: d, label: d === 'auto' ? 'Auto' : DIFFICULTY_LABEL[d] }))}
             onChange={(v) => {
-              if (v !== 'custom') void save({ intensity: v });
+              if (v !== difficulty) void saveDifficulty(v);
             }}
           />
+          <p className="text-caption text-ink-700">
+            {difficulty === 'auto' ? (
+              <>
+                <span className="font-semibold">{DIFFICULTY_LABEL[effective]} for this quiz</span>, worked out from its questions when you start (mostly hard
+                questions make an easier monster). {DIFFICULTY_HELP[effective]}
+              </>
+            ) : (
+              DIFFICULTY_HELP[difficulty]
+            )}{' '}
+            The monster you choose never changes this.
+          </p>
+          {battle.config.intensity === 'custom' && (
+            <p className="text-caption text-warning-700">You tuned class targets or healing by hand under Advanced; your values are kept until you pick a difficulty again.</p>
+          )}
           <p className="text-caption text-ink-500">
             Below {battle.config.rageAt}% HP the monster goes into Rage, below {battle.config.enragedAt}% it is Enraged. Each question it
             charges a special attack; the class stops it when at least {battle.config.targets.normal}% / {battle.config.targets.rage}% /{' '}

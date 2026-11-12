@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import type { MonsterSpec } from '@/lib/monsters/types';
 import { m } from 'motion/react';
 import { ArrowDown, ArrowUp, Crown } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -33,7 +34,7 @@ export function ClimbBoard({
 }: {
   snapshot: LeaderboardSnapshot | null;
   /** The boss at the summit (boss battle), or null for a summit flag. */
-  monster?: { key: string; hp: number; maxHp: number; at?: { rageAt: number; enragedAt: number } } | null;
+  monster?: { key: string; hp: number; maxHp: number; at?: { rageAt: number; enragedAt: number }; spec?: MonsterSpec } | null;
   className?: string;
 }) {
   const [latest, setLatest] = useState<LeaderboardSnapshot | null>(snapshot);
@@ -106,7 +107,7 @@ export function ClimbBoard({
         <div className="absolute" style={{ left: LAIR.x - 150, top: LAIR.y - 175, width: 300 }}>
           {monster && stageOf ? (
             <>
-              <Monster stage={stageOf} action={stageOf === 'rage' || stageOf === 'enraged' ? 'brewing' : 'idle'} className="mx-auto size-[230px]" />
+              <Monster monster={monster.spec ?? null} stage={stageOf} hpFraction={monster.maxHp ? monster.hp / monster.maxHp : null} action={stageOf === 'rage' || stageOf === 'enraged' ? 'brewing' : 'idle'} className="mx-auto size-[230px]" />
               <HpBar hp={monster.hp} maxHp={monster.maxHp} at={monster.at} size="md" className="-mt-2 [&_.type-score]:text-[18px]" />
             </>
           ) : (

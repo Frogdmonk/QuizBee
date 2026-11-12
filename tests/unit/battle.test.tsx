@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resolveMonster } from '@/lib/monsters/resolve';
 import { act, render, screen } from '@testing-library/react';
 import { ARENA, CLASS_ZONE, formation } from '@/lib/battle/formation';
 import { MAX_SHOTS, planAttack } from '@/lib/battle/choreography';
@@ -108,7 +109,8 @@ describe('battle state from the server', () => {
         enabled: true, monster: 'gloomjaw', hp_setting: null, base_damage: 3, max_hp: 100, hp: 91,
         last: { question_id: 'q1', position: 0, eligible: 4, correct: 3, accuracy: '75.00', attackers: ['a', 'b', 'c'], damage: 9, hp_before: 100, hp_after: 91 },
       }),
-    ).toEqual(battle);
+      // An older server sends no monster or difficulty: the default monster, automatic difficulty.
+    ).toEqual({ ...battle, monsterSpec: resolveMonster(null), monsterChosen: false, difficulty: 'auto', difficultyResolved: null });
     expect(toBattle(null)).toBeNull();
   });
 
@@ -224,7 +226,7 @@ describe('battle screens', () => {
       />,
     );
     expect(screen.getByRole('heading')).toHaveTextContent('Gloomjaw is in a RAGE!');
-    expect(screen.getByText(/18 of 30 must answer correctly to stop the Riddle Roar/)).toBeInTheDocument();
+    expect(screen.getByText('Every question it charges its Riddle Roar: 18 of 30 must answer correctly to stop it.')).toBeInTheDocument();
     expect(screen.getByText('10 seconds per question.')).toBeInTheDocument();
   });
 

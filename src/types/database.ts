@@ -280,6 +280,8 @@ export type Database = {
       send_reaction: { Args: { p_session_id: string; p_emote: string }; Returns: Json };
       set_reactions_enabled: { Args: { p_session_id: string; p_enabled: boolean }; Returns: number };
       set_battle_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };
+      set_battle_monster: { Args: { p_session_id: string; p_spec: Json | null }; Returns: number };
+      set_battle_difficulty: { Args: { p_session_id: string; p_difficulty: string }; Returns: number };
       set_weapon_settings: { Args: { p_session_id: string; p_settings: Json }; Returns: number };
       cast_weapon_vote: { Args: { p_vote_id: string; p_weapon: string }; Returns: Json };
       decide_weapon_vote: { Args: { p_session_id: string; p_weapon: string | null }; Returns: number };

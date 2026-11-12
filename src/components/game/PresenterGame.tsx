@@ -9,6 +9,8 @@ import { useGameCommands } from '@/hooks/useGameCommands';
 import { useReactions } from '@/hooks/useReactions';
 import { useReactionSounds, useSfxOn, useSoundtrack } from '@/hooks/useMusic';
 import { soundtrackFor } from '@/lib/audio/tracks';
+import { monsterOf } from '@/lib/battle/monster';
+import { weakSpotNote } from '@/lib/monsters/reactions';
 import { activeBattle, chargingNote, currentRules, modeTimer, revealAttack } from '@/lib/battle/state';
 import { BattleAnnounce } from '@/components/battle/BattleAnnounce';
 import { WeaponEquipStage, WeaponVoteStage } from '@/components/battle/WeaponVote';
@@ -28,7 +30,7 @@ import { BattleStrip } from '@/components/battle/BattleStrip';
 import { BattleReveal } from '@/components/battle/BattleReveal';
 import { BattleResult } from '@/components/battle/BattleResult';
 import type { ArenaPlayer } from '@/components/battle/BattleArena';
-import type { BattleState } from '@/types/game';
+import type { BattleState, GameQuestion } from '@/types/game';
 import { snapshotFromState } from '@/lib/leaderboard/snapshot';
 import { enterUp } from '@/lib/motion';
 import { cn } from '@/lib/cn';
@@ -202,12 +204,12 @@ export function PresenterGame({
           )}
           {battle && phase === 'question' && !announcing && (
             <BattleStrip
-              monster={battle.monster}
+              monster={monsterOf(battle)}
               hp={battle.hp}
               maxHp={battle.maxHp}
               at={battle.config}
               action={showHud && (rules?.mode === 'rage' || rules?.mode === 'enraged') ? 'brewing' : 'idle'}
-              note={showHud ? hudNote(chargingNote(rules, question?.eligibleCount ?? null), battle, question?.id) : null}
+              note={showHud ? hudNote(battle ? chargingNote(rules, question?.eligibleCount ?? null, monsterOf(battle)) : null, battle, question) : null}
               energy={battle.config.powerupsEnabled ? battle.energy : null}
               size="stage"
               className="mx-auto w-full max-w-[34rem] min-w-0 flex-1"
@@ -296,7 +298,7 @@ export function PresenterGame({
               {snapshot ? (
                 <ClimbBoard
                   snapshot={snapshot}
-                  monster={battle ? { key: battle.monster, hp: battle.hp, maxHp: battle.maxHp, at: battle.config } : null}
+                  monster={battle ? { key: battle.monster, hp: battle.hp, maxHp: battle.maxHp, at: battle.config, spec: monsterOf(battle) } : null}
                   className="min-h-0 w-full flex-1"
                 />
               ) : (
@@ -319,7 +321,7 @@ export function PresenterGame({
             </m.div>
           ) : phase === 'podium' ? (
             <m.div key="podium" variants={enterUp} initial="hidden" animate="show" className="flex min-h-0 flex-1 flex-col items-center">
-              {battle && <BattleResult monster={battle.monster} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} className="mb-[3vh] w-full max-w-5xl" />}
+              {battle && <BattleResult monster={monsterOf(battle)} hp={battle.hp} maxHp={battle.maxHp} at={battle.config} className="mb-[3vh] w-full max-w-5xl" />}
               <h2 className="type-display text-center text-stage-title">Final results</h2>
               {state.leaderboard.length > 0 ? (
                 <>
@@ -370,8 +372,13 @@ export function PresenterGame({
 }
 
 /** The question HUD line: the special attack, plus Time Warp and the Weakness Scanner when used. */
-function hudNote(charging: string | null, battle: BattleState, questionId: string | undefined): string | null {
-  const c = battle.current && battle.current.questionId === questionId ? battle.current : null;
-  const parts = [charging, c && c.timeWarpS > 0 ? `Time Warp +${c.timeWarpS} s` : null, c?.topic ? `Weakness: ${c.topic}` : null].filter(Boolean);
+function hudNote(charging: string | null, battle: BattleState, question: GameQuestion | null | undefined): string | null {
+  const c = battle.current && battle.current.questionId === question?.id ? battle.current : null;
+  const parts = [
+    charging,
+    c && c.timeWarpS > 0 ? `Time Warp +${c.timeWarpS} s` : null,
+    c?.topic ? `Weakness: ${c.topic}` : null,
+    weakSpotNote(monsterOf(battle), question),
+  ].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }

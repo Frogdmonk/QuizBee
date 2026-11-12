@@ -1,5 +1,7 @@
 import type { BattleAttack, BattleCurrent, BattleState, EquippedWeapon, GameState } from '@/types/game';
-import { SPECIAL_ATTACK } from './monster';
+import { specialAttack } from './monster';
+import { resolveMonster } from '@/lib/monsters/resolve';
+import type { MonsterSpec } from '@/lib/monsters/types';
 
 /** The running battle, or null (switched off, not started yet, or an older session). */
 export function activeBattle(state: GameState | null): (BattleState & { maxHp: number; hp: number }) | null {
@@ -22,10 +24,10 @@ export function modeTimer(battle: BattleState, mode: BattleCurrent['mode']): num
 }
 
 /** "Riddle Roar charging · 18 of 30 needed" for the question HUD. */
-export function chargingNote(rules: BattleCurrent | null, eligible: number | null): string | null {
+export function chargingNote(rules: BattleCurrent | null, eligible: number | null, monster: MonsterSpec = resolveMonster(null)): string | null {
   if (!rules || rules.mode === 'defeated' || rules.targetCount === null) return null;
   const needed = eligible !== null ? `${rules.targetCount} of ${eligible} correct needed` : `${rules.targetPct}% correct needed`;
-  return `⚡ ${SPECIAL_ATTACK[rules.mode].name} charging · ${needed}`;
+  return `⚡ ${specialAttack(monster, rules.mode)} charging · ${needed}`;
 }
 
 /** The attack to play right now: the current question's, during its reveal. */

@@ -1,9 +1,10 @@
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { reactionLine, superEffective } from '@/lib/monsters/reactions';
 import { cn } from '@/lib/cn';
 import { hashString } from '@/lib/playground/sim';
 import { ARENA, CLASS_ZONE, MONSTER_TARGET, formation } from '@/lib/battle/formation';
 import { planAttack } from '@/lib/battle/choreography';
-import { battleStage, hitSeverity, monsterInfo, SPECIAL_ATTACK, STAGE_LABEL } from '@/lib/battle/monster';
+import { battleStage, hitSeverity, monsterOf, specialAttack, STAGE_LABEL } from '@/lib/battle/monster';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { music } from '@/lib/audio/engine';
 import { Hero } from '@/components/avatar/Hero';
@@ -89,9 +90,11 @@ export function BattleArena({
  * (landed); then either the special attack was stopped (the monster is stunned) or the monster
  * counter-attacks (counter: a shock wave at the class) and regenerates (healed).
  */
-type Step = 'windup' | 'taking' | 'landed' | 'counter' | 'healed' | 'settled';
+type Step = 'windup' | 'taking' | 'landed' | 'prepare' | 'counter' | 'healed' | 'settled';
 
 /** Delays after the last hit lands. */
+/** After the hits land: the monster gathers itself (prepare), then counter-attacks. */
+const PREPARE_MS = 450;
 const COUNTER_MS = 900;
 const HEALED_MS = 1700;
 
@@ -126,6 +129,7 @@ const Scene = memo(function Scene({
     const t = plan.totalMs;
     const timers = [window.setTimeout(() => setStep('taking'), plan.firstImpactMs), window.setTimeout(() => setStep('landed'), t)];
     if (counters) {
+      timers.push(window.setTimeout(() => setStep('prepare'), t + PREPARE_MS));
       timers.push(window.setTimeout(() => setStep('counter'), t + COUNTER_MS));
       timers.push(window.setTimeout(() => setStep('healed'), t + HEALED_MS));
       timers.push(window.setTimeout(() => setStep('settled'), t + HEALED_MS + 1300));
@@ -149,14 +153,20 @@ const Scene = memo(function Scene({
 
   const maxHp = battle.maxHp ?? 0;
   const landed = step !== 'windup' && step !== 'taking';
-  const hp = !attack ? (battle.hp ?? maxHp) : !landed ? attack.hpBefore : step === 'landed' || step === 'counter' ? hpAfterHits : attack.hpAfter;
+  const hp = !attack ? (battle.hp ?? maxHp) : !landed ? attack.hpBefore : step === 'landed' || step === 'prepare' || step === 'counter' ? hpAfterHits : attack.hpAfter;
   const stage = battleStage(hp, maxHp, battle.config);
   const severity = attack ? hitSeverity(attack.damage, maxHp) : 'none';
+  // A monster that is winning (the class did not stop its special) defends while the hits land,
+  // then gathers itself and counter-attacks.
   const action: MonsterAction =
     stage === 'defeated'
       ? 'defeat'
       : step === 'taking'
-        ? 'taking'
+        ? counters
+          ? 'defend'
+          : 'taking'
+        : step === 'prepare'
+          ? 'brewing'
         : step === 'landed' && severity !== 'none'
           ? severity
           : step === 'counter'
@@ -166,12 +176,14 @@ const Scene = memo(function Scene({
               : stopped && step === 'settled'
                 ? 'stunned'
                 : 'idle';
-  const special = attack?.mode && attack.mode !== 'defeated' ? SPECIAL_ATTACK[attack.mode] : null;
+  const special = attack?.mode && attack.mode !== 'defeated' ? specialAttack(monsterOf(battle), attack.mode) : null;
 
   const spots = useMemo(() => formation(players.length), [players.length]);
   const spotOf = useMemo(() => new Map(players.map((p, i) => [p.id, spots[i]])), [players, spots]);
   const swingOf = useMemo(() => new Map(plan?.swings.map((s) => [s.id, s.delayMs]) ?? []), [plan]);
-  const info = monsterInfo(battle.monster);
+  const info = monsterOf(battle);
+  const say = attack && landed ? reactionLine(info, attack, maxHp || null) : null;
+  const strongWeapon = Boolean(attack && landed && superEffective(info, attack.weapon));
   const playing = Boolean(attack) && !reduced && step !== 'settled';
 
   return (
@@ -237,7 +249,7 @@ const Scene = memo(function Scene({
 
       {/* The monster */}
       <div className="absolute" style={{ left: MONSTER_BOX.left, top: MONSTER_BOX.top, width: MONSTER_BOX.width, height: MONSTER_BOX.height }}>
-        <Monster stage={stage} action={action} className="size-full" label={`${info.name}, ${STAGE_LABEL[stage].toLowerCase()}, ${hp} of ${maxHp} HP`} />
+        <Monster monster={info} stage={stage} action={action} hpFraction={maxHp ? hp / maxHp : null} className="size-full" label={`${info.name}, ${STAGE_LABEL[stage].toLowerCase()}, ${hp} of ${maxHp} HP`} />
       </div>
 
       {/* Projectiles and hits */}
@@ -264,6 +276,13 @@ const Scene = memo(function Scene({
           );
         })}
 
+      {/* What the monster says about this question (one line, at the class, never at a student) */}
+      {say && (
+        <p key={`say-${attack?.questionId}`} className="mon-say absolute" style={{ left: MONSTER_BOX.left - 300, top: MONSTER_BOX.top + 24, width: 300 }}>
+          {say}
+        </p>
+      )}
+
       {/* The counter-attack: a shock wave rolls across to the class; then the monster heals. */}
       {step === 'counter' && <span className="ba-wave" style={{ left: MONSTER_BOX.left + 40, top: 360 }} aria-hidden />}
       {attack && (step === 'healed' || (step === 'settled' && counters)) && attack.heal > 0 && (
@@ -275,18 +294,19 @@ const Scene = memo(function Scene({
       {/* What happened: weapon effects, the special attack, a weapon unlock */}
       {attack && landed && (
         <div role="status" className="absolute top-[24px] left-[50px] flex w-[740px] flex-col gap-2">
-          {(weaponLine(attack) || attack.frozen) && (
+          {(weaponLine(attack) || attack.frozen || strongWeapon) && (
             <div className="ba-banner rounded-md bg-night-950/90 px-5 py-2 text-night-text ring-2" style={{ '--tw-ring-color': weaponArt(attack.weapon)?.color } as CSSProperties}>
               <p className="flex items-center gap-3 text-[24px] leading-tight font-bold">
                 {attack.weapon && <WeaponIcon weapon={attack.weapon} className="size-9 shrink-0" />}
                 {attack.frozen ? 'Deep Freeze! The special attack is frozen.' : weaponLine(attack)}
               </p>
+              {strongWeapon && <p className="mt-1 text-[20px] font-bold text-sun-400">Super effective! {info.name} fears this weapon.</p>}
             </div>
           )}
           {special && attack.defended !== null && hpAfterHits > 0 && (
             <div className={cn('ba-banner rounded-md px-5 py-2.5 text-night-text', attack.defended ? 'bg-success-600/90' : 'bg-rose-600/90')}>
               <p className="type-display text-[32px] leading-tight">
-                {attack.frozen ? `${special.name} frozen!` : attack.defended ? `${special.name} stopped!` : attack.shielded ? `${special.name} blocked by a shield!` : `${special.name}!`}
+                {attack.frozen ? `${special} frozen!` : attack.defended ? `${special} stopped!` : attack.shielded ? `${special} blocked by a shield!` : `${special}!`}
               </p>
               <p className="text-[20px] font-semibold">
                 {attack.correct} of {attack.eligible} correct · {attack.targetCount} needed

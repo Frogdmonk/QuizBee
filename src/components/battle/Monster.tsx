@@ -1,28 +1,100 @@
 import '@/styles/battle.css';
-import { memo } from 'react';
+import '@/styles/monsters.css';
+import { Component, memo, useState, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import type { BattleStage } from '@/lib/battle/monster';
+import type { MonsterSpec } from '@/lib/monsters/types';
+import { paletteVars } from '@/lib/monsters/colour';
+import { artFor, artState } from '@/lib/monsters/art';
+import { RIGS } from '@/components/monsters/registry';
+import { MonsterFx } from '@/components/monsters/MonsterFx';
+import { monsterState, motionFor, type MonsterActionName, type MonsterState } from '@/lib/monsters/motion';
 
-export type MonsterAction = 'idle' | 'taking' | 'hit' | 'stagger' | 'defeat' | 'charge' | 'heal' | 'stunned' | 'brewing';
+export type MonsterAction = MonsterActionName;
 
-/**
- * Gloomjaw, the Riddle Eater: a one-eyed, horned blob that feeds on wrong answers. Drawn in SVG so
- * it stays crisp on a projector; every animation is CSS (styles/index.css, `.mon…`).
- *   stage  → colours and idle mood: calm → rage (red, steaming) → enraged (cracked, glowing) → defeated
- *   action → idle, taking hits, a flinch, a stagger, the defeat fall, charging a special attack,
- *            regenerating, or stunned after the class stopped its special attack
- */
-export const Monster = memo(function Monster({
-  stage,
-  action = 'idle',
-  className,
-  label = 'Gloomjaw the monster',
-}: {
+type MonsterProps = {
   stage: BattleStage;
   action?: MonsterAction;
   className?: string;
   label?: string;
-}) {
+  /** Who to draw (the session's generated monster). Without it, or for the blob, Gloomjaw. */
+  monster?: MonsterSpec | null;
+  /** HP left, 0–1: a monster at 15 % or less is weakened. */
+  hpFraction?: number | null;
+  /** Show this state directly (previews); battles leave it to the state machine. */
+  state?: MonsterState;
+};
+
+/**
+ * The monster on every screen. Each generated monster is drawn by its body (rig) in its own palette;
+ * stage and action drive the same CSS animations for every body (styles/battle.css, monsters.css):
+ *   stage  → calm → rage (glow, sparks) → enraged (cracks, aura) → defeated (greyed, X eyes)
+ *   action → idle, taking hits, a flinch, a stagger, the defeat fall, charging a special attack,
+ *            regenerating, or stunned after the class stopped its special attack
+ * Painted artwork (lib/monsters/art.ts) is used when it exists. Any failure falls back to Gloomjaw.
+ */
+export const Monster = memo(function Monster(props: MonsterProps) {
+  const { monster } = props;
+  if (!monster || monster.rig === 'blob' || !RIGS[monster.rig]) return <Gloomjaw {...props} />;
+  return (
+    <RigBoundary fallback={<Gloomjaw {...props} />}>
+      <RigMonster {...props} monster={monster} />
+    </RigBoundary>
+  );
+});
+
+function RigMonster({ stage, action = 'idle', className, label, monster, hpFraction = null, state: forced }: MonsterProps & { monster: MonsterSpec }) {
+  const Rig = RIGS[monster.rig]!;
+  const state = forced ?? monsterState(stage, action, hpFraction);
+  const motion = motionFor(monster, state, forced ? undefined : action);
+  const art = artFor(monster.id, artState(stage, action, state === 'weakened'));
+  const [brokenArt, setBrokenArt] = useState<string | null>(null);
+  return (
+    <div
+      className={cn('mon mon-rig relative', className)}
+      style={{ ...paletteVars(monster.palette), '--m-anim': motion.animation } as CSSProperties}
+      data-stage={stage}
+      data-action={action}
+      data-state={state}
+      data-motion={motion.name}
+      data-rig={monster.rig}
+      data-archetype={monster.archetype}
+      data-movement={monster.movement}
+      data-rarity={monster.rarity}
+      role="img"
+      aria-label={label ?? `${monster.name}, ${monster.title}`}
+    >
+      <div className="mon-fx size-full">
+        {art && brokenArt !== art ? (
+          <img src={art} alt="" className="mon-svg size-full object-contain" onError={() => setBrokenArt(art)} />
+        ) : (
+          <svg viewBox="0 0 400 420" className="mon-svg size-full overflow-visible">
+            <Rig spec={monster} stage={stage} />
+            {/* Keyed by state so one-shot effects replay each time the state is entered. */}
+            <MonsterFx key={`${state}:${action}`} fx={motion.fx} rig={monster.rig} />
+          </svg>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** If a body ever fails to draw, show the default monster instead of breaking the battle. */
+class RigBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.error('Monster body failed to draw; showing the default monster.', error);
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+/** Gloomjaw, the Riddle Eater: a one-eyed, horned blob that feeds on wrong answers (the original). */
+function Gloomjaw({ stage, action = 'idle', className, label = 'Gloomjaw the monster' }: MonsterProps) {
   const defeated = stage === 'defeated';
   return (
     <div className={cn('mon relative', className)} data-stage={stage} data-action={action} role="img" aria-label={label}>
@@ -103,4 +175,4 @@ export const Monster = memo(function Monster({
       </svg>
     </div>
   );
-});
+}
