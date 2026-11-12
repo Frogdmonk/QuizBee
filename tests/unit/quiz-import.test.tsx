@@ -86,7 +86,7 @@ describe('checking pasted JSON', () => {
     expect(lines).toContain('Question 6: The question text is empty.');
     expect(lines).toContain('Question 7: Same question as question 1.');
     expect(lines).toContain('Question 8: A true/false question needs exactly two options: "True" and "False".');
-    expect(lines).toContain('Question 9: Rally questions can have at most 4 options; this one has 5.');
+    expect(lines).toContain('Question 9: NIAT ARENA questions can have at most 4 options; this one has 5.');
     expect(lines).toContain('Question 10: Difficulty "impossible" is not supported. Use "easy", "medium" or "hard".');
     expect(check.items[0].errors).toEqual([]);
     expect(check.items[0].draft).not.toBeNull();

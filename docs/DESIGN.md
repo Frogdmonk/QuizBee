@@ -1,5 +1,14 @@
 # Rally: "Match Day" final design spec
 
+> **Brand update (2026-11-12): NIAT / NxtWave identity.** The tokens in `src/styles/index.css` now carry the
+> brand: Nile Blue `#183B56` (ink-900: headings, text, navigation, dark controls), Emerald `#44C654`
+> (emerald-500 / signal-400 / volt-400: primary actions with Nile Blue text, active states, progress, positive
+> feedback), deep emerald `#1A7F37` (signal-600 / success-600: green text and links), Catskill White `#F8FAFC`
+> (paper) and white (surface); the night screens are deep Nile navy (`#0B1D2C`). Typeface: Inter everywhere
+> (code stays monospace). Game art (answer tiles, monsters, avatars, ranks) keeps its own colours. Where this
+> document still names the old palette (paper #F6F4EF, signal #C8361A, Archivo / Figtree), the tokens win.
+
+
 Status: final. This is the creative director's call. Match Day won by judge consensus (51 / 50 / 50). It is grafted with ideas from Desk & Stickers and Baseline, and every judge weakness is fixed. Contrast ratios were recomputed with the WCAG 2.x relative-luminance formula during this pass. Package versions were checked with `npm view` on 2026-11-07.
 
 ---

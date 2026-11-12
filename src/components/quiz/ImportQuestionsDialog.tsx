@@ -248,7 +248,7 @@ function PromptStep({
       </div>
 
       <p className="text-caption text-ink-500">
-        Rally never sends your presentation or your quiz to ChatGPT or any other AI service. You run the prompt in ChatGPT yourself; Rally only reads the JSON you paste back.
+        NIAT ARENA never sends your presentation or your quiz to ChatGPT or any other AI service. You run the prompt in ChatGPT yourself; NIAT ARENA only reads the JSON you paste back.
       </p>
     </div>
   );
@@ -324,7 +324,7 @@ function PasteStep({
             </Alert>
           ))}
           {check.fatal.map((message) => (
-            <Alert key={message} tone="error" title="Rally could not read this JSON">
+            <Alert key={message} tone="error" title="NIAT ARENA could not read this JSON">
               {message}
             </Alert>
           ))}

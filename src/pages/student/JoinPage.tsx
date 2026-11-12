@@ -295,22 +295,22 @@ function JoinDiagram() {
     <figure className="w-full">
       <svg viewBox="0 0 520 300" className="w-full">
         {/* projector screen */}
-        <rect x="140" y="20" width="360" height="200" rx="10" fill="#1A1D21" stroke="#646B74" />
-        <rect x="140" y="20" width="6" height="200" fill="#C8361A" />
-        <text x="170" y="62" fill="#A3A9B0" fontFamily="Figtree Variable, sans-serif" fontSize="14" fontWeight="700" letterSpacing="2">JOIN AT …/JOIN</text>
+        <rect x="140" y="20" width="360" height="200" rx="10" fill="#10283C" stroke="#5C7891" />
+        <rect x="140" y="20" width="6" height="200" fill="#44C654" />
+        <text x="170" y="62" fill="#A9B9C8" fontFamily="Inter Variable, Inter, sans-serif" fontSize="14" fontWeight="700" letterSpacing="2">JOIN AT …/JOIN</text>
         {[0, 1, 2, 3, 4, 5].map((i) => (
-          <rect key={i} x={170 + i * 46 + (i > 2 ? 14 : 0)} y="150" width="34" height="4" fill="#646B74" />
+          <rect key={i} x={170 + i * 46 + (i > 2 ? 14 : 0)} y="150" width="34" height="4" fill="#5C7891" />
         ))}
-        <rect x="408" y="100" width="70" height="70" rx="4" fill="#F3F4F1" />
+        <rect x="408" y="100" width="70" height="70" rx="4" fill="#F3F6F9" />
         {/* phone */}
-        <rect x="20" y="110" width="120" height="180" rx="16" fill="#0E1013" stroke="#F3F4F1" strokeWidth="2" />
+        <rect x="20" y="110" width="120" height="180" rx="16" fill="#0B1D2C" stroke="#F3F6F9" strokeWidth="2" />
         {[0, 1, 2, 3, 4, 5].map((i) => (
-          <rect key={i} x={36 + i * 15} y="200" width="11" height="3" fill="#D7F23A" />
+          <rect key={i} x={36 + i * 15} y="200" width="11" height="3" fill="#44C654" />
         ))}
-        <rect x="36" y="232" width="88" height="26" rx="5" fill="#D7F23A" />
+        <rect x="36" y="232" width="88" height="26" rx="5" fill="#44C654" />
         {/* arrow */}
-        <path d="M150 190 C 175 190 185 175 200 168" fill="none" stroke="#FF7A5C" strokeWidth="3" strokeLinecap="round" />
-        <path d="M193 160 L203 167 L192 173" fill="none" stroke="#FF7A5C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M150 190 C 175 190 185 175 200 168" fill="none" stroke="#44C654" strokeWidth="3" strokeLinecap="round" />
+        <path d="M193 160 L203 167 L192 173" fill="none" stroke="#44C654" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <figcaption className="type-kicker mt-6">The PIN is on your teacher’s screen</figcaption>
     </figure>

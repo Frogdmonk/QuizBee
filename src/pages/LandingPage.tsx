@@ -31,7 +31,7 @@ export default function LandingPage() {
             <h1 className="type-display mt-4 text-display-xl text-ink-900">
               Turn any lesson
               <br />
-              into a <span className="text-signal-600">rally.</span>
+              into an <span className="text-signal-600">arena.</span>
             </h1>
             <p className="mt-6 max-w-lg text-[1.125rem] leading-relaxed text-ink-700">
               Build a quiz, put the PIN on the projector, and your class answers from their phones. No student accounts.

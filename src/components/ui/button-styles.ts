@@ -2,7 +2,7 @@ import { cn } from '@/lib/cn';
 
 /**
  * Button variants (docs/DESIGN.md §5):
- * - primary: signal fill, the one main action per view.     - secondary: white with a line-strong border.
+ * - primary: brand emerald fill with Nile Blue text, the one main action per view.     - secondary: white with a line-strong border.
  * - ghost: text only, paper-sunk hover.                        - dark: ink fill.
  * - danger: error fill. Reserved for the confirm button inside ConfirmDialog.
  * - danger-outline: error outline. Use for every other destructive action, always with an icon.
@@ -38,7 +38,7 @@ const nightDisabled =
   'aria-disabled:border aria-disabled:border-dashed aria-disabled:border-night-line aria-disabled:bg-transparent aria-disabled:text-night-muted';
 
 const variants: Record<ButtonVariant, string> = {
-  primary: cn('bg-signal-600 text-white hover:bg-signal-700 [--wipe-color:var(--color-signal-600)]', pressable, paperDisabled),
+  primary: cn('bg-emerald-500 text-ink-900 hover:bg-emerald-600 [--wipe-color:var(--color-emerald-500)]', pressable, paperDisabled),
   secondary: cn('border border-line-strong bg-surface text-ink-900 hover:bg-paper', paperDisabled),
   ghost: cn('text-ink-700 hover:bg-paper-sunk hover:text-ink-900', paperDisabled, 'disabled:bg-transparent aria-disabled:bg-transparent'),
   danger: cn('bg-error-600 text-white hover:bg-[#9c2019] [--wipe-color:var(--color-error-600)]', pressable, paperDisabled),
@@ -49,7 +49,7 @@ const variants: Record<ButtonVariant, string> = {
     nightDisabled,
   ),
   'night-ghost': cn('border border-night-line bg-transparent text-night-muted hover:bg-night-900 hover:text-night-text', nightDisabled),
-  volt: cn('bg-volt-400 text-night-950 hover:bg-[#cce536] [--wipe-color:var(--color-volt-400)]', pressable, nightDisabled),
+  volt: cn('bg-volt-400 text-night-950 hover:bg-emerald-600 [--wipe-color:var(--color-volt-400)]', pressable, nightDisabled),
 };
 
 const sizes: Record<ButtonSize, string> = {

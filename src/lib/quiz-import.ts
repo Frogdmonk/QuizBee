@@ -426,7 +426,7 @@ function checkQuestion(q: unknown, number: number): ImportItem {
     if (new Set(texts).size !== texts.length) errors.push('Two options have the same text.');
     if (type === 'multiple_choice') {
       if (opts.length < LIMITS.minOptions) errors.push(`A multiple-choice question needs at least ${LIMITS.minOptions} options.`);
-      if (opts.length > LIMITS.maxOptions) errors.push(`Rally questions can have at most ${LIMITS.maxOptions} options; this one has ${opts.length}.`);
+      if (opts.length > LIMITS.maxOptions) errors.push(`NIAT ARENA questions can have at most ${LIMITS.maxOptions} options; this one has ${opts.length}.`);
     }
     if (type === 'true_false') {
       const words = opts.map((o) => o.text.toLowerCase()).sort();

@@ -1,3 +1,4 @@
+import { APP_NAME } from '@/lib/brand';
 import { useEffect, useState, type ReactNode } from 'react';
 import { monsterOf } from '@/lib/battle/monster';
 import { useParams } from 'react-router';
@@ -290,7 +291,7 @@ function Shell({ children, title, right, mood = 'calm' }: { children: ReactNode;
           {title ? (
             <h1 className="type-display line-clamp-2 text-[clamp(1.5rem,3.6vh,2.75rem)] leading-tight">{title}</h1>
           ) : (
-            <span className="type-headline text-[1.5rem]">Rally</span>
+            <span className="type-headline text-[1.5rem]">{APP_NAME}</span>
           )}
         </ScoreBug>
         <div className="flex items-center gap-2">

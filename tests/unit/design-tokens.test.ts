@@ -43,6 +43,10 @@ const TEXT_PAIRS: [string, string][] = [
   ['signal-600', 'paper'],
   ['signal-700', 'paper-sunk'],
   ['white', 'signal-600'],
+  // Primary buttons: brand emerald with Nile Blue text, and their hover.
+  ['ink-900', 'emerald-500'],
+  ['ink-900', 'emerald-600'],
+  ['ink-900', 'volt-400'],
   ['white', 'answer-a'],
   ['white', 'answer-b'],
   ['white', 'answer-c'],

@@ -1,7 +1,17 @@
 @import 'tailwindcss';
 
 /*
- * Rally "Match Day" design tokens (docs/DESIGN.md §2–6).
+ * Design tokens, NIAT / NxtWave brand identity (docs/DESIGN.md §2–6).
+ *   Nile Blue #183B56 (ink-900): headings, text, navigation, dark controls.
+ *   Emerald #44C654 (emerald-500, signal-400, volt-400, success-400): primary actions, active states,
+ *     progress, positive feedback. As a fill it carries Nile Blue text (white on it is too faint).
+ *   Deep emerald #1A7F37 (signal-600, success-600): green text and links, and fills with white text.
+ *   Catskill White #F8FAFC (paper) and white (surface): backgrounds and content surfaces.
+ *   Night: deep Nile navy for the student, projector and preview screens.
+ *   Typeface: Inter (the NxtWave sites' typeface; NIAT pairs it with Satoshi for headlines).
+ * Game art (answer tiles, monsters, avatars, ranks) keeps its own vivid colours.
+ *
+ * Former "Match Day" structure kept: paper / night grounds, answer kits, ranks.
  * Teacher / public side: the editorial desk (paper, ink, hairlines, one signal accent).
  * Student / projector side: the stage (night canvas, answer kits, volt on student phones only).
  * Answer colours are always paired with a letter, a kit pattern and a fixed position.
@@ -13,59 +23,63 @@
  * so no @custom-variant is declared for it.
  */
 @theme {
-  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Archivo Variable', 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, monospace;
 
   /* ── Paper (teacher, public) ─────────────────────────────────────────── */
-  --color-paper: #f6f4ef;
+  --color-paper: #f8fafc;
   --color-surface: #ffffff;
-  --color-paper-sunk: #e8e5dd;
-  --color-line: #d6d3cc;
-  --color-line-strong: #8a857c;
+  --color-paper-sunk: #eef2f6;
+  --color-line: #e2e8f0;
+  --color-line-strong: #7a8899;
 
   /* Ink. 400 / 500 / 900 are re-pointed for contrast; the rest are legacy steps. */
-  --color-ink-50: #f3f2ef;
-  --color-ink-100: #e8e6e1;
-  --color-ink-200: #d6d3cc;
-  --color-ink-300: #b5b1a8;
-  --color-ink-400: #6b675f;
-  --color-ink-500: #5e5a53;
-  --color-ink-600: #514e48;
-  --color-ink-700: #3a3834;
-  --color-ink-800: #26252a;
-  --color-ink-900: #121214;
-  --color-ink-950: #0e0d12;
+  --color-ink-50: #f4f7fa;
+  --color-ink-100: #eef2f6;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #a6b3c1;
+  --color-ink-400: #5f6f82;
+  --color-ink-500: #556579;
+  --color-ink-600: #475a6e;
+  --color-ink-700: #344b61;
+  --color-ink-800: #1f4a6b;
+  --color-ink-900: #183b56;
+  --color-ink-950: #0f2a3f;
 
   /* Signal (primary accent) */
-  --color-signal-50: #fdede8;
-  --color-signal-400: #ff7a5c;
-  --color-signal-600: #c8361a;
-  --color-signal-700: #b32e14;
+  --color-signal-50: #e8f8ea;
+  --color-signal-400: #44c654;
+  --color-signal-600: #1a7f37;
+  --color-signal-700: #146c2e;
+
+  /* Brand emerald fills (Nile Blue text on them) */
+  --color-emerald-500: #44c654;
+  --color-emerald-600: #3dbb4d;
 
   /* Status */
-  --color-success-50: #e7f4ec;
-  --color-success-400: #33c47a;
-  --color-success-600: #127a4c;
+  --color-success-50: #e8f8ea;
+  --color-success-400: #44c654;
+  --color-success-600: #1a7f37;
   --color-warning-50: #fff4d6;
   --color-warning-700: #8a5a00;
   --color-error-50: #fbebe8;
   --color-error-300: #ff9b91;
   --color-error-600: #b3261e;
-  --color-info-50: #e9eefc;
-  --color-info-700: #1f45c2;
+  --color-info-50: #e8f1f8;
+  --color-info-700: #1f5a8a;
 
   /* ── Night (student, projector, full-screen preview) ─────────────────── */
-  --color-night-700: #3a3f46;
-  --color-night-800: #2b3036;
-  --color-night-900: #1a1d21;
-  --color-night-950: #0e1013;
-  --color-night-line: #646b74;
-  --color-night-rule: #2b3036;
-  --color-night-text: #f3f4f1;
-  --color-night-muted: #a3a9b0;
+  --color-night-700: #26496a;
+  --color-night-800: #1a3a54;
+  --color-night-900: #10283c;
+  --color-night-950: #0b1d2c;
+  --color-night-line: #5c7891;
+  --color-night-rule: #1a3a54;
+  --color-night-text: #f3f6f9;
+  --color-night-muted: #a9b9c8;
   /* Student phone screens only, at most one element per screen. Graphite text. */
-  --color-volt-400: #d7f23a;
+  --color-volt-400: #44c654;
 
   /* ── Answers (A top-left, B top-right, C bottom-left, D bottom-right) ── */
   --color-answer-a: #3b5bea;
@@ -74,14 +88,14 @@
   --color-answer-b: #0a7a6e;
   --color-answer-b-press: #07615a;
   --color-answer-b-soft: #e0f0ee;
-  --color-answer-c: #b8285f;
+  --color-answer-c: #bf2c65;
   --color-answer-c-press: #961f4d;
   --color-answer-c-soft: #f6e2ea;
   --color-answer-d: #f2b100;
   --color-answer-d-press: #c99200;
   --color-answer-d-soft: #fdf1cc;
-  --color-answer-dim: #22262b;
-  --color-yourpick: #f3f4f1;
+  --color-answer-dim: #1a2c3d;
+  --color-yourpick: #f3f6f9;
 
   /* Ranks (Phase 5, graphite text) */
   --color-rank-gold: #e8b21a;
@@ -89,18 +103,18 @@
   --color-rank-bronze: #c9803f;
 
   /* ── Legacy aliases (screen tasks migrate these to semantic names) ───── */
-  --color-flame-50: #fdede8;
-  --color-flame-100: #fdede8;
-  --color-flame-200: #f8cfc4;
-  --color-flame-300: #ff7a5c;
-  --color-flame-400: #ff7a5c;
-  --color-flame-500: #c8361a;
-  --color-flame-600: #c8361a;
-  --color-flame-700: #b32e14;
-  --color-mint-50: #e7f4ec;
-  --color-mint-400: #33c47a;
-  --color-mint-500: #33c47a;
-  --color-mint-600: #127a4c;
+  --color-flame-50: #e8f8ea;
+  --color-flame-100: #e8f8ea;
+  --color-flame-200: #bfeac5;
+  --color-flame-300: #44c654;
+  --color-flame-400: #44c654;
+  --color-flame-500: #1a7f37;
+  --color-flame-600: #1a7f37;
+  --color-flame-700: #146c2e;
+  --color-mint-50: #e8f8ea;
+  --color-mint-400: #44c654;
+  --color-mint-500: #44c654;
+  --color-mint-600: #1a7f37;
   --color-rose-50: #fbebe8;
   --color-rose-400: #ff9b91;
   --color-rose-500: #b3261e;
@@ -199,8 +213,7 @@
 
   .font-display {
     font-family: var(--font-display);
-    font-stretch: 85%;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
   }
 
   :focus-visible {
@@ -227,27 +240,25 @@
   /* ── Type utilities ──────────────────────────────────────────────────── */
   .type-display {
     font-family: var(--font-display);
-    font-stretch: 85%;
-    font-weight: 850;
-    letter-spacing: -0.015em;
+    font-weight: 800;
+    letter-spacing: -0.025em;
   }
   .type-headline {
     font-family: var(--font-display);
-    font-stretch: 90%;
-    font-weight: 800;
-    letter-spacing: -0.01em;
+    font-weight: 700;
+    letter-spacing: -0.015em;
   }
   /* Numerals only (width 75). */
   .type-score {
     font-family: var(--font-display);
-    font-stretch: 75%;
-    font-weight: 800;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums lining-nums;
   }
   .type-stage {
     font-family: var(--font-display);
-    font-stretch: 75%;
-    font-weight: 900;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums lining-nums;
   }
   .type-kicker {

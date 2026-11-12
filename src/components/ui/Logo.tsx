@@ -14,14 +14,14 @@ export function LogoMark({ className, tone = 'paper' }: { className?: string; to
     <svg viewBox="0 0 32 32" aria-hidden className={cn('size-8 shrink-0', className)}>
       <path
         d="M4 0h20.5L32 7.5V28a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4Z"
-        fill={night ? '#2B3036' : '#121214'}
-        stroke={night ? '#646B74' : 'none'}
+        fill={night ? '#1A3A54' : '#183B56'}
+        stroke={night ? '#5C7891' : 'none'}
         strokeWidth={night ? 1 : 0}
       />
-      <rect x="7" y="17" width="5" height="9" rx="1" fill="#FF7A5C" />
-      <rect x="13.5" y="10" width="5" height="16" rx="1" fill="#F2B100" />
-      <rect x="20" y="13.5" width="5" height="12.5" rx="1" fill="#33C47A" />
-      <path d="M16 3.2l1 2.1 2.1 1-2.1 1L16 9.4l-1-2.1-2.1-1 2.1-1z" fill="#F2B100" />
+      <rect x="7" y="17" width="5" height="9" rx="1" fill="#A9E8B1" />
+      <rect x="13.5" y="10" width="5" height="16" rx="1" fill="#44C654" />
+      <rect x="20" y="13.5" width="5" height="12.5" rx="1" fill="#FFFFFF" />
+      <path d="M16 3.2l1 2.1 2.1 1-2.1 1L16 9.4l-1-2.1-2.1-1 2.1-1z" fill="#44C654" />
     </svg>
   );
 }

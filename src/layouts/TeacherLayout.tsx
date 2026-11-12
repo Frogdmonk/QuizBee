@@ -42,8 +42,8 @@ function NavList({ onNavigate, layoutId }: { onNavigate?: () => void; layoutId: 
                         <m.span layoutId={layoutId} aria-hidden className="absolute top-2 bottom-2 left-0 w-[3px] bg-signal-600" transition={spring.layout} />
                       )}
                       <item.icon className={cn('size-[18px] shrink-0', isActive ? 'text-signal-600' : 'text-ink-500')} />
-                      <span className="flex-1">{item.label}</span>
-                      {item.planned && <Badge>Planned</Badge>}
+                      <span className="min-w-0 flex-1 truncate whitespace-nowrap">{item.label}</span>
+                      {item.planned && <Badge className="shrink-0 px-1 text-[0.625rem]">Soon</Badge>}
                     </>
                   )}
                 </NavLink>

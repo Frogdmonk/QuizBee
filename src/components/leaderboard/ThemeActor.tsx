@@ -246,7 +246,7 @@ const THEME_DEFS: Record<ThemeId, ThemeDef> = {
     prop: ({ t }) => (
       <m.g initial={{ scale: 0 }} animate={{ scale: [0, 1.15, 1, 1, 0] }} style={{ originX: '76px', originY: '24px' }} transition={t()}>
         <path d="M62 12 h28 v18 h-16 l-6 6 v-6 h-6 Z" fill="#F3F4F1" stroke={ink} strokeWidth={1.2} />
-        <text x={76} y={26} textAnchor="middle" fontSize={11} fontWeight={900} fill={ink} fontFamily="Archivo Variable, sans-serif">
+        <text x={76} y={26} textAnchor="middle" fontSize={11} fontWeight={900} fill={ink} fontFamily="Inter Variable, Inter, sans-serif">
           !?
         </text>
       </m.g>
